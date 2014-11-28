@@ -1,0 +1,71 @@
+<module>
+    <!-- module's name should match its executable file's name. -->
+    <name>object-reconstruction</name>
+    <description> A module to reconstruct in 3D a set of pixel and visualize the reconstruction. .</description>
+    <version>1.0</version>
+
+    <!-- <arguments> can have multiple <param> tags-->
+    <arguments>
+        <param desc="Name of the module" default="objectReconstr"> name</param>
+	<param desc="Robot" default="icub"> robot</param>
+        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="grasp"> context </param>
+    </arguments>
+
+    <!-- <authors> can have multiple <author> tags. -->
+    <authors>
+	  <author email="ilaria.gori@iit.it"> Tanis Mar</author>
+    </authors>
+
+     <!-- <data> can have multiple <input> or <output> tags. -->
+     <data>
+        <!-- input data if available -->
+        <input>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/objectReconstr/left:i</port>
+            <required>yes</required>
+            <priority>no</priority>
+            <description> Accepts the incoming images from the left eye. </description>
+        </input>
+        <input>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/objectReconstr/right:i</port>
+            <required>yes</required>
+            <priority>no</priority>
+            <description> Accepts the incoming images from the right eye. </description>
+        </input>
+        <input port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/objectReconstr/rpc</port>
+            <description>takes RPC commands from Human or stateMachine</description>
+        </input>
+        <!-- output data if available -->        
+        <output>
+            <type>Bottle</type>
+            <port>/objectReconstr/mesh:o</port>
+            <description> this is the port where the reconstructed object is returned.</description>
+        </output>
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/objectReconstr/segmentation</port>
+            <description> this is the port through which the pixel belonging to the object is sent to the segmentation module, and the set of pixels belonging to the object are returned</description>
+        </output>
+    </data>
+
+    <dependencies>
+        <computer>
+        </computer>
+    </dependencies>
+
+    <!-- specific libraries or header files which are used for development -->
+    <development>
+        <header></header>
+        <library>YARP</library>
+        <library>objects3D</library>
+        <library>minimumBoundingBox</library>
+        <library>stereoVision</library>
+        <library>OpenCV</library>
+        <library>Point Cloud Library.</library>
+    </development>
+
+</module>
+
