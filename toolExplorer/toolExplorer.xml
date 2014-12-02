@@ -37,7 +37,7 @@
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/toolExplorer/objRec:rpc</port>
+            <port>/toolExplorer/objrec:rpc</port>
             <description> Send commands to the objectReconstruction module</description>
         </output>
         
