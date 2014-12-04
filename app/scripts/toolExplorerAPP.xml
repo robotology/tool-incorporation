@@ -16,7 +16,7 @@
     </module>
     <module>
         <name>object-reconstruction</name>
-        <parameters>--context toolModeler</parameters>
+        <parameters>--name object-reconstruction --context toolModeler</parameters>
         <node>icub13</node>
         <prefix></prefix>
         <geometry>(Pos (x 322) (y 209.9))</geometry>
@@ -50,12 +50,12 @@
     </connection>
     <connection>
         <from>/toolExplorer/objrec:rpc</from>
-        <to>/objectReconstr/rpc</to>
+        <to>/object-reconstruction/rpc</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 517) (y 381)) ((x 733) (y 485)) ((x 322) (y 277))  )</geometry>
     </connection>
     <connection>
-        <from>/objectReconstr/segmentation</from>
+        <from>/object-reconstruction/segmentation</from>
         <to>/GBSeg/conf</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 379) (y 374)) ((x 575) (y 264)) ((x 204) (y 484))  )</geometry>
@@ -68,13 +68,13 @@
     </connection>
     <connection>
         <from external="true">/icub/camcalib/left/out</from>
-        <to>/objectReconstr/left:i</to>
+        <to>/object-reconstruction/left:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x 245.5) (y 162.5)) ((x 189) (y 97)) ((x 323) (y 228))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icub/camcalib/right/out</from>
-        <to>/objectReconstr/right:i</to>
+        <to>/object-reconstruction/right:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x 229.5) (y 256)) ((x 157) (y 259)) ((x 323) (y 253))  )</geometry>
     </connection>
