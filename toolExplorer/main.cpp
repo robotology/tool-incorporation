@@ -219,8 +219,9 @@ protected:
         else
             return false;
 
-	if ((rotDegY > 70 ) || (rotDeg < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
-	    printf("Rotation out of operational limits. \n");	
+	if ((rotDegY > 70 ) || (rotDegY < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
+	    printf("Rotation out of operational limits. \n");
+	    return false;	
 	}
 
         int context_arm,context_gaze;
@@ -239,45 +240,36 @@ protected:
 	}
 
 	// intialize position and orientation matrices
-        Matrix R(4,4);
-        R(0,0)=-1.0;
-        R(2,1)=-1.0;
-        R(1,2)=-1.0;
-        R(3,3)=+1.0;
+        Matrix Rh(4,4);
+        Rh(0,0)=-1.0;         Rh(2,1)=-1.0;         Rh(1,2)=-1.0;         Rh(3,3)=+1.0;
         //Vector r(4,0.0); 
-        Vector xd(3,0.0),od;
+        Vector xd(3,0.0);
         Vector offset(3,0.0);;
 	
 	// set base position
-        xd[0]=-0.25;
+        xd[0]=-0.30;
         xd[1]=(arm=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand 
-        xd[2]= 0.15;// + (arm=="left")?-(0.01*rotDegX/9):(0.01*rotDegX/9);  // move up it the tool is rotated down and viceversa
+        xd[2]= 0.1;
 
 	offset[0]=0;
-        offset[1]=(arm=="left")?(0.01*rotDegY/5):-(0.01*rotDegY/5);	// look slightly towards the side where the tool is rotated
-        offset[2]= 0.1; //(arm=="left")?(0.01*rotDegX/6):-(0.01*rotDegX/6);	// look  it the tool is rotated down and viceversa
+        offset[1]=(arm=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
+        offset[2]= 0.1 - 0.01*abs(rotDegX)/5;
 
 	// Rotate the hand to observe the tool from different positions
-	Vector ox(4), oz(4);
-	ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; oz[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegX:rotDegX); // rotation over X axis
+	Vector ox(4), oy(4);
+	ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegX:rotDegX); // rotation over X axis
 	oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegY:rotDegY); // rotation over Y axis
 
-	Matrix Ry=ctrl::axis2dcm(oy);   // from axis/angle to rotation matrix notation
-	Matrix Rz=ctrl::axis2dcm(oz);
-	Matrix R=Rz*Ry;                 // compose the two rotations keeping the order
-	Vector od=ctrl::dcm2axis(R);     // from rotation matrix back to the axis/angle notation
+	Matrix Ry=axis2dcm(oy);    // from axis/angle to rotation matrix notation
+	Matrix Rx=axis2dcm(ox);
+	Matrix R=Rh*Rx*Ry;         // compose the two rotations keeping the order
+	Vector od=dcm2axis(R);     // from rotation matrix back to the axis/angle notation
 	
-/*
-	r[0]=1.0;	// rotation over X axis 
-	r[2]=1.0;	// rotation over Y axis
- 	r[3]=CTRL_DEG2RAD*(arm=="left"?-rotDeg:rotDeg);
-        od=dcm2axis(axis2dcm(r)*R); 
-*/
-	if (verbose){	printf("Orientation change is:\n %s \n", r.toString().c_str());
-			printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
+
+	if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
 
 	// move!
-	iGaze->setTrackingMode(true);
+	//iGaze->setTrackingMode(true);
 	iGaze->lookAtFixationPoint(xd+offset);
 	iCartCtrl->goToPoseSync(xd,od,1.0);
 	iCartCtrl->waitMotionDone(0.1);
@@ -292,7 +284,7 @@ protected:
     }
 
     /************************************************************************/
-    bool getPointCloud( bool visF, bool saveF)
+    bool getPointCloud( bool visF, bool saveFlag = true)
 	{
 	    // read coordinates from yarpview
 	    printf("Getting tip coordinates \n");
@@ -303,7 +295,7 @@ protected:
 		
 	    // Set obj rec to save mode to keep ply files.
 	    Bottle cmdOR, replyOR;
-	    if (saveF){
+	    if (saveFlag){
 		    cmdOR.clear();	replyOR.clear();
 		    cmdOR.addString("set");
 		    cmdOR.addString("write");
@@ -352,14 +344,14 @@ protected:
 	   {
 		turnHand(degX,0);
 		if (verbose) { printf("Exploration from %i degrees on X axis done \n", degX );}
-		getPointCloud(true);
+		getPointCloud(false);
 		Time::delay(0.5);
 	   }
 	for (int degY = -45; degY<=60; degY += 15)
 	   {
 		turnHand(0,degY);
 		if (verbose) { printf("Exploration from %i degrees on Y axis done \n", degY );}
-		getPointCloud(true);
+		getPointCloud(false);
 		Time::delay(0.5);
 	   }
 	printf("Exploration finished, merging clouds \n");
