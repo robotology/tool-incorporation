@@ -66,9 +66,7 @@ protected:
     bool verbose;
     bool saveF;
     bool closing;
-    
-    
-    
+        
 
     /************************************************************************/
     bool respond(const Bottle &command, Bottle &reply)
@@ -80,15 +78,18 @@ protected:
 	string receivedCmd = command.get(0).asString().c_str();
 	int responseCode;   //Will contain Vocab-encoded response
 
-	if (receivedCmd == "moveArm"){        
-		// Go to position 'int', or random among the possible ones
-		int rotDeg;
-		if (command.size() == 2)
-			rotDeg = command.get(1).asInt();
-		else
-			rotDeg = 0;
+	if (receivedCmd == "turnHand"){        
+		// Turn the hand 'int' degrees, or go to 0 if no parameter was given.
+		int rotDegX = 0;
+		int rotDegY = 0;
+		if (command.size() == 2){
+			rotDegY = command.get(1).asInt();
+		} else if  (command.size() == 3){
+			rotDegX = command.get(1).asInt();
+			rotDegY = command.get(2).asInt();
+		}			
 
-		bool ok = moveArm(rotDeg, hand, eye);
+		bool ok = turnHand(rotDegX, rotDegY, hand, eye);
 		if (ok)
 		    responseCode = Vocab::encode("ack");
 		else {
@@ -181,7 +182,7 @@ protected:
 		reply.addVocab(Vocab::encode("many"));
 		responseCode = Vocab::encode("ack");
 		reply.addString("Available commands are:");
-		reply.addString("moveArm  (int) - moves arm to home position and rotates hand 'int' degrees (0 by default).");
+		reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
 		reply.addString("merge - use merge_point_clouds module to merge gathered views.");
 		reply.addString("explore - gets 3D pointcloud from different perspectives and merges them in a single model.");
@@ -209,7 +210,7 @@ protected:
    
 
     /************************************************************************/
-    bool moveArm(const int rotDeg = 0, const string &arm = "right", const string &eye  = "left")
+    bool turnHand(const int rotDegX = 0, const int rotDegY = 0,  const string &arm = "right", const string &eye  = "left")
     {
         if (arm=="left")
             iCartCtrl=iCartCtrlL;
@@ -218,8 +219,8 @@ protected:
         else
             return false;
 
-	if ((rotDeg > 90 ) || (rotDeg < -90))	{
-	    printf("Hand rotation has to be between -90 and 90 degrees \n");	
+	if ((rotDegY > 70 ) || (rotDeg < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
+	    printf("Rotation out of operational limits. \n");	
 	}
 
         int context_arm,context_gaze;
@@ -243,22 +244,35 @@ protected:
         R(2,1)=-1.0;
         R(1,2)=-1.0;
         R(3,3)=+1.0;
-        Vector r(4,0.0); 
+        //Vector r(4,0.0); 
         Vector xd(3,0.0),od;
         Vector offset(3,0.0);;
 	
 	// set base position
         xd[0]=-0.25;
-        xd[1]=(arm=="left")?-0.1:0.1;
-        xd[2]=0.0;
+        xd[1]=(arm=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand 
+        xd[2]= 0.15;// + (arm=="left")?-(0.01*rotDegX/9):(0.01*rotDegX/9);  // move up it the tool is rotated down and viceversa
+
 	offset[0]=0;
-        offset[1]=(arm=="left")?(0.01*rotDeg/5):-(0.01*rotDeg/5);
-        offset[2]=0.15;
+        offset[1]=(arm=="left")?(0.01*rotDegY/5):-(0.01*rotDegY/5);	// look slightly towards the side where the tool is rotated
+        offset[2]= 0.1; //(arm=="left")?(0.01*rotDegX/6):-(0.01*rotDegX/6);	// look  it the tool is rotated down and viceversa
 
 	// Rotate the hand to observe the tool from different positions
-	r[2]=1.0;	// rotation over Y axis 
+	Vector ox(4), oz(4);
+	ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; oz[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegX:rotDegX); // rotation over X axis
+	oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegY:rotDegY); // rotation over Y axis
+
+	Matrix Ry=ctrl::axis2dcm(oy);   // from axis/angle to rotation matrix notation
+	Matrix Rz=ctrl::axis2dcm(oz);
+	Matrix R=Rz*Ry;                 // compose the two rotations keeping the order
+	Vector od=ctrl::dcm2axis(R);     // from rotation matrix back to the axis/angle notation
+	
+/*
+	r[0]=1.0;	// rotation over X axis 
+	r[2]=1.0;	// rotation over Y axis
  	r[3]=CTRL_DEG2RAD*(arm=="left"?-rotDeg:rotDeg);
         od=dcm2axis(axis2dcm(r)*R); 
+*/
 	if (verbose){	printf("Orientation change is:\n %s \n", r.toString().c_str());
 			printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
 
@@ -332,14 +346,23 @@ protected:
     /************************************************************************/
     bool explore()
 	{
-	for (int deg = -45; deg<=60; deg += 15)
+	for (int degX = -90; degX<=90; degX += 15)
 	   {
-		moveArm(deg);
-		if (verbose) { printf("Exploration from %i degrees done \n", deg );}
+		turnHand(degX,0);
+		if (verbose) { printf("Exploration from %i degrees on X axis done \n", degX );}
 		getPointCloud(true);
 		Time::delay(0.5);
 	   }
+	for (int degY = -45; degY<=60; degY += 15)
+	   {
+		turnHand(0,degY);
+		if (verbose) { printf("Exploration from %i degrees on Y axis done \n", degY );}
+		getPointCloud(true);
+		Time::delay(0.5);
+	   }
+	printf("Exploration finished, merging clouds \n");
 	mergePointClouds();
+	printf("Clouds merged, saving full model \n");
 	return true;
 	}
 
