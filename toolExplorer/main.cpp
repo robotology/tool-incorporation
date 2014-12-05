@@ -25,6 +25,7 @@
 #include <yarp/dev/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
+#include <yarp/math/Rand.h>
 
 #include <iCub/ctrl/math.h>
 
@@ -224,20 +225,14 @@ protected:
 	    return false;	
 	}
 
-        int context_arm,context_gaze;
+
+
+    int context_arm,context_gaze;
+	//iGaze->restoreContext(0);  
+        
         iCartCtrl->storeContext(&context_arm);
         iGaze->storeContext(&context_gaze);
-	//iGaze->restoreContext(0);
-        
 
-        iGaze->setSaccadesStatus(true);
-	if (robot == "icubSim"){
-	        iGaze->setNeckTrajTime(1.5);
-        	iGaze->setEyesTrajTime(0.5);
-	}else{
-		iGaze->setNeckTrajTime(2.5);
-        	iGaze->setEyesTrajTime(1.5);
-	}
 
 	// intialize position and orientation matrices
         Matrix Rh(4,4);
@@ -253,7 +248,7 @@ protected:
 
 	offset[0]=0;
         offset[1]=(arm=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
-        offset[2]= 0.1 - 0.01*abs(rotDegX)/5;
+        offset[2]= 0.15 - 0.01*abs(rotDegX)/5;
 
 	// Rotate the hand to observe the tool from different positions
 	Vector ox(4), oy(4);
@@ -280,7 +275,27 @@ protected:
         iGaze->restoreContext(context_gaze);
         iGaze->deleteContext(context_gaze);
 
+
+
         return true;
+    }
+    
+    /************************************************************************/
+    bool lookAround()
+    {
+        Vector fp,fp_aux(3,0.0);
+        iGaze->getFixationPoint(fp);
+        printf("Looking at %.2f, %.2f, %.2f \n", fp[0], fp[1], fp[2] );
+        for (int g = 1; g<6; g++) 
+        {
+            fp_aux[0] = fp[0] + Rand::scalar(-0.02,0.02);
+            fp_aux[1] = fp[1] + Rand::scalar(-0.04,0.04);
+            fp_aux[2] = fp[2] + Rand::scalar(-0.02,0.02);
+            printf("Around Looking at %.2f, %.2f, %.2f \n", fp_aux[0], fp_aux[1], fp_aux[2] );
+            iGaze->lookAtFixationPoint(fp_aux);
+            iGaze->waitMotionDone(0.05);
+        }
+       	if (verbose){	printf("Looking around done \n");	}
     }
 
     /************************************************************************/
@@ -340,16 +355,17 @@ protected:
     /************************************************************************/
     bool explore()
 	{
-	for (int degX = -90; degX<=60; degX += 15)
+	/*for (int degX = -90; degX<=60; degX += 15)
 	   {
 		turnHand(degX,0);
 		if (verbose) { printf("Exploration from %i degrees on X axis done \n", degX );}
 		getPointCloud(false);
 		Time::delay(0.5);
-	   }
+	   }*/
 	for (int degY = -45; degY<=60; degY += 15)
 	   {
 		turnHand(0,degY);
+        lookAround();
 		if (verbose) { printf("Exploration from %i degrees on Y axis done \n", degY );}
 		getPointCloud(false);
 		Time::delay(0.5);
@@ -480,6 +496,16 @@ public:
         driverR.view(iCartCtrlR);
 
 
+        iGaze->setSaccadesStatus(false);
+        if (robot == "icubSim"){
+                iGaze->setNeckTrajTime(1.5);
+            	iGaze->setEyesTrajTime(0.5);
+        }else{
+	            iGaze->setNeckTrajTime(1.5);
+            	iGaze->setEyesTrajTime(0.5);
+        }
+
+
         closing = false;
     	saveF = true;
             	
@@ -503,6 +529,7 @@ public:
 	else
 	    driverHR.view(ivel);
 	ivel->stop(4);
+
         
         return true;
     }
