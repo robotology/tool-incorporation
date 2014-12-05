@@ -103,7 +103,7 @@ protected:
 	}else if (receivedCmd == "get3D"){
 		// segment object and get the pointcloud using objectReconstrucor module
 		// save it in file or array
-		bool ok = getPointCloud(saveF);
+		bool ok = getPointCloud(true, saveF);
 		if (ok)
 		    responseCode = Vocab::encode("ack");
 		else {
@@ -292,7 +292,7 @@ protected:
     }
 
     /************************************************************************/
-    bool getPointCloud( bool saveF)
+    bool getPointCloud( bool visF, bool saveF)
 	{
 	    // read coordinates from yarpview
 	    printf("Getting tip coordinates \n");
@@ -304,11 +304,11 @@ protected:
 	    // Set obj rec to save mode to keep ply files.
 	    Bottle cmdOR, replyOR;
 	    if (saveF){
-		cmdOR.clear();	replyOR.clear();
-		cmdOR.addString("set");
-		cmdOR.addString("write");
-		cmdOR.addString("on");
-		rpcObjRecPort.write(cmdOR,replyOR);
+		    cmdOR.clear();	replyOR.clear();
+		    cmdOR.addString("set");
+		    cmdOR.addString("write");
+		    cmdOR.addString("on");
+		    rpcObjRecPort.write(cmdOR,replyOR);
 	    }
 		
 	    // send coordinates as rpc to objectRec
@@ -320,7 +320,9 @@ protected:
 	    // requests 3D reconstruction to objectReconst module
 	    cmdOR.clear();	replyOR.clear();
 	    cmdOR.addString("3Drec");
-	    cmdOR.addString("visualize");
+        if (visF){
+    	    cmdOR.addString("visualize");
+        }
 	    rpcObjRecPort.write(cmdOR,replyOR);
 	    
  	    printf("3D reconstruction obtrained and saved.\n");
@@ -363,6 +365,7 @@ protected:
 	printf("Exploration finished, merging clouds \n");
 	mergePointClouds();
 	printf("Clouds merged, saving full model \n");
+
 	return true;
 	}
 
@@ -486,7 +489,8 @@ public:
 
 
         closing = false;
-	saveF = true;	
+    	saveF = true;
+            	
 	// handUsed="null";
 
         return true;
