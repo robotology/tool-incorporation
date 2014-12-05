@@ -247,7 +247,7 @@ protected:
         Vector offset(3,0.0);;
 	
 	// set base position
-        xd[0]=-0.30;
+        xd[0]=-0.25;
         xd[1]=(arm=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand 
         xd[2]= 0.1;
 
@@ -340,7 +340,7 @@ protected:
     /************************************************************************/
     bool explore()
 	{
-	for (int degX = -90; degX<=90; degX += 15)
+	for (int degX = -90; degX<=60; degX += 15)
 	   {
 		turnHand(degX,0);
 		if (verbose) { printf("Exploration from %i degrees on X axis done \n", degX );}
