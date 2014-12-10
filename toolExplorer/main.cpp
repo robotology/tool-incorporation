@@ -306,7 +306,7 @@ protected:
     }
 
     /************************************************************************/
-    bool getPointCloud( bool visF, bool saveFlag = true)
+    bool getPointCloud(const bool visF, const bool saveFlag = true)
 	{
 	    // read coordinates from yarpview
 	    if (verbose){printf("Getting tip coordinates \n");}
@@ -390,7 +390,7 @@ protected:
 	}
 
     /*************************** -Conf Commands- ******************************/
-    bool setVerbose(string verb)
+    bool setVerbose(const string& verb)
 	{
 	    if (verb == "ON"){
 		verbose = true;
@@ -404,7 +404,7 @@ protected:
 	    return false;
 	}
 
-    bool setHand(string handName)
+    bool setHand(const string& handName)
 	{
 	    if ((handName == "left")|| (handName == "right")){
 		hand = handName;
@@ -414,7 +414,7 @@ protected:
 	    return false;
 	}
 
-    bool setEye(string eyeName)
+    bool setEye(const string& eyeName)
 	{
 	    if ((eyeName == "left")|| (eyeName == "right")){
 		eye = eyeName;
