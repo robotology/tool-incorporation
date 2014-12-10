@@ -9,7 +9,7 @@
     </module>
     <module>
         <name>merge_point_clouds</name>
-        <parameters>--object-reconstruction /home/icub/icubTanis/toolModeler/data/</parameters>
+        <parameters>--from config.ini</parameters>
         <node>icub13</node>
         <prefix></prefix>
         <geometry>(Pos (x 765) (y 358.9))</geometry>

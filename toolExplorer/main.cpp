@@ -134,7 +134,14 @@ protected:
 		// check that enough pointclouds have been gathered
 		// and use merge_point_clouds module to merge them
 		// save complete  pointcloud elsewhere 
-		bool ok = explore();
+		bool contF = true;
+		if (command.size() == 2){
+			string cmd2 = command.get(1).asString();
+			if (cmd2 == "all"){
+			    contF= false;}			
+		}
+		bool ok = explore(contF);
+
 		if (ok)
 		    responseCode = Vocab::encode("ack");
 		else {
@@ -186,7 +193,7 @@ protected:
 		reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
 		reply.addString("merge - use merge_point_clouds module to merge gathered views.");
-		reply.addString("explore - gets 3D pointcloud from different perspectives and merges them in a single model.");
+		reply.addString("explore (all)- gets 3D pointcloud from different perspectives and merges them in a single model. If 'all' is given, it will merge all pointclouds at the end, otherwise incrementally.");
 		reply.addString("hand left/right - Sets active the hand (default right).");
 		reply.addString("eye left/right - Sets active the eye (default left).");
 		reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
@@ -302,11 +309,11 @@ protected:
     bool getPointCloud( bool visF, bool saveFlag = true)
 	{
 	    // read coordinates from yarpview
-	    printf("Getting tip coordinates \n");
+	    if (verbose){printf("Getting tip coordinates \n");}
 	    Bottle *toolTipIn = seedInPort.read(true);	//waits until it receives coordinates
 	    int u = toolTipIn->get(0).asInt();
 	    int v = toolTipIn->get(1).asInt();
-	    cout << "Retrieving tool blob from u: "<< u << ", v: "<< v << endl;	
+	    if (verbose){cout << "Retrieving tool blob from u: "<< u << ", v: "<< v << endl;	}
 		
 	    // Set obj rec to save mode to keep ply files.
 	    Bottle cmdOR, replyOR;
@@ -343,35 +350,40 @@ protected:
 	// sets the /mergeModule path to wherever the pcl files have been saved, or reads the array.
 	// calls 'merge' rpc command to merge_point_clouds
 
-	    // Set obj rec to save mode to keep ply files.
-	    Bottle cmdMPC, replyMPC;
-	    cmdMPC.clear();	replyMPC.clear();
-	    cmdMPC.addString("merge");
-	    rpcMergerPort.write(cmdMPC,replyMPC);
+        // Set obj rec to save mode to keep ply files.
+   	Bottle cmdMPC, replyMPC;
+	cmdMPC.clear();	replyMPC.clear();
+	cmdMPC.addString("merge");
+	rpcMergerPort.write(cmdMPC,replyMPC);
 
 	return true;
-	}
+    }
 
     /************************************************************************/
-    bool explore()
+    bool explore(bool contMerge = true)
 	{
-	/*for (int degX = -90; degX<=60; degX += 15)
+	for (int degX = 60; degX>=-75; degX -= 15)
 	   {
 		turnHand(degX,0);
-		if (verbose) { printf("Exploration from %i degrees on X axis done \n", degX );}
+		printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
 		getPointCloud(false);
-		Time::delay(0.5);
-	   }*/
-	for (int degY = -45; degY<=60; degY += 15)
-	   {
-		turnHand(0,degY);
-        lookAround();
-		if (verbose) { printf("Exploration from %i degrees on Y axis done \n", degY );}
-		getPointCloud(false);
+		if (contMerge){
+			mergePointClouds();}
 		Time::delay(0.5);
 	   }
+	for (int degY = 0; degY<=60; degY += 15)
+	   {
+		turnHand(-60,degY);
+        	//lookAround();
+		printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+		getPointCloud(false);
+		if (contMerge){
+			mergePointClouds();}
+		Time::delay(0.5);
+	   } 
 	printf("Exploration finished, merging clouds \n");
-	mergePointClouds();
+	if (!contMerge){
+		mergePointClouds();}
 	printf("Clouds merged, saving full model \n");
 
 	return true;
@@ -509,15 +521,13 @@ public:
         closing = false;
     	saveF = true;
             	
-	// handUsed="null";
-
         return true;
     }
 
     /************************************************************************/
     bool interruptModule()
     {
-        closing=true;
+        closing = true;
 
         iGaze->stopControl();
         iCartCtrlL->stopControl();
