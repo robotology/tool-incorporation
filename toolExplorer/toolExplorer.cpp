@@ -1,7 +1,7 @@
 /* 
- * Copyright (C) 2012 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
- * Author: Ugo Pattacini
- * email:  ugo.pattacini@iit.it
+ * Copyright (C) 2014 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
+ * Author: Tanis Mar
+ * email:  tanis.mar@iit.it
  * Permission is granted to copy, distribute, and/or modify this program
  * under the terms of the GNU General Public License, version 2 or any
  * later version published by the Free Software Foundation.
@@ -48,6 +48,7 @@ protected:
     yarp::os::BufferedPort<yarp::os::Bottle >   seedInPort;
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
     yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with MERGE_POINT_CLOUDS module
+    yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
 
 
     PolyDriver driverG;
@@ -96,6 +97,7 @@ protected:
 		else {
 		    fprintf(stdout,"Couldnt go to the desired position. \n");
 		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
   		    return false;
 		}
 		reply.addVocab(responseCode);
@@ -110,6 +112,7 @@ protected:
 		else {
 		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
 		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
 		    return false;
 		}
 		reply.addVocab(responseCode);
@@ -125,6 +128,7 @@ protected:
 		else {
 		    fprintf(stdout,"Couldnt merge pointclouds. \n");
 		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
 		    return false;
 		}
 		reply.addVocab(responseCode);
@@ -147,6 +151,7 @@ protected:
 		else {
 		    fprintf(stdout,"Couldnt obtain 3D model successfully. \n");
 		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
 		    return false;
 		}
 		reply.addVocab(responseCode);
@@ -159,6 +164,8 @@ protected:
 		else {
 		    fprintf(stdout,"Hand can only be set to 'right' or 'left'. \n");
 		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
+		    return false;
 		}
 		reply.addVocab(responseCode);
 		return true;
@@ -170,6 +177,9 @@ protected:
 		else {
 		    fprintf(stdout,"Eye can only be set to 'right' or 'left'. \n");
 		    responseCode = Vocab::encode("nack");
+		    		    reply.addVocab(responseCode);
+		    return false;
+		    
 		}
 		reply.addVocab(responseCode);
 		return true;
@@ -181,6 +191,8 @@ protected:
 		else {
 		    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
 		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
+		    return false;
 		}
 		reply.addVocab(responseCode);
 		return true;
@@ -347,10 +359,8 @@ protected:
     /************************************************************************/
     bool mergePointClouds()
 	{
-	// sets the /mergeModule path to wherever the pcl files have been saved, or reads the array.
-	// calls 'merge' rpc command to merge_point_clouds
-
-        // Set obj rec to save mode to keep ply files.
+	// sets the folder path to wherever the pcl files have been saved, or reads the array.
+	// calls 'merge' rpc command to mergeClouds
    	Bottle cmdMPC, replyMPC;
 	cmdMPC.clear();	replyMPC.clear();
 	cmdMPC.addString("merge");
@@ -358,48 +368,64 @@ protected:
 
 	return true;
     }
+    
+    /************************************************************************/
+    bool showPointCloud()
+	{
+	// Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer 
+   	Bottle cmdVis, replyVis;
+	cmdVis.clear();	replyVis.clear();
+	cmdVis.addString("show");
+	rpcVisualizerPort.write(cmdVis,replyVis);
+
+	return true;
+    }
 
     /************************************************************************/
     bool explore(bool contMerge = true)
 	{
-	for (int degX = 60; degX>=-75; degX -= 15)
-	   {
-		turnHand(degX,0);
-		printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-		getPointCloud(false);
-		if (contMerge){
-			mergePointClouds();}
-		Time::delay(0.5);
-	   }
-	for (int degY = 0; degY<=60; degY += 15)
-	   {
-		turnHand(-60,degY);
-        	//lookAround();
-		printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
-		getPointCloud(false);
-		if (contMerge){
-			mergePointClouds();}
-		Time::delay(0.5);
-	   } 
-	printf("Exploration finished, merging clouds \n");
-	if (!contMerge){
-		mergePointClouds();}
-	printf("Clouds merged, saving full model \n");
-
-	return true;
+	    for (int degX = 60; degX>=-75; degX -= 15)
+	    {
+		    turnHand(degX,0);
+		    printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
+		    getPointCloud(false);
+		    if (contMerge){
+			    mergePointClouds();}
+		    Time::delay(0.5);
+	    }
+	    for (int degY = 0; degY<=60; degY += 15)
+	    {
+		    turnHand(-60,degY);
+            //lookAround();
+		    printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+		    getPointCloud(false);
+		    if (contMerge){
+			    mergePointClouds();}
+		    Time::delay(0.5);
+	    } 
+	    printf("Exploration finished, merging clouds \n");
+	    if (!contMerge){
+		    mergePointClouds();}
+	    printf("Clouds merged, saving full model \n");
+        
+        // Visualize merged pointcloud
+	    showPointCloud();
+        printf("PC displayed \n");
+        
+        return true;
 	}
 
     /*************************** -Conf Commands- ******************************/
     bool setVerbose(const string& verb)
 	{
 	    if (verb == "ON"){
-		verbose = true;
-		fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-		return true;
+		    verbose = true;
+		    fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+		    return true;
 	    } else if (verb == "OFF"){
-		verbose = false;
-		fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-		return true;
+		    verbose = false;
+		    fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+		    return true;
 	    }    
 	    return false;
 	}
@@ -407,9 +433,9 @@ protected:
     bool setHand(const string& handName)
 	{
 	    if ((handName == "left")|| (handName == "right")){
-		hand = handName;
-		fprintf(stdout,"Active hand is: %s\n", handName.c_str());
-		return true;
+		    hand = handName;
+		    fprintf(stdout,"Active hand is: %s\n", handName.c_str());
+		    return true;
 	    }
 	    return false;
 	}
@@ -417,9 +443,9 @@ protected:
     bool setEye(const string& eyeName)
 	{
 	    if ((eyeName == "left")|| (eyeName == "right")){
-		eye = eyeName;
-		fprintf(stdout,"Active eye is: %s\n", eyeName.c_str());
-		return true;
+		    eye = eyeName;
+		    fprintf(stdout,"Active eye is: %s\n", eyeName.c_str());
+		    return true;
 	    }
 	    return false;
 	}
@@ -431,25 +457,25 @@ public:
         string name=rf.check("name",Value("toolExplorer")).asString().c_str();
         robot=rf.check("robot",Value("icub")).asString().c_str();
         hand = rf.check("hand", Value("right")).asString();
-	eye = rf.check("camera", Value("left")).asString();
-	verbose = rf.check("verbose", Value(false)).asBool();
+	    eye = rf.check("camera", Value("left")).asString();
+	    verbose = rf.check("verbose", Value(false)).asBool();
 
-
-	//ports
+	    //ports
         rpcPort.open(("/"+name+"/rpc:i").c_str());
         attach(rpcPort);
         
 
-	bool ret = true;  
+	    bool ret = true;  
         ret = seedInPort.open(("/"+name+"/seed:i").c_str());	                       // input port to receive data from user
         ret = ret && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to send data out for recording
-	ret = ret && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to send data out for recording
-	if (!ret){
-	    printf("Problems opening ports\n");
-	    return false;
-	}
+	    ret = ret && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
+	    ret = ret && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());         // port to command the visualizer module
+	    if (!ret){
+	        printf("Problems opening ports\n");
+	        return false;
+	    }
 
-	//Cartesian controllers
+	    //Cartesian controllers
         Property optionG("(device gazecontrollerclient)");
         optionG.put("remote","/iKinGazeCtrl");
         optionG.put("local",("/"+name+"/gaze_ctrl").c_str());
@@ -520,6 +546,8 @@ public:
 
         closing = false;
     	saveF = true;
+    	
+    	cout << endl << "Configuring done." << endl;
             	
         return true;
     }

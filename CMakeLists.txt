@@ -21,6 +21,8 @@ add_definitions(${YARP_DEFINES})   # add yarp definitions - this contains also -
 
 ## add modules
 add_subdirectory(toolExplorer)
+add_subdirectory(mergeClouds)
+add_subdirectory(tool3Dshow)
 
 ## then apps
 add_subdirectory(app)
