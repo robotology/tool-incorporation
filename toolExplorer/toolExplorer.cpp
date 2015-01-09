@@ -125,7 +125,7 @@ protected:
             modelname = command.get(1).asString();
         }else{
             fprintf(stdout,"Please provide a name. \n");
-            return false
+            return false;
         }
 		bool ok = changeModelName(modelname);
 		if (ok){
@@ -441,7 +441,7 @@ protected:
     bool changeModelName(const string& modelname)
 	{
     	// Changes the name with which the pointclouds will be saved
-       	Bottle cmdOR, replyMPC;
+       	Bottle cmdOR, replyOR;
 	    // requests 3D reconstruction to objectReconst module
 	    cmdOR.clear();	replyOR.clear();
 	    cmdOR.addString("name");
