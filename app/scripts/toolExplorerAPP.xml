@@ -52,7 +52,7 @@
     
     <connection>
         <from>/toolExplorer/merger:rpc</from>
-        <to>/mergeModule</to>
+        <to>/mergeClouds/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 738.5) (y 418)) ((x 733) (y 460)) ((x 765) (y 376))  )</geometry>
     </connection>

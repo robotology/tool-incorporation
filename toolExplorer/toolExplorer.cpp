@@ -106,7 +106,7 @@ protected:
 	}else if (receivedCmd == "get3D"){
 		// segment object and get the pointcloud using objectReconstrucor module
 		// save it in file or array
-		bool ok = getPointCloud(true, saveF);
+		bool ok = getPointCloud(false, saveF);
 		if (ok)
 		    responseCode = Vocab::encode("ack");
 		else {
@@ -117,6 +117,27 @@ protected:
 		}
 		reply.addVocab(responseCode);
 		return true;
+
+	}else if (receivedCmd == "modelname"){
+		// changes the name with which files will be saved by the object-reconstruction module
+        tring modelname;
+        if (command.size() >= 2){
+            modelname = command.get(1).asString();
+        }else{
+            fprintf(stdout,"Please provide a name. \n");
+            return false
+        }
+		bool ok = changeModelName(modelname);
+		if (ok)
+		    responseCode = Vocab::encode("ack");
+	    	reply.addVocab(responseCode);
+    		return true;
+		else {
+		    fprintf(stdout,"Couldnt change the name. \n");
+		    responseCode = Vocab::encode("nack");
+		    reply.addVocab(responseCode);
+		    return false;
+		}
 
 	}else if (receivedCmd == "merge"){
 		// check that enough pointclouds have been gathered
@@ -206,6 +227,7 @@ protected:
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
 		reply.addString("merge - use merge_point_clouds module to merge gathered views.");
 		reply.addString("explore (all)- gets 3D pointcloud from different perspectives and merges them in a single model. If 'all' is given, it will merge all pointclouds at the end, otherwise incrementally.");
+		reply.addString("modelname (string) - Changes the name with which the pointclouds will be saved.");
 		reply.addString("hand left/right - Sets active the hand (default right).");
 		reply.addString("eye left/right - Sets active the eye (default left).");
 		reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
@@ -261,7 +283,7 @@ protected:
         Vector offset(3,0.0);;
 	
 	// set base position
-        xd[0]=-0.25;
+        xd[0]=-0.30;
         xd[1]=(arm=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand 
         xd[2]= 0.1;
 
@@ -415,6 +437,21 @@ protected:
         return true;
 	}
 
+    /************************************************************************/
+    bool changeModelName(const string& modelname)
+	{
+    	// Changes the name with which the pointclouds will be saved
+       	Bottle cmdOR, replyMPC;
+	    // requests 3D reconstruction to objectReconst module
+	    cmdOR.clear();	replyOR.clear();
+	    cmdOR.addString("name");
+	    cmdOR.addString(modelname);
+	    rpcObjRecPort.write(cmdOR,replyOR);
+	    
+ 	    printf("Name changed to %s.\n", modelname.c_str());
+	return true;
+    }
+
     /*************************** -Conf Commands- ******************************/
     bool setVerbose(const string& verb)
 	{
@@ -562,11 +599,11 @@ public:
         iCartCtrlR->stopControl();
 
         IVelocityControl *ivel;
-	if (hand=="left")
-	    driverHL.view(ivel);
-	else
-	    driverHR.view(ivel);
-	ivel->stop(4);
+	    if (hand=="left")
+	        driverHL.view(ivel);
+	    else
+	        driverHR.view(ivel);
+	    ivel->stop(4);
 
         
         return true;
