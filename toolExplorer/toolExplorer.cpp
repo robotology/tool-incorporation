@@ -120,7 +120,7 @@ protected:
 
 	}else if (receivedCmd == "modelname"){
 		// changes the name with which files will be saved by the object-reconstruction module
-        tring modelname;
+        string modelname;
         if (command.size() >= 2){
             modelname = command.get(1).asString();
         }else{
@@ -128,11 +128,11 @@ protected:
             return false
         }
 		bool ok = changeModelName(modelname);
-		if (ok)
+		if (ok){
 		    responseCode = Vocab::encode("ack");
 	    	reply.addVocab(responseCode);
     		return true;
-		else {
+		}else {
 		    fprintf(stdout,"Couldnt change the name. \n");
 		    responseCode = Vocab::encode("nack");
 		    reply.addVocab(responseCode);
