@@ -140,9 +140,9 @@ protected:
 		}
 
 	}else if (receivedCmd == "merge"){
-		// check that enough pointclouds have been gathered
+        // checks that enough pointclouds have been gathered
 		// and use merge_point_clouds module to merge them
-		// save complete  pointcloud elsewhere 
+        // saving the complete pointcloud is done by the merging module
 		bool ok = mergePointClouds();
 		if (ok)
 		    responseCode = Vocab::encode("ack");
@@ -155,10 +155,23 @@ protected:
 		reply.addVocab(responseCode);
 		return true;
 
+    }else if (receivedCmd == "transform"){
+        // transforms the reference frame of the pointcloud to the hands one.
+        bool ok = transformFrame();
+        if (ok)
+            responseCode = Vocab::encode("ack");
+        else {
+            fprintf(stdout,"Transformation the reference frame not successful. \n");
+            responseCode = Vocab::encode("nack");
+            reply.addVocab(responseCode);
+            return false;
+        }
+        reply.addVocab(responseCode);
+        return true;
+
 	}else if (receivedCmd == "explore"){
-		// check that enough pointclouds have been gathered
-		// and use merge_point_clouds module to merge them
-		// save complete  pointcloud elsewhere 
+        // Moves the tool in different direction to obtain different points of view
+        // and extract corresponding partial pointclouds.
 		bool contF = true;
 		if (command.size() == 2){
 			string cmd2 = command.get(1).asString();
@@ -226,6 +239,7 @@ protected:
 		reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
 		reply.addString("merge - use merge_point_clouds module to merge gathered views.");
+        reply.addString("transform - transforms the poincloud using affine to the reference frame of the hand.");
 		reply.addString("explore (all)- gets 3D pointcloud from different perspectives and merges them in a single model. If 'all' is given, it will merge all pointclouds at the end, otherwise incrementally.");
 		reply.addString("modelname (string) - Changes the name with which the pointclouds will be saved.");
 		reply.addString("hand left/right - Sets active the hand (default right).");
@@ -261,54 +275,54 @@ protected:
         else
             return false;
 
-	if ((rotDegY > 70 ) || (rotDegY < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
-	    printf("Rotation out of operational limits. \n");
-	    return false;	
-	}
+        if ((rotDegY > 70 ) || (rotDegY < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
+            printf("Rotation out of operational limits. \n");
+            return false;
+        }
 
 
 
-    int context_arm,context_gaze;
-	//iGaze->restoreContext(0);  
-        
+        int context_arm,context_gaze;
+        //iGaze->restoreContext(0);
+
         iCartCtrl->storeContext(&context_arm);
         iGaze->storeContext(&context_gaze);
 
 
-	// intialize position and orientation matrices
+        // intialize position and orientation matrices
         Matrix Rh(4,4);
         Rh(0,0)=-1.0;         Rh(2,1)=-1.0;         Rh(1,2)=-1.0;         Rh(3,3)=+1.0;
         //Vector r(4,0.0); 
         Vector xd(3,0.0);
         Vector offset(3,0.0);;
 	
-	// set base position
+        // set base position
         xd[0]=-0.30;
         xd[1]=(arm=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand 
         xd[2]= 0.1;
 
-	offset[0]=0;
+        offset[0]=0;
         offset[1]=(arm=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
         offset[2]= 0.15 - 0.01*abs(rotDegX)/5;
 
-	// Rotate the hand to observe the tool from different positions
-	Vector ox(4), oy(4);
-	ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegX:rotDegX); // rotation over X axis
-	oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegY:rotDegY); // rotation over Y axis
+        // Rotate the hand to observe the tool from different positions
+        Vector ox(4), oy(4);
+        ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegX:rotDegX); // rotation over X axis
+        oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegY:rotDegY); // rotation over Y axis
 
-	Matrix Ry=axis2dcm(oy);    // from axis/angle to rotation matrix notation
-	Matrix Rx=axis2dcm(ox);
-	Matrix R=Rh*Rx*Ry;         // compose the two rotations keeping the order
-	Vector od=dcm2axis(R);     // from rotation matrix back to the axis/angle notation
-	
+        Matrix Ry=axis2dcm(oy);    // from axis/angle to rotation matrix notation
+        Matrix Rx=axis2dcm(ox);
+        Matrix R=Rh*Rx*Ry;         // compose the two rotations keeping the order
+        Vector od=dcm2axis(R);     // from rotation matrix back to the axis/angle notation
 
-	if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
 
-	// move!
-	//iGaze->setTrackingMode(true);
-	iGaze->lookAtFixationPoint(xd+offset);
-	iCartCtrl->goToPoseSync(xd,od,1.0);
-	iCartCtrl->waitMotionDone(0.1);
+        if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
+
+        // move!
+        //iGaze->setTrackingMode(true);
+        iGaze->lookAtFixationPoint(xd+offset);
+        iCartCtrl->goToPoseSync(xd,od,1.0);
+        iCartCtrl->waitMotionDone(0.1);
 
         iCartCtrl->restoreContext(context_arm);
         iCartCtrl->deleteContext(context_arm);
@@ -316,11 +330,10 @@ protected:
         iGaze->restoreContext(context_gaze);
         iGaze->deleteContext(context_gaze);
 
-
-
         return true;
     }
-    
+
+
     /************************************************************************/
     bool lookAround()
     {
@@ -337,6 +350,8 @@ protected:
             iGaze->waitMotionDone(0.05);
         }
        	if (verbose){	printf("Looking around done \n");	}
+
+        return true;
     }
 
     /************************************************************************/
@@ -372,6 +387,9 @@ protected:
     	    cmdOR.addString("visualize");
         }
 	    rpcObjRecPort.write(cmdOR,replyOR);
+
+        // XXX Somewhere here get also the current reference frame coordinates and save them in a file with the same name as the cloud
+        // XXX or transform the cloud directly so that it is already saved on the proper frame. This might help registration too.
 	    
  	    printf("3D reconstruction obtrained and saved.\n");
 	
@@ -383,24 +401,56 @@ protected:
 	{
 	// sets the folder path to wherever the pcl files have been saved, or reads the array.
 	// calls 'merge' rpc command to mergeClouds
-   	Bottle cmdMPC, replyMPC;
-	cmdMPC.clear();	replyMPC.clear();
-	cmdMPC.addString("merge");
-	rpcMergerPort.write(cmdMPC,replyMPC);
+        Bottle cmdMPC, replyMPC;
+        cmdMPC.clear();	replyMPC.clear();
+        cmdMPC.addString("merge");
+        rpcMergerPort.write(cmdMPC,replyMPC);
 
-	return true;
+        return true;
     }
+
+    /************************************************************************/
+    bool transformFrame()
+    { // XXX XXX Fill in this function!!!
+      // Transform (translate-rotate) the pointcloud by inverting the hand pose
+
+        //Get hand pose
+        // XXX getPose(xi,oi);
+        // XXX for the moment lets use the known pose of the hoe
+
+        Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+
+        //Translate first to origin
+        transform.translation() << -xi(0), -xi(1), -xi(2);
+        //transform.translation() << 0.480, -0.02565, -0.061;
+
+
+        // transform_2.rotate (XXX invert oi);
+
+        // Print the transformation
+        printf ("\nMethod #2: using an Affine3f\n");
+        std::cout << transform.matrix() << std::endl;
+
+        // Executing the transformation
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+        // You can either apply transform_1 or transform_2; they are the same
+        pcl::transformPointCloud (*source_cloud, *cloud, transform);
+
+        if (verbose){	printf("Transformation done \n");	}
+        return true;
+    }
+
     
     /************************************************************************/
     bool showPointCloud()
 	{
-	// Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer 
-   	Bottle cmdVis, replyVis;
-	cmdVis.clear();	replyVis.clear();
-	cmdVis.addString("show");
-	rpcVisualizerPort.write(cmdVis,replyVis);
+        // Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer
+        Bottle cmdVis, replyVis;
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("show");
+        rpcVisualizerPort.write(cmdVis,replyVis);
 
-	return true;
+        return true;
     }
 
     /************************************************************************/
@@ -430,6 +480,9 @@ protected:
 		    mergePointClouds();}
 	    printf("Clouds merged, saving full model \n");
         
+
+        //Transform point cloud to the hands reference frame.
+
         // Visualize merged pointcloud
 	    showPointCloud();
         printf("PC displayed \n");
