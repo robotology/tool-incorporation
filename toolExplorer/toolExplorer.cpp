@@ -26,8 +26,16 @@
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
 #include <yarp/math/Rand.h>
+#include <yarp/os/RFModule.h>
+#include <yarp/os/BufferedPort.h>
 
 #include <iCub/ctrl/math.h>
+#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+
+#include <pcl/point_types.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/common/transforms.h>
+#include <pcl/point_cloud.h>
 
 YARP_DECLARE_DEVICES(icubmod)
 
@@ -44,13 +52,17 @@ class ToolExplorer: public RFModule
 {
 protected:
     
+    //ports
     RpcServer            			rpcPort;
     yarp::os::BufferedPort<yarp::os::Bottle >   seedInPort;
+    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort;
+
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
     yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with MERGE_POINT_CLOUDS module
     yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
 
 
+    // Drivers
     PolyDriver driverG;
     PolyDriver driverL;
     PolyDriver driverR;
@@ -62,13 +74,20 @@ protected:
     ICartesianControl *iCartCtrlR;
     ICartesianControl *iCartCtrl;
 
+    // config variables
     string hand;
     string eye;
-    string robot;
+    string robot;    
+    string name;
+    string cloudsPath;
+    string cloudName;
     bool verbose;
+    bool normalizePose;
+
+    // module parameters
     bool saveF;
-    bool closing;
-        
+    bool closing;    
+    int numClouds;
 
     /************************************************************************/
     bool respond(const Bottle &command, Bottle &reply)
@@ -91,7 +110,7 @@ protected:
 			rotDegY = command.get(2).asInt();
 		}			
 
-		bool ok = turnHand(rotDegX, rotDegY, hand, eye);
+        bool ok = turnHand(rotDegX, rotDegY);
 		if (ok)
 		    responseCode = Vocab::encode("ack");
 		else {
@@ -155,13 +174,13 @@ protected:
 		reply.addVocab(responseCode);
 		return true;
 
-    }else if (receivedCmd == "transform"){
-        // transforms the reference frame of the pointcloud to the hands one.
-        bool ok = transformFrame();
+    }else if (receivedCmd == "normalize"){
+        // activates the normalization of the pointcloud to the hand reference frame.
+        bool ok = setNormalization(command.get(1).asString());
         if (ok)
             responseCode = Vocab::encode("ack");
         else {
-            fprintf(stdout,"Transformation the reference frame not successful. \n");
+            fprintf(stdout,"Normalization has to be set to ON or OFF. \n");
             responseCode = Vocab::encode("nack");
             reply.addVocab(responseCode);
             return false;
@@ -242,9 +261,9 @@ protected:
         reply.addString("transform - transforms the poincloud using affine to the reference frame of the hand.");
 		reply.addString("explore (all)- gets 3D pointcloud from different perspectives and merges them in a single model. If 'all' is given, it will merge all pointclouds at the end, otherwise incrementally.");
 		reply.addString("modelname (string) - Changes the name with which the pointclouds will be saved.");
-		reply.addString("hand left/right - Sets active the hand (default right).");
-		reply.addString("eye left/right - Sets active the eye (default left).");
-		reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
+        reply.addString("hand (left/right) - Sets the active hand (default right).");
+        reply.addString("eye (left/right) - Sets the active eye (default left).");
+        reply.addString("verbose (ON/OFF) - Sets ON/OFF printouts of the program, for debugging or visualization.");
 		reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
 
@@ -266,11 +285,11 @@ protected:
    
 
     /************************************************************************/
-    bool turnHand(const int rotDegX = 0, const int rotDegY = 0,  const string &arm = "right", const string &eye  = "left")
+    bool turnHand(const int rotDegX = 0, const int rotDegY = 0)
     {
-        if (arm=="left")
+        if (hand=="left")
             iCartCtrl=iCartCtrlL;
-        else if (arm=="right")
+        else if (hand=="right")
             iCartCtrl=iCartCtrlR;
         else
             return false;
@@ -280,14 +299,11 @@ protected:
             return false;
         }
 
-
-
         int context_arm,context_gaze;
         //iGaze->restoreContext(0);
 
         iCartCtrl->storeContext(&context_arm);
         iGaze->storeContext(&context_gaze);
-
 
         // intialize position and orientation matrices
         Matrix Rh(4,4);
@@ -298,17 +314,17 @@ protected:
 	
         // set base position
         xd[0]=-0.30;
-        xd[1]=(arm=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand 
+        xd[1]=(hand=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand
         xd[2]= 0.1;
 
         offset[0]=0;
-        offset[1]=(arm=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
+        offset[1]=(hand=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
         offset[2]= 0.15 - 0.01*abs(rotDegX)/5;
 
         // Rotate the hand to observe the tool from different positions
         Vector ox(4), oy(4);
-        ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegX:rotDegX); // rotation over X axis
-        oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(arm=="left"?-rotDegY:rotDegY); // rotation over Y axis
+        ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=CTRL_DEG2RAD*(hand=="left"?-rotDegX:rotDegX); // rotation over X axis
+        oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(hand=="left"?-rotDegY:rotDegY); // rotation over Y axis
 
         Matrix Ry=axis2dcm(oy);    // from axis/angle to rotation matrix notation
         Matrix Rx=axis2dcm(ox);
@@ -374,7 +390,7 @@ protected:
 		    rpcObjRecPort.write(cmdOR,replyOR);
 	    }
 		
-	    // send coordinates as rpc to objectRec
+        // send image blob coordinates as rpc to objectRec to seed the cloud
 	    cmdOR.clear();	replyOR.clear();
 	    cmdOR.addInt(u);
 	    cmdOR.addInt(v);
@@ -388,13 +404,71 @@ protected:
         }
 	    rpcObjRecPort.write(cmdOR,replyOR);
 
-        // XXX Somewhere here get also the current reference frame coordinates and save them in a file with the same name as the cloud
-        // XXX or transform the cloud directly so that it is already saved on the proper frame. This might help registration too.
-	    
- 	    printf("3D reconstruction obtrained and saved.\n");
-	
-	return true;
+        // read the cloud from the objectReconst output port
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(true);	//waits until it receives coordinates
+        if (cloudMesh!=NULL){
+            if (verbose){	printf("Cloud read from port \n");	}
+            mesh2cloud(*cloudMesh,cloud);
+        } else{
+            if (verbose){	printf("Couldnt read returned cloud \n");	}
+            return -1;
+        }
+
+        // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
+        if (normalizePose) {
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+            transformFrame(cloud, cloudNorm);
+            string normS = "_norm";
+            savePointsPly(cloudNorm, cloudName+normS);
+            if (verbose){	printf("Cloud normalized to hand reference frame \n");	}
+        }
+
+        if (verbose){	printf("3D reconstruction obtained and saved.\n");}	
+
+        return true;
 	}
+
+    /************************************************************************/
+    bool transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out, const bool saveFlag = true)
+    {
+        // Transform (translate-rotate) the pointcloud by inverting the hand pose
+        if (hand=="left")
+            iCartCtrl=iCartCtrlL;
+        else if (hand=="right")
+            iCartCtrl=iCartCtrlR;
+        else
+            return false;
+
+        Vector H2Rpos, H2Ror;
+        iCartCtrl->getPose(H2Rpos,H2Ror);
+        Matrix H2R = axis2dcm(H2Ror);   // from axis/angle to rotation matrix notation
+
+        // Include translation
+        H2R(0,3)= H2Rpos[0];
+        H2R(1,3)= H2Rpos[1];
+        H2R(2,3)= H2Rpos[2];
+        printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());
+
+        Matrix R2H = SE3inv(H2R);    //inverse the affine transformation matrix from robot to hand
+        printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());
+
+        // Put Transformation matrix into Eigen Format
+        Eigen::Matrix4f TM = Eigen::Matrix4f::Identity();
+        TM(0,0) = R2H(0,0);     TM(0,1) = R2H(0,1);     TM(0,2) = R2H(0,2);     TM(0,3) = R2H(0,3);
+        TM(1,0) = R2H(1,0);     TM(1,1) = R2H(1,1);     TM(1,2) = R2H(1,2);     TM(1,3) = R2H(1,3);
+        TM(2,0) = R2H(2,0);     TM(2,1) = R2H(2,1);     TM(2,2) = R2H(2,2);     TM(2,3) = R2H(2,3);
+        TM(3,0) = R2H(3,0);     TM(3,1) = R2H(3,1);     TM(3,2) = R2H(3,2);     TM(3,3) = R2H(3,3);
+        cout << TM.matrix() << endl;
+
+        // Executing the transformation
+        pcl::transformPointCloud(*cloud_in, *cloud_out, TM);
+
+        if (verbose){	printf("Transformation done \n");	}
+
+        return true;
+    }
+
 
     /************************************************************************/
     bool mergePointClouds()
@@ -406,37 +480,6 @@ protected:
         cmdMPC.addString("merge");
         rpcMergerPort.write(cmdMPC,replyMPC);
 
-        return true;
-    }
-
-    /************************************************************************/
-    bool transformFrame()
-    { // XXX XXX Fill in this function!!!
-      // Transform (translate-rotate) the pointcloud by inverting the hand pose
-
-        //Get hand pose
-        // XXX getPose(xi,oi);
-        // XXX for the moment lets use the known pose of the hoe
-
-        Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-
-        //Translate first to origin
-        transform.translation() << -xi(0), -xi(1), -xi(2);
-        //transform.translation() << 0.480, -0.02565, -0.061;
-
-
-        // transform_2.rotate (XXX invert oi);
-
-        // Print the transformation
-        printf ("\nMethod #2: using an Affine3f\n");
-        std::cout << transform.matrix() << std::endl;
-
-        // Executing the transformation
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-        // You can either apply transform_1 or transform_2; they are the same
-        pcl::transformPointCloud (*source_cloud, *cloud, transform);
-
-        if (verbose){	printf("Transformation done \n");	}
         return true;
     }
 
@@ -494,12 +537,14 @@ protected:
     bool changeModelName(const string& modelname)
 	{
     	// Changes the name with which the pointclouds will be saved
+        cloudName = modelname;
+
        	Bottle cmdOR, replyOR;
 	    // requests 3D reconstruction to objectReconst module
 	    cmdOR.clear();	replyOR.clear();
 	    cmdOR.addString("name");
 	    cmdOR.addString(modelname);
-	    rpcObjRecPort.write(cmdOR,replyOR);
+	    rpcObjRecPort.write(cmdOR,replyOR);        
 	    
  	    printf("Name changed to %s.\n", modelname.c_str());
 	return true;
@@ -519,6 +564,20 @@ protected:
 	    }    
 	    return false;
 	}
+
+    bool setNormalization(const string& verb)
+    {
+        if (verb == "ON"){
+            normalizePose = true;
+            fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+            return true;
+        } else if (verb == "OFF"){
+            normalizePose = false;
+            fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+            return true;
+        }
+        return false;
+    }
 
     bool setHand(const string& handName)
 	{
@@ -540,30 +599,106 @@ protected:
 	    return false;
 	}
 
-public:
+
     /************************************************************************/
+    /************************************************************************/
+    // Helper functions
+
+    // Converts mesh from a bottle into pcl pointcloud.
+    void mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+    {
+        for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
+        {
+            pcl::PointXYZRGB pointrgb;
+            pointrgb.x=cloudB.mesh.points.at(i).x;
+            pointrgb.y=cloudB.mesh.points.at(i).y;
+            pointrgb.z=cloudB.mesh.points.at(i).z;
+            if (i<cloudB.mesh.rgbColour.size())
+            {
+                int32_t rgb= cloudB.mesh.rgbColour.at(i).rgba;
+                pointrgb.rgba=rgb;
+                pointrgb.r = (rgb >> 16) & 0x0000ff;
+                pointrgb.g = (rgb >> 8)  & 0x0000ff;
+                pointrgb.b = (rgb)       & 0x0000ff;
+            }
+            else
+                pointrgb.rgb=0;
+
+            cloud->push_back(pointrgb);
+        }
+        if (verbose){	printf("Mesh fromatted as Point Cloud \n");	}
+    }
+
+    /************************************************************************/
+    void savePointsPly(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& name)
+    {
+        stringstream s;
+        s.str("");
+        s << cloudsPath + "/norm/" + name.c_str() << numClouds;
+        string filename = s.str();
+        string filenameNumb = filename+".ply";
+        ofstream plyfile;
+        plyfile.open(filenameNumb.c_str());
+        plyfile << "ply\n";
+        plyfile << "format ascii 1.0\n";
+        plyfile << "element vertex " << cloud->width <<"\n";
+        plyfile << "property float x\n";
+        plyfile << "property float y\n";
+        plyfile << "property float z\n";
+        plyfile << "property uchar diffuse_red\n";
+        plyfile << "property uchar diffuse_green\n";
+        plyfile << "property uchar diffuse_blue\n";
+        plyfile << "end_header\n";
+
+        for (unsigned int i=0; i<cloud->width; i++)
+            plyfile << cloud->at(i).x << " " << cloud->at(i).y << " " << cloud->at(i).z << " " << (int)cloud->at(i).r << " " << (int)cloud->at(i).g << " " << (int)cloud->at(i).b << "\n";
+
+        plyfile.close();
+
+        numClouds++;
+        fprintf(stdout, "Writing finished\n");
+    }
+
+/************************************************************************/
+/************************************************************************/
+
+
+public:
     bool configure(ResourceFinder &rf)
     {
-        string name=rf.check("name",Value("toolExplorer")).asString().c_str();
-        robot=rf.check("robot",Value("icub")).asString().c_str();
+        name = rf.check("name",Value("toolExplorer")).asString().c_str();
+        robot = rf.check("robot",Value("icub")).asString().c_str();
+        if (strcmp(robot.c_str(),"icub"))
+            cloudsPath = rf.find("clouds_path").asString();
+        else
+            cloudsPath = rf.find("clouds_path_sim").asString();
         hand = rf.check("hand", Value("right")).asString();
 	    eye = rf.check("camera", Value("left")).asString();
 	    verbose = rf.check("verbose", Value(false)).asBool();
+        normalizePose = rf.check("normalize", Value(true)).asBool();
 
 	    //ports
-        rpcPort.open(("/"+name+"/rpc:i").c_str());
-        attach(rpcPort);
-        
-
-	    bool ret = true;  
+        bool ret = true;
         ret = seedInPort.open(("/"+name+"/seed:i").c_str());	                       // input port to receive data from user
-        ret = ret && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to send data out for recording
-	    ret = ret && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
-	    ret = ret && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());         // port to command the visualizer module
-	    if (!ret){
-	        printf("Problems opening ports\n");
+        ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                  // port to receive pointclouds from
+        if (!ret){
+            printf("Problems opening ports\n");
+            return false;
+        }
+
+
+        // RPC ports
+        bool retRPC = true;
+        retRPC = rpcPort.open(("/"+name+"/rpc:i").c_str());
+        retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to send data out for recording
+        retRPC = retRPC && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
+        retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());         // port to command the visualizer module
+        if (!retRPC){
+            printf("Problems opening RPC ports\n");
 	        return false;
 	    }
+
+        attach(rpcPort);
 
 	    //Cartesian controllers
         Property optionG("(device gazecontrollerclient)");
@@ -636,6 +771,7 @@ public:
 
         closing = false;
     	saveF = true;
+        numClouds = 0;
     	
     	cout << endl << "Configuring done." << endl;
             	
@@ -690,6 +826,7 @@ public:
 
 
 /************************************************************************/
+/************************************************************************/
 int main(int argc, char *argv[])
 {
     Network yarp;
@@ -702,6 +839,8 @@ int main(int argc, char *argv[])
     YARP_REGISTER_DEVICES(icubmod)
 
     ResourceFinder rf;
+    rf.setDefaultContext("toolModeler");
+    rf.setDefaultConfigFile("toolExplorer.ini");
     rf.setVerbose(true);
     rf.configure(argc,argv);
 

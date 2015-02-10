@@ -351,7 +351,12 @@ public:
     bool configure(yarp::os::ResourceFinder &rf)
     {
     string name=rf.check("name",Value("mergeClouds")).asString().c_str();
-	path = rf.find("clouds_path").asString();        
+    string robot = rf.find("robot").asString();
+    if (strcmp(robot.c_str(),"icub"))
+        path = rf.find("clouds_path").asString();
+    else
+        path = rf.find("clouds_path_sim").asString();
+
 	printf("Path: %s",path.c_str());		
 	handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
@@ -359,7 +364,7 @@ public:
 	/* Module rpc parameters */
 	visualizing = false;
 	saving = true;
-        closing = false;
+    closing = false;
 
 	/*Init variables*/
 	initF = true;	
@@ -397,7 +402,7 @@ int main(int argc, char * argv[])
     MergeModule module;
     ResourceFinder rf;
     rf.setDefaultContext("toolModeler");
-    rf.setDefaultConfigFile("configMPC.ini");
+    rf.setDefaultConfigFile("cloudPath.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);
 

@@ -25,10 +25,14 @@
         </input>
         <input>
             <type>Bottle</type>
-            <port carrier="udp">/toolExplorer/seed:i</port>
+            <port carrier="tcp">/toolExplorer/seed:i</port>
             <description>Receives seed coordinates to generate blob from GBS module</description>
         </input>        
-
+        <input>
+            <type>Bottle</type>
+            <port carrier="tcp">/toolExplorer/clouds:i</port>
+            <description>Receives seed coordinates to generate blob from GBS module</description>
+        </input>   
         <!-- output data if available -->        
         <output port_type="service">
             <type>rpc</type>
@@ -40,7 +44,11 @@
             <port>/toolExplorer/objrec:rpc</port>
             <description> Send commands to the objectReconstruction module</description>
         </output>
-        
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/toolExplorer/visualizer:rpc</port>
+            <description> Send commands to the visualizer module to display the pointcloud</description>
+        </output>
 
     </data>
 
@@ -53,6 +61,9 @@
     <development>
         <header></header>
         <library>YARP</library>
+        <library>icubmod</library>
+        <library>ctrlLib</library>
+        <library>PCL 1.7</library>
     </development>
 
 </module>

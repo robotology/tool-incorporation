@@ -9,14 +9,14 @@
     </module>
     <module>
         <name>mergeClouds</name>
-        <parameters>--from configMPC.ini</parameters>
+        <parameters>--from cloudPath.ini</parameters>
         <node>icub13</node>
         <prefix></prefix>
         <geometry>(Pos (x 765) (y 358.9))</geometry>
     </module>
     <module>
         <name>tool3Dshow</name>
-        <parameters>--from configMPC.ini</parameters>
+        <parameters>--from cloudPath.ini</parameters>
         <node>icub13</node>
         <prefix></prefix>
         <geometry>(Pos (x 765) (y 358.9))</geometry>

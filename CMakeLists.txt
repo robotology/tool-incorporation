@@ -8,6 +8,10 @@ project(toolModeler)
 find_package(YARP)
 find_package(ICUB)
 find_package(ICUBcontrib)
+find_package(PCL 1.7)
+
+
+
 list(APPEND CMAKE_MODULE_PATH ${YARP_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})

@@ -1,12 +1,12 @@
 <module>
     <!-- module's name should match its executable file's name. -->
-    <name>tool3Dshow</name>
-    <description> Reads and visualizes the merged pointclouds.</description>
+    <name>toolFeatExt</name>
+    <description> Extract geometric 3D features form pointcloud. Uses voxel wise normal histograms.</description>
     <version>1.0</version>
 
     <!-- <arguments> can have multiple <param> tags-->
     <arguments>
-        <param desc="Name of the module" default="tool3Dshow"> name</param>
+        <param desc="Name of the module" default="toolFeatExt"> name</param>
         <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolModeler"> context </param>
     </arguments>
 
@@ -20,9 +20,9 @@
         <!-- input data if available -->
         <input port_type="service">
             <type>rpc</type>
-            <port carrier="tcp">/toolExplorer/rpc:i</port>
+            <port carrier="tcp">/toolFeatExt/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
-        </input>  
+        </input> 
     </data>
 
     <dependencies>

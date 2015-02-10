@@ -9,14 +9,14 @@
     </module>
     <module>
         <name>mergeClouds</name>
-        <parameters>--from configSimMPC.ini</parameters>
+        <parameters>--from cloudPath.ini --robot icubSim</parameters>
         <node>localhost</node>
         <prefix></prefix>
         <geometry>(Pos (x 765) (y 358.9))</geometry>
     </module>
         <module>
         <name>tool3Dshow</name>
-        <parameters>--from configSimMPC.ini</parameters>
+        <parameters>--from cloudPath.ini --robot icubSim</parameters>
         <node>localhost</node>
         <prefix></prefix>
         <geometry>(Pos (x 765) (y 358.9))</geometry>
