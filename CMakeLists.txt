@@ -31,7 +31,7 @@ add_subdirectory(toolFeatExt)
 add_subdirectory(app)
 
 ## Add this instruction IF AND ONLY IF the project uses libraries.
-icubcontrib_finalize_export (toolModeler)  
+# icubcontrib_finalize_export (toolModeler)  
 
 ## Uninstall
 icubcontrib_add_uninstall_target()
