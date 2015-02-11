@@ -22,6 +22,5 @@ install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})
 
-
 icubcontrib_finalize_export (${PROJECTNAME})
-icubcontrib_add_uninstall_target()
+
