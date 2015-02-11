@@ -8,12 +8,13 @@ PROJECT(${PROJECTNAME})
 
 find_package(PCL 1.7 REQUIRED)
 
-include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
+include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS} ${ICUBCONTRIB_INSTALL_PREFIX}/include)
 include_directories(${PCL_INCLUDE_DIRS}) 
 include_directories(${objects3D_INCLUDE_DIRS})
 #include_directories(${grasp_INCLUDE_DIRS})  
 
 link_directories(${PCL_LIBRARY_DIRS})
+link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib)
 add_definitions(${PCL_DEFINITIONS})
 
 set(source toolExplorer.cpp)
