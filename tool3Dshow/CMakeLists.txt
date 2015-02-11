@@ -1,3 +1,7 @@
+# Copyright: (C) 2014 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
+# Authors: Tanis Mar
+# CopyPolicy: Released under the terms of the GNU GPL v2.0.
+
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 SET(PROJECTNAME tool3Dshow)
 PROJECT(${PROJECTNAME})
