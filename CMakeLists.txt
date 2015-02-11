@@ -8,9 +8,7 @@ project(toolModeler)
 find_package(YARP)
 find_package(ICUB)
 find_package(ICUBcontrib)
-find_package(PCL 1.7)
-
-
+#find_package(PCL 1.7)
 
 list(APPEND CMAKE_MODULE_PATH ${YARP_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
@@ -33,7 +31,7 @@ add_subdirectory(toolFeatExt)
 add_subdirectory(app)
 
 ## Add this instruction IF AND ONLY IF the project uses libraries.
-# icubcontrib_finalize_export (${PROJECT_NAME})  
+icubcontrib_finalize_export (toolModeler)  
 
 ## Uninstall
 icubcontrib_add_uninstall_target()
