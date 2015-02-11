@@ -106,7 +106,6 @@ int MergePointclouds()
 	if ((dir = opendir (path.c_str())) != NULL) {
   		/* get all the files within directory */
 
-
 		vector<string> fileNames;
 		while ((ent = readdir(dir)) != NULL) {
 			int len = strlen (ent->d_name);
@@ -302,7 +301,7 @@ public:
 	    if (ok>=0) { 
 		    responseCode = Vocab::encode("ack");
 	    } else {
-	        fprintf(stdout,"Couldnt merge pointclouds. \n");
+            fprintf(stdout,"Couldn't merge pointclouds. \n");
 	        responseCode = Vocab::encode("nack");
 	        reply.addVocab(responseCode);
 	        return false;
@@ -326,8 +325,8 @@ public:
 		reply.addVocab(Vocab::encode("many"));		
 		reply.addString("Available commands are:");
 		reply.addString("merge - Merges all pointclouds on the path folder, or the new ones if 'cloud_merged' already exists.");
-		reply.addString("view - Activates visualization. (XXX visualizer does not close). Default off");
-		reply.addString("save - Activates saving the resulting merged point cloud.");
+        reply.addString("view - Activates visualization. (XXX visualizer does not close). (Default off).");
+        reply.addString("save - Activates saving the resulting merged point cloud. (Default true).");
 		//reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
 		reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
@@ -352,7 +351,7 @@ public:
     {
     string name=rf.check("name",Value("mergeClouds")).asString().c_str();
     string robot = rf.find("robot").asString();
-    if (strcmp(robot.c_str(),"icub"))
+    if (strcmp(robot.c_str(),"icub")==0)
         path = rf.find("clouds_path").asString();
     else
         path = rf.find("clouds_path_sim").asString();

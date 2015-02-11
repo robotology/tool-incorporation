@@ -5,109 +5,127 @@
         <parameters></parameters>
         <node>icub15</node>
         <prefix></prefix>
-        <geometry>(Pos (x 203) (y 440.9))</geometry>
+        <geometry>(Pos (x 628) (y 151.9))</geometry>
     </module>
     <module>
         <name>mergeClouds</name>
         <parameters>--from cloudPath.ini</parameters>
         <node>icub13</node>
         <prefix></prefix>
-        <geometry>(Pos (x 765) (y 358.9))</geometry>
+        <geometry>(Pos (x 860.9) (y 280.9))</geometry>
+    </module>
+    <module>
+        <name>object-reconstruction</name>
+        <parameters>--name objectReconstr --context toolModeler</parameters>
+        <node>icub13</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 319) (y 169.9))</geometry>
     </module>
     <module>
         <name>tool3Dshow</name>
         <parameters>--from cloudPath.ini</parameters>
         <node>icub13</node>
         <prefix></prefix>
-        <geometry>(Pos (x 765) (y 358.9))</geometry>
-    </module>
-    <module>
-        <name>object-reconstruction</name>
-        <parameters>--name object-reconstruction --context toolModeler</parameters>
-        <node>icub13</node>
-        <prefix></prefix>
-        <geometry>(Pos (x 322) (y 209.9))</geometry>
+        <geometry>(Pos (x 841) (y 368.9))</geometry>
     </module>
     <module>
         <name>toolExplorer</name>
         <parameters></parameters>
         <node>icub15</node>
         <prefix></prefix>
-        <geometry>(Pos (x 552) (y 442.9))</geometry>
+        <geometry>(Pos (x 396) (y 326.9))</geometry>
+    </module>
+    <module>
+        <name>toolFeatExt</name>
+        <parameters>--from toolFeatExt.ini --robot icubSim</parameters>
+        <node>localhost</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 836) (y 414.9))</geometry>
     </module>
     <module>
         <name>yarpview</name>
         <parameters>--out /out</parameters>
         <node>icub15</node>
         <prefix>/imLeft</prefix>
-        <geometry>(Pos (x 771) (y 146.9))</geometry>
+        <geometry>(Pos (x 755) (y 72.9))</geometry>
     </module>
     <module>
         <name>yarpview</name>
         <parameters>--out /out</parameters>
         <node>icub15</node>
         <prefix>/segView</prefix>
-        <geometry>(Pos (x 448) (y 563.9))</geometry>
+        <geometry>(Pos (x 953) (y 159.9))</geometry>
     </module>
-    
     <connection>
         <from>/toolExplorer/merger:rpc</from>
-        <to>/mergeClouds/rpc:i</to>
+        <to external="true">/mergeClouds/rpc:i</to>
         <protocol>tcp</protocol>
-        <geometry>(Pos ((x 738.5) (y 418)) ((x 733) (y 460)) ((x 765) (y 376))  )</geometry>
+        <geometry>(Pos ((x 713.5) (y 339)) ((x 577) (y 344)) ((x 871) (y 334))  )</geometry>
     </connection>
     <connection>
         <from>/toolExplorer/visualizer:rpc</from>
         <to>/tool3Dshow/rpc:i</to>
         <protocol>tcp</protocol>
-        <geometry>(Pos ((x 738.5) (y 418)) ((x 733) (y 460)) ((x 765) (y 376))  )</geometry>
+        <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
+    </connection>
+    <connection>
+        <from>/toolExplorer/featExt:rpc</from>
+        <to>/toolFeatExt/rpc:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 696) (y 425.5)) ((x 577) (y 419)) ((x 836) (y 432))  )</geometry>
     </connection>
     <connection>
         <from>/toolExplorer/objrec:rpc</from>
-        <to>/object-reconstruction/rpc</to>
+        <to>/objectReconstr/rpc</to>
         <protocol>tcp</protocol>
-        <geometry>(Pos ((x 517) (y 381)) ((x 733) (y 485)) ((x 322) (y 277))  )</geometry>
+        <geometry>(Pos ((x 437.5) (y 303)) ((x 577) (y 369)) ((x 319) (y 237))  )</geometry>
     </connection>
     <connection>
-        <from>/object-reconstruction/segmentation</from>
+        <from>/objectReconstr/segmentation</from>
         <to>/GBSeg/conf</to>
         <protocol>tcp</protocol>
-        <geometry>(Pos ((x 379) (y 374)) ((x 575) (y 264)) ((x 204) (y 484))  )</geometry>
+        <geometry>(Pos ((x 590) (y 209.5)) ((x 572) (y 224)) ((x 629) (y 195))  )</geometry>
+    </connection>
+    <connection>
+        <from>/objectReconstr/mesh:o</from>
+        <to>/toolExplorer/clouds:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 476.5) (y 303.5)) ((x 577) (y 200)) ((x 397) (y 407))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icub/camcalib/left/out</from>
         <to>/GBSeg/rawImg:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 186) (y 278)) ((x 189) (y 97)) ((x 204) (y 459))  )</geometry>
+        <geometry>(Pos ((x 398.5) (y 133)) ((x 189) (y 96)) ((x 629) (y 170))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icub/camcalib/left/out</from>
-        <to>/object-reconstruction/left:i</to>
+        <to>/objectReconstr/left:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 245.5) (y 162.5)) ((x 189) (y 97)) ((x 323) (y 228))  )</geometry>
+        <geometry>(Pos ((x 244) (y 142)) ((x 189) (y 96)) ((x 320) (y 188))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icub/camcalib/right/out</from>
-        <to>/object-reconstruction/right:i</to>
+        <to>/objectReconstr/right:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 229.5) (y 256)) ((x 157) (y 259)) ((x 323) (y 253))  )</geometry>
+        <geometry>(Pos ((x 249) (y 237)) ((x 199) (y 261)) ((x 320) (y 213))  )</geometry>
     </connection>
     <connection>
         <from>/GBSeg/viewImg:o</from>
         <to>/segView/yarpview/img:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 448.5) (y 526.5)) ((x 469) (y 471)) ((x 449) (y 582))  )</geometry>
+        <geometry>(Pos ((x 913.5) (y 180)) ((x 894) (y 182)) ((x 954) (y 178))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icub/camcalib/left/out</from>
         <to>/imLeft/yarpview/img:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 470) (y 131)) ((x 189) (y 97)) ((x 772) (y 165))  )</geometry>
+        <geometry>(Pos ((x 462) (y 93.5)) ((x 189) (y 96)) ((x 756) (y 91))  )</geometry>
     </connection>
     <connection>
         <from external="true">/segView/out</from>
         <to>/toolExplorer/seed:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 553) (y 520)) ((x 574) (y 554)) ((x 553) (y 486))  )</geometry>
+        <geometry>(Pos ((x 248.5) (y 387.5)) ((x 121) (y 393)) ((x 397) (y 382))  )</geometry>
     </connection>
 </application>

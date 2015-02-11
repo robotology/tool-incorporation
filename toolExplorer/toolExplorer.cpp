@@ -52,15 +52,15 @@ class ToolExplorer: public RFModule
 {
 protected:
     
-    //ports
-    RpcServer            			rpcPort;
+    //ports    
     yarp::os::BufferedPort<yarp::os::Bottle >   seedInPort;
     yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort;
 
+    RpcServer                           rpcPort;
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
-    yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with MERGE_POINT_CLOUDS module
+    yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with mergeClouds module
     yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
-
+    yarp::os::RpcClient         		rpcFeatExtPort;         //rpc port to communicate with the 3D feature extraction module
 
     // Drivers
     PolyDriver driverG;
@@ -78,7 +78,6 @@ protected:
     string hand;
     string eye;
     string robot;    
-    string name;
     string cloudsPath;
     string cloudName;
     bool verbose;
@@ -283,6 +282,45 @@ protected:
 
     }
    
+    /************************************************************************/
+    bool explore(bool contMerge = true)
+    {
+        // Explore the tool from different angles and save pointclouds
+        for (int degX = 60; degX>=-75; degX -= 15)
+        {
+            turnHand(degX,0);
+            printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
+            getPointCloud(false);
+            if (contMerge){
+                mergePointClouds();}
+            Time::delay(0.5);
+        }
+        for (int degY = 0; degY<=60; degY += 15)
+        {
+            turnHand(-60,degY);
+            //lookAround();
+            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+            getPointCloud(false);
+            if (contMerge){
+                mergePointClouds();}
+            Time::delay(0.5);
+        }
+        printf("Exploration finished, merging clouds \n");
+
+        // Merge together registered partial point clouds
+        if (!contMerge){
+            mergePointClouds();}
+        printf("Clouds merged, saving full model \n");
+
+        // Visualize merged pointcloud
+        showPointCloud();
+        printf("PC displayed \n");
+
+        // Extract 3D features from merged pointcloud.
+        extractFeatures();
+
+        return true;
+    }
 
     /************************************************************************/
     bool turnHand(const int rotDegX = 0, const int rotDegY = 0)
@@ -348,7 +386,6 @@ protected:
 
         return true;
     }
-
 
     /************************************************************************/
     bool lookAround()
@@ -469,12 +506,10 @@ protected:
         return true;
     }
 
-
     /************************************************************************/
     bool mergePointClouds()
 	{
-	// sets the folder path to wherever the pcl files have been saved, or reads the array.
-	// calls 'merge' rpc command to mergeClouds
+    // calls 'merge' rpc command to mergeClouds
         Bottle cmdMPC, replyMPC;
         cmdMPC.clear();	replyMPC.clear();
         cmdMPC.addString("merge");
@@ -482,7 +517,6 @@ protected:
 
         return true;
     }
-
     
     /************************************************************************/
     bool showPointCloud()
@@ -497,41 +531,16 @@ protected:
     }
 
     /************************************************************************/
-    bool explore(bool contMerge = true)
-	{
-	    for (int degX = 60; degX>=-75; degX -= 15)
-	    {
-		    turnHand(degX,0);
-		    printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-		    getPointCloud(false);
-		    if (contMerge){
-			    mergePointClouds();}
-		    Time::delay(0.5);
-	    }
-	    for (int degY = 0; degY<=60; degY += 15)
-	    {
-		    turnHand(-60,degY);
-            //lookAround();
-		    printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
-		    getPointCloud(false);
-		    if (contMerge){
-			    mergePointClouds();}
-		    Time::delay(0.5);
-	    } 
-	    printf("Exploration finished, merging clouds \n");
-	    if (!contMerge){
-		    mergePointClouds();}
-	    printf("Clouds merged, saving full model \n");
-        
+    bool extractFeatures()
+    {
+        // Sends an RPC command to the toolFeatExt module to extract the 3D features of the merged point cloud/
+        Bottle cmdFext, replyFext;
+        cmdFext.clear();	replyFext.clear();
+        cmdFext.addString("getFeat");
+        rpcFeatExtPort.write(cmdFext,replyFext);
 
-        //Transform point cloud to the hands reference frame.
-
-        // Visualize merged pointcloud
-	    showPointCloud();
-        printf("PC displayed \n");
-        
         return true;
-	}
+    }
 
     /************************************************************************/
     bool changeModelName(const string& modelname)
@@ -565,15 +574,15 @@ protected:
 	    return false;
 	}
 
-    bool setNormalization(const string& verb)
+    bool setNormalization(const string& norm)
     {
-        if (verb == "ON"){
+        if (norm == "ON"){
             normalizePose = true;
-            fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+            fprintf(stdout,"Normalization is : %s\n", norm.c_str());
             return true;
-        } else if (verb == "OFF"){
+        } else if (norm == "OFF"){
             normalizePose = false;
-            fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+            fprintf(stdout,"Normalization is : %s\n", norm.c_str());
             return true;
         }
         return false;
@@ -600,13 +609,10 @@ protected:
 	}
 
 
-    /************************************************************************/
-    /************************************************************************/
-    // Helper functions
+    /*************************** -Helper functions- ******************************/
 
-    // Converts mesh from a bottle into pcl pointcloud.
     void mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
-    {
+    {   // Converts mesh from a bottle into pcl pointcloud.
         for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
         {
             pcl::PointXYZRGB pointrgb;
@@ -660,15 +666,13 @@ protected:
     }
 
 /************************************************************************/
-/************************************************************************/
-
 
 public:
     bool configure(ResourceFinder &rf)
     {
-        name = rf.check("name",Value("toolExplorer")).asString().c_str();
+        string name = rf.check("name",Value("toolExplorer")).asString().c_str();
         robot = rf.check("robot",Value("icub")).asString().c_str();
-        if (strcmp(robot.c_str(),"icub"))
+        if (strcmp(robot.c_str(),"icub")==0)
             cloudsPath = rf.find("clouds_path").asString();
         else
             cloudsPath = rf.find("clouds_path_sim").asString();
@@ -686,13 +690,13 @@ public:
             return false;
         }
 
-
         // RPC ports
         bool retRPC = true;
         retRPC = rpcPort.open(("/"+name+"/rpc:i").c_str());
         retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to send data out for recording
         retRPC = retRPC && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
-        retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());         // port to command the visualizer module
+        retRPC = retRPC && rpcFeatExtPort.open(("/"+name+"/featExt:rpc").c_str());           // port to command the pointcloud feature extraction module
+        retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
         if (!retRPC){
             printf("Problems opening RPC ports\n");
 	        return false;
@@ -794,6 +798,14 @@ public:
 	        driverHR.view(ivel);
 	    ivel->stop(4);
 
+        seedInPort.interrupt();
+        cloudsInPort.interrupt();
+
+        rpcPort.interrupt();
+        rpcObjRecPort.interrupt();
+        rpcMergerPort.interrupt();
+        rpcVisualizerPort.interrupt();
+        rpcFeatExtPort.interrupt();
         
         return true;
     }
@@ -801,7 +813,15 @@ public:
     /************************************************************************/
     bool close()
     {
+        seedInPort.close();
+        cloudsInPort.close();
+
         rpcPort.close();
+        rpcObjRecPort.close();
+        rpcMergerPort.close();
+        rpcVisualizerPort.close();
+        rpcFeatExtPort.close();
+
 
         driverG.close();
         driverL.close();

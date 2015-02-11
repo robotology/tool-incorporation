@@ -170,7 +170,7 @@ public:
     {
     string name=rf.check("name",Value("tool3Dshow")).asString().c_str();
     string robot = rf.find("robot").asString();
-    if (strcmp(robot.c_str(),"icub"))
+    if (strcmp(robot.c_str(),"icub")==0)
         path = rf.find("clouds_path").asString();
     else
         path = rf.find("clouds_path_sim").asString();

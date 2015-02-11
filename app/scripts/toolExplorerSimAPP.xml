@@ -5,116 +5,134 @@
         <parameters></parameters>
         <node>localhost</node>
         <prefix></prefix>
-        <geometry>(Pos (x 203) (y 440.9))</geometry>
+        <geometry>(Pos (x 567) (y 108.9))</geometry>
     </module>
     <module>
         <name>mergeClouds</name>
         <parameters>--from cloudPath.ini --robot icubSim</parameters>
         <node>localhost</node>
         <prefix></prefix>
-        <geometry>(Pos (x 765) (y 358.9))</geometry>
-    </module>
-        <module>
-        <name>tool3Dshow</name>
-        <parameters>--from cloudPath.ini --robot icubSim</parameters>
-        <node>localhost</node>
-        <prefix></prefix>
-        <geometry>(Pos (x 765) (y 358.9))</geometry>
+        <geometry>(Pos (x 837) (y 418.9))</geometry>
     </module>
     <module>
         <name>object-reconstruction</name>
         <parameters>--name object-reconstruction --context toolModeler</parameters>
         <node>localhost</node>
         <prefix></prefix>
-        <geometry>(Pos (x 322) (y 209.9))</geometry>
+        <geometry>(Pos (x 299) (y 171.9))</geometry>
     </module>
     <module>
         <name>simtoolloader</name>
         <parameters></parameters>
         <node>localhost</node>
         <prefix></prefix>
-        <geometry>(Pos (x 322) (y 209.9))</geometry>
+        <geometry>(Pos (x 187.9) (y 0))</geometry>
+    </module>
+    <module>
+        <name>tool3Dshow</name>
+        <parameters>--from cloudPath.ini --robot icubSim</parameters>
+        <node>localhost</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 842) (y 475.9))</geometry>
     </module>
     <module>
         <name>toolExplorer</name>
-        <parameters>--robot icubSim</parameters>
+        <parameters>--from toolExplorer --robot icubSim</parameters>
         <node>localhost</node>
         <prefix></prefix>
-        <geometry>(Pos (x 552) (y 442.9))</geometry>
+        <geometry>(Pos (x 367) (y 454.9))</geometry>
+    </module>
+    <module>
+        <name>toolFeatExt</name>
+        <parameters>--from toolFeatExt.ini --robot icubSim</parameters>
+        <node>localhost</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 839) (y 545.9))</geometry>
     </module>
     <module>
         <name>yarpview</name>
         <parameters>--out /out</parameters>
         <node>localhost</node>
         <prefix>/imLeft</prefix>
-        <geometry>(Pos (x 771) (y 146.9))</geometry>
+        <geometry>(Pos (x 518) (y 64.9))</geometry>
     </module>
     <module>
         <name>yarpview</name>
         <parameters>--out /out</parameters>
         <node>localhost</node>
         <prefix>/segView</prefix>
-        <geometry>(Pos (x 448) (y 563.9))</geometry>
+        <geometry>(Pos (x 832) (y 189.9))</geometry>
     </module>
-
     <connection>
         <from>/toolExplorer/merger:rpc</from>
         <to>/mergeClouds/rpc:i</to>
         <protocol>tcp</protocol>
-        <geometry>(Pos ((x 738.5) (y 418)) ((x 733) (y 460)) ((x 765) (y 376))  )</geometry>
+        <geometry>(Pos ((x 682) (y 454)) ((x 548) (y 472)) ((x 837) (y 436))  )</geometry>
     </connection>
     <connection>
         <from>/toolExplorer/visualizer:rpc</from>
         <to>/tool3Dshow/rpc:i</to>
         <protocol>tcp</protocol>
-        <geometry>(Pos ((x 738.5) (y 418)) ((x 733) (y 460)) ((x 765) (y 376))  )</geometry>
-    </connection>
-    <connection>
-        <from>/toolExplorer/objRec:rpc</from>
-        <to>/object-reconstruction/rpc</to>
-        <protocol>tcp</protocol>
-        <geometry>(Pos ((x 517) (y 381)) ((x 733) (y 485)) ((x 322) (y 277))  )</geometry>
-    </connection>
-    <connection>
-        <from>/object-reconstruction/segmentation</from>
-        <to>/GBSeg/conf</to>
-        <protocol>tcp</protocol>
-        <geometry>(Pos ((x 379) (y 374)) ((x 575) (y 264)) ((x 204) (y 484))  )</geometry>
+        <geometry>(Pos ((x 684.5) (y 507.5)) ((x 548) (y 522)) ((x 842) (y 493))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icubSim/cam/left</from>
         <to>/GBSeg/rawImg:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 186) (y 278)) ((x 189) (y 97)) ((x 204) (y 459))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icubSim/cam/left</from>
-        <to>/object-reconstruction/left:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 245.5) (y 162.5)) ((x 189) (y 97)) ((x 323) (y 228))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icubSim/cam/right</from>
-        <to>/object-reconstruction/right:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 229.5) (y 256)) ((x 157) (y 259)) ((x 323) (y 253))  )</geometry>
+        <geometry>(Pos ((x 348.5) (y 113)) ((x 150) (y 98)) ((x 568) (y 127))  )</geometry>
     </connection>
     <connection>
         <from>/GBSeg/viewImg:o</from>
         <to>/segView/yarpview/img:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 448.5) (y 526.5)) ((x 469) (y 471)) ((x 449) (y 582))  )</geometry>
+        <geometry>(Pos ((x 822.5) (y 173.5)) ((x 833) (y 139)) ((x 833) (y 208))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icubSim/cam/left</from>
         <to>/imLeft/yarpview/img:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 470) (y 131)) ((x 189) (y 97)) ((x 772) (y 165))  )</geometry>
+        <geometry>(Pos ((x 324) (y 91)) ((x 150) (y 98)) ((x 519) (y 83))  )</geometry>
     </connection>
     <connection>
         <from external="true">/segView/out</from>
         <to>/toolExplorer/seed:i</to>
         <protocol>udp</protocol>
-        <geometry>(Pos ((x 553) (y 520)) ((x 574) (y 554)) ((x 553) (y 486))  )</geometry>
+        <geometry>(Pos ((x 656.5) (y 370.5)) ((x 966) (y 230)) ((x 368) (y 510))  )</geometry>
+    </connection>
+    <connection>
+        <from>/toolExplorer/objrec:rpc</from>
+        <to>/objectReconstr/rpc</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 413) (y 368)) ((x 548) (y 497)) ((x 299) (y 239))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icubSim/cam/right</from>
+        <to>/objectReconstr/right:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 218) (y 236.5)) ((x 157) (y 257)) ((x 300) (y 215))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icubSim/cam/left</from>
+        <to>/objectReconstr/left:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 214.5) (y 144.5)) ((x 150) (y 98)) ((x 300) (y 190))  )</geometry>
+    </connection>
+    <connection>
+        <from>/objectReconstr/segmentation</from>
+        <to>/GBSeg/conf</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 549.5) (y 189)) ((x 552) (y 226)) ((x 568) (y 152))  )</geometry>
+    </connection>
+    <connection>
+        <from>/toolExplorer/featExt:rpc</from>
+        <to>/toolFeatExt/rpc:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 683) (y 555)) ((x 548) (y 547)) ((x 839) (y 563))  )</geometry>
+    </connection>
+    <connection>
+        <from>/objectReconstr/mesh:o</from>
+        <to>/toolExplorer/clouds:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 452) (y 368.5)) ((x 557) (y 202)) ((x 368) (y 535))  )</geometry>
     </connection>
 </application>

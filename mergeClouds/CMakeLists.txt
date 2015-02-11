@@ -24,3 +24,4 @@ add_executable(${PROJECTNAME} ${source} ${header})
 target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
+yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

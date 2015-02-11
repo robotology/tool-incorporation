@@ -20,7 +20,7 @@
         <!-- input data if available -->
         <input port_type="service">
             <type>rpc</type>
-            <port carrier="tcp">/toolExplorer/rpc:i</port>
+            <port carrier="tcp">/tool3Dshow/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
         </input>  
     </data>

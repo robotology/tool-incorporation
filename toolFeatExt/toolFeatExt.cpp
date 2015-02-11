@@ -45,20 +45,22 @@ int computeFeats()
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> ());// Point cloud
     DIR *dir;    
     if ((dir = opendir (path.c_str())) != NULL) {
-        printf ("Loading file: %s\n", fname.c_str());
-
         string::size_type idx;
         idx = fname.rfind('.');
         if(idx != std::string::npos)
         {
-            if(strcmp(fname.substr(idx+1).c_str(),"ply"))
+            string ext = fname.substr(idx+1);
+            cout << "Found file with extension " << ext << endl;
+            if(strcmp(ext.c_str(),"ply")==0)
             {
+                printf ("Loading .ply file: %s\n", fname.c_str());
                 if (pcl::io::loadPLYFile (path+fname, *cloud) < 0)	{
                     PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
                     return -1;
                 }
-            }else if(strcmp(fname.substr(idx+1).c_str(),"pcd"))
+            }else if(strcmp(ext.c_str(),"pcd")==0)
             {
+                printf ("Loading .pcd file: %s\n", fname.c_str());
                 if (pcl::io::loadPCDFile (path+fname, *cloud) < 0)	{
                     PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
                     return -1;
@@ -383,7 +385,18 @@ int computeFeats()
         octree.setInputCloud(cloud);
         octree.addPointsFromInputCloud();
     }
-    if(verbose){cout << endl << "======================Feature Extraction Done========================== " << endl;}
+    if(verbose){
+        cout << endl << "======================Feature Extraction Done========================== " << endl;
+        // print out end feature vector of vectors
+        cout << "Feature vector contains: " << endl;
+        for (int vox=0; vox<featureVectorAllVox.size();vox++){              //for each voxel
+            for (int bin=0; bin<featureVectorAllVox[vox].size();bin++){     //for each bin
+                cout << featureVectorAllVox[vox][bin] << ", ";
+            }
+            cout << endl;
+        }
+        cout << endl << endl;
+    }
 
     // XXX put featureVectorAllVox in a bottle and send it out.
 
@@ -422,8 +435,7 @@ public:
             return true;
 	    } else {
             fprintf(stdout,"3D Features not computed correctly. \n");
-	        responseCode = Vocab::encode("nack");
-	        reply.addVocab(responseCode);
+            reply.addString("[nack] 3D Features not computed correctly.");
 	        return false;
 	    }
 
@@ -436,8 +448,7 @@ public:
                 return true;
             } else {
                 fprintf(stdout,"Please provide the .pcd file name. \n");
-	            responseCode = Vocab::encode("nack");
-	            reply.addVocab(responseCode);
+                reply.addString("[nack] Please provide the .pcd file name.");
     	        return false;                
             }
 
@@ -452,13 +463,12 @@ public:
                     return true;
                 } else if (verb == "OFF"){
                     verbose = false;
-                    fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+                    fprintf(stdout,"Verbose is : %s\n", verb.c_str());                   
                     return true;
                 }
             } else {
-                fprintf(stdout,"Please set verbose ON or OFF. \n");
-                responseCode = Vocab::encode("nack");
-                reply.addVocab(responseCode);
+                fprintf(stdout,"Please set verbose ON or OFF. \n");               
+                reply.addString("[nack] Please set verbose ON or OFF.");
                 return false;
             }
 
@@ -470,8 +480,7 @@ public:
                 return true;
             } else {
                 fprintf(stdout,"Couldn't set the numbe of bins. \n");
-                responseCode = Vocab::encode("nack");
-                reply.addVocab(responseCode);
+                reply.addString("[nack] Couldn't set the numbe of bins.");
                 return false;
             }
 
@@ -482,9 +491,8 @@ public:
                 reply.addVocab(responseCode);
                 return true;
             } else {
-                fprintf(stdout,"Please provide the .pcd file name. \n");
-                responseCode = Vocab::encode("nack");
-                reply.addVocab(responseCode);
+                fprintf(stdout,"Please provide the .pcd file name. \n");                
+                reply.addString("[nack] Please provide the .pcd file name.");
                 return false;
             }
 
@@ -510,34 +518,36 @@ public:
 		return true;
         }
     reply.addString("Invalid command, type [help] for a list of accepted commands.");
-    
+    responseCode = Vocab::encode("nack");
+    reply.addVocab(responseCode);
     return true;	
     }
 
     /************************************************************************/
     bool configure(yarp::os::ResourceFinder &rf)
     {
-    string name=rf.check("name",Value("toolFeatExt")).asString().c_str();
-    string robot = rf.find("robot").asString();
-    if (strcmp(robot.c_str(),"icub"))
+    string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
+    string robot = rf.check("robot",Value("icub")).asString().c_str();
+    verbose = rf.check("verbose",Value(true)).asBool();
+    if (strcmp(robot.c_str(),"icub")==0)
         path = rf.find("clouds_path").asString();
     else
         path = rf.find("clouds_path_sim").asString();
     printf("Path: %s",path.c_str());
 
     maxDepth = rf.find("maxDepth").asInt();
-    binsPerDim = rf.find("maxDepth").asInt();
+    binsPerDim = rf.find("binsPerDim").asInt();
 
 	handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
 
 	/* Module rpc parameters */
-        closing = false;
+    closing = false;
 
 	/*Init variables*/
 	fname = "cloud_merged.ply";
 
-	cout << endl << "Configuring done."<<endl;
+    cout << endl << "Configuring done."<<endl;
 
     return true;
     }

@@ -49,6 +49,11 @@
             <port>/toolExplorer/visualizer:rpc</port>
             <description> Send commands to the visualizer module to display the pointcloud</description>
         </output>
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/toolExplorer/featExt:rpc</port>
+            <description> Send commands to the toolFeatExt module to extract 3D geometrical features from the tool</description>
+        </output>        
 
     </data>
 
