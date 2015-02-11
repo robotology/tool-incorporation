@@ -7,7 +7,6 @@ SET(PROJECTNAME toolExplorer)
 PROJECT(${PROJECTNAME})
 
 find_package(PCL 1.7 REQUIRED)
-find_package(objects3D)
 
 include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
 include_directories(${PCL_INCLUDE_DIRS}) 
