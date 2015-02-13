@@ -88,10 +88,14 @@ int MergePointclouds()
 	PointCloudT::Ptr cloud_filtered	(new PointCloudT); // downsampled point cloud
 	
     
-    int iterations = 20;
+    int iterations = 30;
+    float distance = 0.003;
 	// The Iterative Closest Point algorithm
 	pcl::IterativeClosestPoint<PointT, PointT> icp;
 	icp.setMaximumIterations(iterations);
+    icp.setMaxCorrespondenceDistance (distance);
+    icp.setRANSACOutlierRejectionThreshold (distance);
+    icp.setTransformationEpsilon (1e-6);
 	
 	
 	DIR *dir;
