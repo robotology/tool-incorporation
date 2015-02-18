@@ -7,18 +7,16 @@
 #include <yarp/os/Module.h>
 #include <yarp/os/Vocab.h>
 
+#include <pcl/io/io.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/features/normal_3d.h>
+//#include <pcl/filters/statistical_outlier_removal.h>
+//#include <pcl/filters/voxel_grid.h>
+//#include <pcl/features/normal_3d.h>
 
-
-
-typedef pcl::PointXYZRGB PointT;
-typedef pcl::PointCloud<PointT> PointCloudT;
 
 using namespace std;
 using namespace yarp::os;
@@ -29,64 +27,103 @@ class ShowModule:public RFModule
     string path; //path to folder with .ply files
     string fname; //name of the .ply file to show
     bool closing;
+    bool colorCloud;
 
 
 /************************************************************************/
-void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, PointCloudT::Ptr cloud)
+void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 	{
-	
-	// ICP aligned point cloud 
-	pcl::visualization::PointCloudColorHandlerRGBField<PointT> cloud_in_color_i (cloud);
+    string id = "Cloud";
 
-	string id="Merged Cloud";
-	viewer->addPointCloud (cloud, cloud_in_color_i, id);
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, id);
-	
+    // Set camera position and orientation
+    viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+    viewer->addCoordinateSystem (0.05);    
+    //viewer->initCameraParameters();
+    //viewer->setSize(1280, 1024); // Visualiser window size
 
-	// Set camera position and orientation
-	//viewer.setCameraPosition(-0.0611749, -0.040113, 0.00667606, -0.105521, 0.0891437, 0.990413);
-	viewer->initCameraParameters();
-	viewer->setSize(1280, 1024); // Visualiser window size
+    // Add cloud color if it has not
+    if (!colorCloud)    {
+        // Define R,G,B colors for the point cloud
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> cloud_color_handler(cloud, 255, 255, 255); //white
+        viewer->addPointCloud (cloud, cloud_color_handler, id);
+    }else{
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> cloud_color_handler (cloud);
+        viewer->addPointCloud (cloud, cloud_color_handler, id);
+    }
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, id);
 
-	// Display the visualiser
+    // Display the visualiser
 	while (!viewer->wasStopped ()) 
 	{
         if (closing)
-            {
-                viewer->close();
-                break;
-            }
-            viewer->spinOnce (100);
-            boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+        {
+            viewer->close();
+            break;
         }
-	    printf ("Closing visualizer: \n");
-	    viewer->close();
-        viewer->removePointCloud(id);
+        viewer->spinOnce ();
+        //viewer->spinOnce (100);
+        //boost::this_thread::sleep (boost::posix_time::microseconds (100000));
     }
+    printf ("Closing visualizer: \n");
+    viewer->close();
+    viewer->removePointCloud(id);
+    closing = true;
+}
+
 
 
 /************************************************************************/
 int showPointcloud()
 	{
 
-    PointCloudT::Ptr cloud_in 	(new PointCloudT); // Point cloud	
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
     DIR *dir;
     if ((dir = opendir (path.c_str())) != NULL) {
-        printf ("Loading file: %s\n", fname.c_str());
-        if (pcl::io::loadPLYFile (path+fname, *cloud_in) < 0)	{
-	        PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
-	        return -1;
+        string::size_type idx;
+        idx = fname.rfind('.');
+        if(idx != std::string::npos)
+        {
+            string ext = fname.substr(idx+1);
+            cout << "Found file with extension " << ext << endl;
+            if(strcmp(ext.c_str(),"ply")==0)
+            {
+                printf ("Loading .ply file: %s\n", (path + fname).c_str());
+                if (pcl::io::loadPLYFile (path+fname, *cloud_in) < 0)	{
+                    PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
+                    return -1;
+                }
+            }else if(strcmp(ext.c_str(),"pcd")==0)
+            {
+                printf ("Loading .pcd file: %s\n",(path + fname).c_str());
+                if (pcl::io::loadPCDFile (path+fname, *cloud_in) < 0)	{
+                    PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
+                    return -1;
+                }
+            }else {
+                printf ("Please select .pcd or .ply file.\n");
+                return -1;
+            }
         }
-
-        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));	
-        viewer->setBackgroundColor (0, 0, 0);
-        printf("Visualizing point clouds...\n");				
-        Visualize(viewer, cloud_in);
     } else {
         /* could not open directory */
-        perror ("can't load data files"); 	
-        return EXIT_FAILURE;
-    }		
+        perror ("can't load data files");
+        return -1;
+    }
+
+    // check if the loaded file contains color information or not
+    for  (int p = 1; p < cloud_in->points.size(); ++p)
+    {
+        uint32_t rgb = *reinterpret_cast<int*>(&cloud_in->points[p].rgb);
+        if (rgb != 0)
+            colorCloud = true;
+    }
+
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
+    viewer->setBackgroundColor (0, 0, 0);
+    printf("Visualizing point clouds...\n");
+    Visualize(viewer, cloud_in);
+
     return 0;
 }
 
@@ -100,7 +137,7 @@ public:
 
     bool updateModule()
     {
-        return true;
+        return !closing;
     }
 
 
@@ -135,7 +172,7 @@ public:
                 reply.addVocab(responseCode);
                 return true;
             } else {
-                fprintf(stdout,"PLease provide the .ply file name. \n");
+                fprintf(stdout,"Please provide the .ply or .pcd file name. \n");
 	            responseCode = Vocab::encode("nack");
 	            reply.addVocab(responseCode);
     	        return false;                
@@ -180,7 +217,8 @@ public:
         attach(handlerPort);
 
 	/* Module rpc parameters */
-        closing = false;
+    closing = false;
+    colorCloud = false;
 
 	/*Init variables*/
 	fname = "cloud_merged.ply";

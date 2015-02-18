@@ -31,52 +31,14 @@ using namespace yarp::os;
 
 class MergeModule:public RFModule
 {
-    RpcServer handlerPort; //a port to handle messages
-    string path; //path to folder with .ply files
-    bool visualizing;
+    RpcServer handlerPort;  // port to handle messages
+    string path;            // path to folder with .ply files
+    string saveName;        // name of the file to save the merged cloud
     bool saving;
     bool closing;
     bool initF;
 
     int filesScanned;
-
-
-/************************************************************************/
-void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, PointCloudT::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
-	{
-	
-	// ICP aligned point cloud 
-	pcl::visualization::PointCloudColorHandlerRGBField<PointT> cloud_in_color_i (cloud);
-
-	string id="Merged Cloud";
-	viewer->addPointCloud (cloud, cloud_in_color_i, id);
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, id);
-	
-	//Add normals
-	//viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud,normals,10,0.01,"normals");
-
-	// Set camera position and orientation
-	//viewer.setCameraPosition(-0.0611749, -0.040113, 0.00667606, -0.105521, 0.0891437, 0.990413);
-	viewer->initCameraParameters();
-	viewer->setSize(1280, 1024); // Visualiser window size
-
-
-	// Display the visualiser
-	while (!viewer->wasStopped ()) 
-	{
-            if (closing)
-            {
-                viewer->close();
-                break;
-            }
-            viewer->spinOnce (100);
-            boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-        }
-	printf ("Closing visualizer: \n");
-	viewer->close();
-        viewer->removePointCloud(id);
-
-    }
 
 
 /************************************************************************/
@@ -102,20 +64,20 @@ int MergePointclouds()
 	struct dirent *ent;
 	bool flag=false;
 	int filesFound = 0;
- 	string fname; 
+    string fname;                   // name of the file with the cloud to load.
 	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; //filter to remove outliers
 	sor.setStddevMulThresh (1.0);
 
 	//loop through all ply-files in the data folder and apply ICP
 	if ((dir = opendir (path.c_str())) != NULL) {
-  		/* get all the files within directory */
+        /* get all the files within directory and check if there is any previous merge to start from */
 
 		vector<string> fileNames;
 		while ((ent = readdir(dir)) != NULL) {
 			int len = strlen (ent->d_name);
 			if ( ent->d_type == DT_REG)
 			{
-				if( strcmp(ent->d_name, "cloud_merged.ply")==0){
+                if( strcmp(ent->d_name, saveName.c_str())==0){
 					initF = false;		// Mark when there is an existing merged cloud
 					cout << "Previous merge found, scanning only new .ply files "  << endl;
 				} else {
@@ -132,7 +94,7 @@ int MergePointclouds()
 			}			
 		}
 
-		// now sort the vector with the algorithm
+        // now sort the vector by alphanumeric name with the algorithm
 		std::sort(fileNames.begin(), fileNames.end(), doj::alphanum_less<std::string>());
 		// and print the vector to cout
 		std::copy(fileNames.begin(), fileNames.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
@@ -142,8 +104,8 @@ int MergePointclouds()
 			fname = fileNames[0];		//load first .ply file of the list to cloud_icp
 			cout << "Initialize cloud with: " << fname << endl;
 			filesScanned++;
-		}else {
-			fname = "cloud_merged.ply";
+        }else {                         //If there was a previous merge, use it to initialize cloud.
+            fname = saveName;
 			cout << "Initialize cloud with: " << fname << endl;		
 		}
 		
@@ -201,7 +163,7 @@ int MergePointclouds()
 
 	// save data
 	printf("Saving data to file...\n");        
-	savePointsPly(cloud_icp, "cloud_merged");
+    savePointsPly(cloud_icp, saveName);
 
 	// downsampling with voxel grid
 	printf("Downsampling point clouds...\n");	
@@ -238,12 +200,6 @@ int MergePointclouds()
 	printf("cloud size: %lu; normals size: %lu\n", cloud_filtered->points.size(), cloud_normals->points.size());
 
 	//merging = false;
-	if (visualizing){	
-		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));	
-		viewer->setBackgroundColor (0, 0, 0);
-		printf("Visualizing point clouds...\n");				
-		Visualize(viewer, cloud_filtered, cloud_normals);
-	}
     
     return 0;
 }
@@ -286,7 +242,7 @@ public:
 
     bool updateModule()
     {
-        return true;
+        return !closing;
     }
 
 
@@ -313,14 +269,20 @@ public:
 	    reply.addVocab(responseCode);
 	    return true;
 
+    } else if (receivedCmd == "name") {
+            if (command.size() == 2){
+                saveName = command.get(1).asString();
+                responseCode = Vocab::encode("ack");
+                reply.addVocab(responseCode);
+                return true;
+            } else {
+                fprintf(stdout,"Please provide the desired file name. \n");
+                reply.addString("[nack] Please provide the desired file name.");
+                return false;
+            }
+
 	} else if (receivedCmd == "save") {
 	    saving = true;
-	    responseCode = Vocab::encode("ack");
-	    reply.addVocab(responseCode);
-        return true;
-
-	} else if (receivedCmd == "view") {
-	    visualizing = true;
 	    responseCode = Vocab::encode("ack");
 	    reply.addVocab(responseCode);
         return true;
@@ -328,8 +290,8 @@ public:
 	}else if (receivedCmd == "help"){
 		reply.addVocab(Vocab::encode("many"));		
 		reply.addString("Available commands are:");
-		reply.addString("merge - Merges all pointclouds on the path folder, or the new ones if 'cloud_merged' already exists.");
-        reply.addString("view - Activates visualization. (XXX visualizer does not close). (Default off).");
+        reply.addString("merge - Merges all pointclouds on the path folder, or the new ones if a previous merge already exists. Name shall be specified if it's not cloud_merge.ply.");
+        reply.addString("name (string) - Changes the name of the file where the merged cloud will be saved. Default 'cloud_merged.ply'");
         reply.addString("save - Activates saving the resulting merged point cloud. (Default true).");
 		//reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
 		reply.addString("help - produces this help.");
@@ -365,11 +327,11 @@ public:
         attach(handlerPort);
 
 	/* Module rpc parameters */
-	visualizing = false;
 	saving = true;
     closing = false;
 
 	/*Init variables*/
+    saveName = "cloud_merged.ply";
 	initF = true;	
 	filesScanned = 0;
 

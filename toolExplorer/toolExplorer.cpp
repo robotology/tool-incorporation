@@ -52,15 +52,16 @@ class ToolExplorer: public RFModule
 {
 protected:
     
-    //ports    
-    yarp::os::BufferedPort<yarp::os::Bottle >   seedInPort;
-    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort;
+    // ports
+    BufferedPort<Bottle >   seedInPort;
+    BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort;
 
-    RpcServer                           rpcPort;
-    yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
-    yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with mergeClouds module
-    yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
-    yarp::os::RpcClient         		rpcFeatExtPort;         //rpc port to communicate with the 3D feature extraction module
+    // rpc ports
+    RpcServer               rpcPort;
+    RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
+    RpcClient         		rpcMergerPort;        	//rpc port to communicate with mergeClouds module
+    RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
+    RpcClient         		rpcFeatExtPort;         //rpc port to communicate with the 3D feature extraction module
 
     // Drivers
     PolyDriver driverG;
@@ -545,15 +546,26 @@ protected:
     /************************************************************************/
     bool changeModelName(const string& modelname)
 	{
-    	// Changes the name with which the pointclouds will be saved
+        // Changes the name with which the pointclouds will be saved and read
         cloudName = modelname;
 
-       	Bottle cmdOR, replyOR;
-	    // requests 3D reconstruction to objectReconst module
-	    cmdOR.clear();	replyOR.clear();
+        Bottle cmdOR, replyOR;
+        cmdOR.clear();	replyOR.clear();
 	    cmdOR.addString("name");
 	    cmdOR.addString(modelname);
 	    rpcObjRecPort.write(cmdOR,replyOR);        
+
+        Bottle cmdMPC, replyMPC;
+        cmdMPC.clear();	replyMPC.clear();
+        cmdMPC.addString("name");
+        cmdMPC.addString(modelname + "_merged.ply");
+        rpcMergerPort.write(cmdMPC,replyMPC);
+
+        Bottle cmdFext, replyFext;
+        cmdFext.clear();	replyFext.clear();
+        cmdFext.addString("name");
+        cmdFext.addString(modelname + "_merged.ply");
+        rpcFeatExtPort.write(cmdFext,replyFext);
 	    
  	    printf("Name changed to %s.\n", modelname.c_str());
 	return true;
@@ -640,7 +652,10 @@ protected:
     {
         stringstream s;
         s.str("");
-        s << cloudsPath + "/norm/" + name.c_str() << numClouds;
+        if (normalizePose)
+            s << cloudsPath + "/norm/" + name.c_str() << numClouds;
+        else
+            s << cloudsPath + "/" + name.c_str() << numClouds;
         string filename = s.str();
         string filenameNumb = filename+".ply";
         ofstream plyfile;
@@ -676,6 +691,7 @@ public:
             cloudsPath = rf.find("clouds_path").asString();
         else
             cloudsPath = rf.find("clouds_path_sim").asString();
+        cloudName = rf.check("modelName", Value("cloud")).asString();
         hand = rf.check("hand", Value("right")).asString();
 	    eye = rf.check("camera", Value("left")).asString();
 	    verbose = rf.check("verbose", Value(false)).asBool();

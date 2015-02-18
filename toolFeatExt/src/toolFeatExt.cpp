@@ -1,49 +1,65 @@
+/*
+ * TOOL 3D FEATURE EXTRACTOR
+ * Copyright (C) 2015 iCub Facility - Istituto Italiano di Tecnologia
+ * Author: Tanis Mar
+ * email: tanis.mar@iit.it
+ * Permission is granted to copy, distribute, and/or modify this program
+ * under the terms of the GNU General Public License, version 2 or any
+ * later version published by the Free Software Foundation.
+ *
+ * A copy of the license can be found at
+ * http://www.robotcub.org/icub/license/gpl.txt
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details
+*/
 
-#include <iostream>
-#include <math.h>
-#include <vector>
-#include <ctime>
-
-#include <yarp/os/RFModule.h>
-#include <yarp/os/Network.h>
-#include <yarp/os/Module.h>
-#include <yarp/os/Vocab.h>
-
-#include <pcl/point_cloud.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/point_types.h>
-#include <pcl/visualization/pcl_visualizer.h>
-
-#include <pcl/octree/octree.h>
-#include <pcl/octree/octree_impl.h>
-#include <pcl/common/transforms.h>
-#include <pcl/console/parse.h>
-#include <pcl/features/moment_of_inertia_estimation.h>
-#include <pcl/features/normal_3d.h>
+#include "toolFeatExt.h"
 
 using namespace std;
 using namespace yarp::os;
+using namespace yarp::sig;
+//using namespace iCub::ctrl;
 
-class ToolFeatExt:public RFModule
-{
-    RpcServer handlerPort;  // port to handle messages
-    string path;            // path to folder with .ply or .pcd files
-    string fname;           // name of the .ply or .pcd cloud file
+/**********************************************************
+                    PRIVATE METHODS
+/**********************************************************/
+/************************************************************************/
 
-    bool verbose;
-    int maxDepth;
-    int binsPerDim;
+// toolPose is represented by the rotation matrix of the explored object wrt the canonical position.
+// It shall be computed by a previous fucntion/module as the transformation matrix obtained when
+//   registratering the single view to the canonical mode.
+bool ToolFeatExt::transformFrame(const Matrix toolPose)
+{   // transformFrame() rotates the full canonical 3D model to the pose on which it has been found to be
+    //    in order to obtain the pose - dependent 3D features.
 
-    bool closing;
+    //Load cloud if ain't yet loaded
+    if (!cloudLoaded){
+        if (!loadCloud())
+        {
+            perror ("Couldn't load cloud");
+            return false;
+        }
+    }
 
+    Eigen::Matrix4f TM = yarpMat2eigMat(toolPose);
+
+    // Execute the transformation
+    pcl::transformPointCloud(*cloud, *cloud, TM);
+
+    if (verbose){	printf("Transformation done \n");	}
+
+    return true;
+}
 
 /************************************************************************/
-int computeFeats()
-	{
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> ());// Point cloud
-    DIR *dir;    
+bool ToolFeatExt::loadCloud()
+{
+    // Load the pointcloud eithrr from a pcd or a ply file.
+    cloud->clear();
+    DIR *dir;
     if ((dir = opendir (path.c_str())) != NULL) {
         string::size_type idx;
         idx = fname.rfind('.');
@@ -56,14 +72,14 @@ int computeFeats()
                 printf ("Loading .ply file: %s\n", fname.c_str());
                 if (pcl::io::loadPLYFile (path+fname, *cloud) < 0)	{
                     PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
-                    return -1;
+                    return false;
                 }
             }else if(strcmp(ext.c_str(),"pcd")==0)
             {
                 printf ("Loading .pcd file: %s\n", fname.c_str());
                 if (pcl::io::loadPCDFile (path+fname, *cloud) < 0)	{
                     PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
-                    return -1;
+                    return false;
                 }
             }else {
                 printf ("Please select .pcd or .ply file.\n");
@@ -71,11 +87,23 @@ int computeFeats()
         }
     } else {
         /* could not open directory */
-        perror ("can't load data files"); 	
-        return -1;
+        perror ("can't load data files");
+        return false;
     }
+    cloudLoaded = true;
+    return true;
+}
 
-
+/************************************************************************/
+// XXX change writing out of features to compile with thrift class
+int ToolFeatExt::computeFeats()
+    {
+    if (!cloudLoaded){
+        if (!loadCloud())    {
+                perror ("Couldn't load cloud");
+                return -1;
+            }
+    }
     /* ===========================================================================*/
     // Get fixed bounding box to avoid octree automatically figure it out (what might change with resolution)
     pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
@@ -110,9 +138,6 @@ int computeFeats()
     // voxelCloud and voxelCloudNormals to contain the poitns on each voxel
     pcl::PointCloud<pcl::PointXYZ>::Ptr voxelCloud(new pcl::PointCloud<pcl::PointXYZ> ());
     pcl::PointCloud<pcl::Normal>::Ptr voxelCloudNormals(new pcl::PointCloud<pcl::Normal> ());
-
-    // Viewer class for visualization
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Initialize octree
@@ -339,7 +364,7 @@ int computeFeats()
         }
 
         // Print out voxel occupancy and stream out histograms
-        /*
+        // /*
         cout << "Voxel Occupancy: " << std::endl << "{";
         for (int i = 0; i < voxPerSide; ++i){
             cout <<  "[" ;
@@ -404,171 +429,226 @@ int computeFeats()
 }
 
 
-public:
-
-    double getPeriod()
-    {
-        return 1; //module periodicity (seconds)
+/***************** Helper Functions *************************************/
+Matrix ToolFeatExt::eigMat2yarpMat(const Eigen::MatrixXf eigMat){
+    // Transforms matrices from Eigen format to YARP format
+    int nrows = eigMat.rows();
+    int ncols = eigMat.cols();
+    Matrix yarpMat =yarp::math::zeros(nrows,ncols);
+    for (int row = 0; row<nrows; ++row){
+        for (int col = 0; col<ncols; ++col){
+            yarpMat(row,col) = eigMat(row,col);
+        }
     }
+    return yarpMat;
+}
 
-    bool updateModule()
-    {
+
+Eigen::MatrixXf ToolFeatExt::yarpMat2eigMat(const Matrix yarpMat){
+    // Transforms matrices from YARP format to Eigen format
+    int nrows = yarpMat.rows();
+    int ncols = yarpMat.cols();
+    Eigen::MatrixXf eigMat;
+    eigMat.resize(nrows,ncols);
+    for (int row = 0; row<nrows; ++row){
+        for (int col = 0; col<ncols; ++col){
+            eigMat(row,col) = yarpMat(row,col);
+        }
+    }
+    return eigMat;
+}
+
+Matrix ToolFeatExt::getCanonicalRotMat(const int deg){
+
+    float rad = ((float)deg/180) *M_PI; // converse deg into rads
+
+    Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
+    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
+
+    Matrix rotMat = iCub::ctrl::axis2dcm(oy);   // from axis/angle to rotation matrix notation
+    return rotMat;
+}
+
+/**********************************************************
+                    PUBLIC METHODS
+/**********************************************************/
+
+bool ToolFeatExt::setVerbose(const string& verb)
+{
+    if (verb == "ON"){
+        verbose = true;
+        fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+        return true;
+    } else if (verb == "OFF"){
+        verbose = false;
+        fprintf(stdout,"Verbose is : %s\n", verb.c_str());
         return true;
     }
+    return false;
+}
+
+double ToolFeatExt::getPeriod()
+{
+    return 1; //module periodicity (seconds)
+}
+
+bool ToolFeatExt::updateModule()
+{
+    return !closing;
+}
 
 
-    /************************************************************************/
-    bool respond(const Bottle &command, Bottle &reply)
-    {
-	/* This method is called when a command string is sent via RPC */
-    	reply.clear();  // Clear reply bottle
+/************************************************************************/
+bool ToolFeatExt::respond(const Bottle &command, Bottle &reply)
+{
+/* This method is called when a command string is sent via RPC */
+    reply.clear();  // Clear reply bottle
 
-	/* Get command string */
-	string receivedCmd = command.get(0).asString().c_str();
-	int responseCode;   //Will contain Vocab-encoded response
+/* Get command string */
+string receivedCmd = command.get(0).asString().c_str();
+int responseCode;   //Will contain Vocab-encoded response
 
-    if (receivedCmd == "getFeat") {
-        int ok = computeFeats();
-	    if (ok>=0) { 
-		    responseCode = Vocab::encode("ack");
-		    reply.addVocab(responseCode);
+if (receivedCmd == "getFeat") {
+    int ok = computeFeats();
+    if (ok>=0) {
+        responseCode = Vocab::encode("ack");
+        reply.addVocab(responseCode);
+        return true;
+    } else {
+        fprintf(stdout,"3D Features not computed correctly. \n");
+        reply.addString("[nack] 3D Features not computed correctly.");
+        return false;
+    }
+
+
+} else if (receivedCmd == "name") {
+        if (command.size() == 2){
+            fname = command.get(1).asString();
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
             return true;
-	    } else {
-            fprintf(stdout,"3D Features not computed correctly. \n");
-            reply.addString("[nack] 3D Features not computed correctly.");
-	        return false;
-	    }
+        } else {
+            fprintf(stdout,"Please provide the .pcd file name. \n");
+            reply.addString("[nack] Please provide the .pcd file name.");
+            return false;
+        }
 
-
-	} else if (receivedCmd == "name") {
-            if (command.size() == 2){
-                fname = command.get(1).asString();
+} else if (receivedCmd == "verbose") {
+        string verb;
+        if (command.size() == 2){
+            bool ok = setVerbose(command.get(1).asString());
+            if (ok){
                 responseCode = Vocab::encode("ack");
                 reply.addVocab(responseCode);
                 return true;
-            } else {
-                fprintf(stdout,"Please provide the .pcd file name. \n");
-                reply.addString("[nack] Please provide the .pcd file name.");
-    	        return false;                
-            }
-
-    } else if (receivedCmd == "verbose") {
-
-            string verb;
-            if (command.size() == 2){
-                verb = command.get(1).asString();
-                if (verb == "ON"){
-                    verbose = true;
-                    fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-                    return true;
-                } else if (verb == "OFF"){
-                    verbose = false;
-                    fprintf(stdout,"Verbose is : %s\n", verb.c_str());                   
-                    return true;
-                }
-            } else {
-                fprintf(stdout,"Please set verbose ON or OFF. \n");               
+            }else {
+                fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
                 reply.addString("[nack] Please set verbose ON or OFF.");
                 return false;
             }
-
-    } else if (receivedCmd == "bins") {
-            if (command.size() == 2){
-                binsPerDim = command.get(1).asInt();
-                responseCode = Vocab::encode("ack");
-                reply.addVocab(responseCode);
-                return true;
-            } else {
-                fprintf(stdout,"Couldn't set the numbe of bins. \n");
-                reply.addString("[nack] Couldn't set the numbe of bins.");
-                return false;
-            }
-
-    } else if (receivedCmd == "depth") {
-            if (command.size() == 2){
-                maxDepth = command.get(1).asInt();
-                responseCode = Vocab::encode("ack");
-                reply.addVocab(responseCode);
-                return true;
-            } else {
-                fprintf(stdout,"Please provide the .pcd file name. \n");                
-                reply.addString("[nack] Please provide the .pcd file name.");
-                return false;
-            }
-
-	}else if (receivedCmd == "help"){
-		reply.addVocab(Vocab::encode("many"));		
-		reply.addString("Available commands are:");
-		reply.addString("name (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'");
-        reply.addString("getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues.");
-        reply.addString("bins (int) - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. (Default bins = 4)");
-        reply.addString("depth (int)- sets the number of iterative times that the bounding box will be subdivided into octants. Total number of voxels = sum(8^(1:depth)). (Default depth = 2, 72 vox)");
-        reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
-		reply.addString("help - produces this help.");
-		reply.addString("quit - closes the module.");
-		
-		responseCode = Vocab::encode("ack");
-		reply.addVocab(responseCode);
-		return true;
-
-	} else if (receivedCmd == "quit") {
-		responseCode = Vocab::encode("ack");
-		reply.addVocab(responseCode);
-		closing = true;
-		return true;
         }
-    reply.addString("Invalid command, type [help] for a list of accepted commands.");
-    responseCode = Vocab::encode("nack");
+
+} else if (receivedCmd == "bins") {
+        if (command.size() == 2){
+            binsPerDim = command.get(1).asInt();
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        } else {
+            fprintf(stdout,"Couldn't set the numbe of bins. \n");
+            reply.addString("[nack] Couldn't set the numbe of bins.");
+            return false;
+        }
+
+} else if (receivedCmd == "depth") {
+        if (command.size() == 2){
+            maxDepth = command.get(1).asInt();
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        } else {
+            fprintf(stdout,"Please provide desired max depth of the octree division. \n");
+            reply.addString("[nack] Please provide max octree depth.");
+            return false;
+        }
+
+}else if (receivedCmd == "help"){
+    reply.addVocab(Vocab::encode("many"));
+    reply.addString("Available commands are:");
+    reply.addString("name (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'");
+    reply.addString("getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues.");
+    reply.addString("bins (int) - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. (Default bins = 4)");
+    reply.addString("depth (int)- sets the number of iterative times that the bounding box will be subdivided into octants. Total number of voxels = sum(8^(1:depth)). (Default depth = 2, 72 vox)");
+    reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
+    reply.addString("help - produces this help.");
+    reply.addString("quit - closes the module.");
+
+    responseCode = Vocab::encode("ack");
     reply.addVocab(responseCode);
-    return true;	
-    }
+    return true;
 
-    /************************************************************************/
-    bool configure(yarp::os::ResourceFinder &rf)
-    {
-    string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
-    string robot = rf.check("robot",Value("icub")).asString().c_str();
-    verbose = rf.check("verbose",Value(true)).asBool();
-    if (strcmp(robot.c_str(),"icub")==0)
-        path = rf.find("clouds_path").asString();
-    else
-        path = rf.find("clouds_path_sim").asString();
-    printf("Path: %s",path.c_str());
-
-    maxDepth = rf.find("maxDepth").asInt();
-    binsPerDim = rf.find("binsPerDim").asInt();
-
-	handlerPort.open("/"+name+"/rpc:i");
-        attach(handlerPort);
-
-	/* Module rpc parameters */
-    closing = false;
-
-	/*Init variables*/
-	fname = "cloud_merged.ply";
-
-    cout << endl << "Configuring done."<<endl;
-
+} else if (receivedCmd == "quit") {
+    responseCode = Vocab::encode("ack");
+    reply.addVocab(responseCode);
+    closing = true;
     return true;
     }
+reply.addString("Invalid command, type [help] for a list of accepted commands.");
+responseCode = Vocab::encode("nack");
+reply.addVocab(responseCode);
+return true;
+}
 
-    /************************************************************************/    
-    bool interruptModule()
-    {
-        closing = true;
-        handlerPort.interrupt();
-        cout<<"Interrupting your module, for port cleanup"<<endl;
-        return true;
-    }
+/************************************************************************/
+bool ToolFeatExt::configure(yarp::os::ResourceFinder &rf)
+{
 
-    
-    bool close()
-    {
-        cout<<"Calling close function\n";
-        handlerPort.close();
-        return true;
-    }
-};
+    // add and initialize the port to send out the features via thrift.
+string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
+string robot = rf.check("robot",Value("icub")).asString().c_str();
+verbose = rf.check("verbose",Value(true)).asBool();
+if (strcmp(robot.c_str(),"icub")==0)
+    path = rf.find("clouds_path").asString();
+else
+    path = rf.find("clouds_path_sim").asString();
+printf("Path: %s",path.c_str());
+
+maxDepth = rf.find("maxDepth").asInt();
+binsPerDim = rf.find("binsPerDim").asInt();
+
+handlerPort.open("/"+name+"/rpc:i");
+    attach(handlerPort);
+
+/* Module rpc parameters */
+closing = false;
+cloudLoaded = false;
+
+/*Init variables*/
+fname = "cloud_merged.ply";
+cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
+
+
+cout << endl << "Configuring done."<<endl;
+
+return true;
+}
+
+/************************************************************************/
+bool ToolFeatExt::interruptModule()
+{
+    closing = true;
+    handlerPort.interrupt();
+    cout<<"Interrupting your module, for port cleanup"<<endl;
+    return true;
+}
+
+
+bool ToolFeatExt::close()
+{
+    cout<<"Calling close function\n";
+    handlerPort.close();
+    return true;
+}
 
     /************************************************************************/
     /************************************************************************/
@@ -597,6 +677,4 @@ int main(int argc, char * argv[])
     cout<<"Main returning..."<<endl;
     return 0;
 }
-
-
 
