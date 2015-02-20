@@ -27,9 +27,21 @@ bool ToolFeat3DwithOrient::read_toolFeats(yarp::os::idl::WireReader& reader) {
     uint32_t _i28;
     for (_i28 = 0; _i28 < _size24; ++_i28)
     {
-      if (!reader.readNested(toolFeats[_i28])) {
-        reader.fail();
-        return false;
+      {
+        toolFeats[_i28].clear();
+        uint32_t _size29;
+        yarp::os::idl::WireState _etype32;
+        reader.readListBegin(_etype32, _size29);
+        toolFeats[_i28].resize(_size29);
+        uint32_t _i33;
+        for (_i33 = 0; _i33 < _size29; ++_i33)
+        {
+          if (!reader.readDouble(toolFeats[_i28][_i33])) {
+            reader.fail();
+            return false;
+          }
+        }
+        reader.readListEnd();
       }
     }
     reader.readListEnd();
@@ -39,16 +51,28 @@ bool ToolFeat3DwithOrient::read_toolFeats(yarp::os::idl::WireReader& reader) {
 bool ToolFeat3DwithOrient::nested_read_toolFeats(yarp::os::idl::WireReader& reader) {
   {
     toolFeats.clear();
-    uint32_t _size29;
-    yarp::os::idl::WireState _etype32;
-    reader.readListBegin(_etype32, _size29);
-    toolFeats.resize(_size29);
-    uint32_t _i33;
-    for (_i33 = 0; _i33 < _size29; ++_i33)
+    uint32_t _size34;
+    yarp::os::idl::WireState _etype37;
+    reader.readListBegin(_etype37, _size34);
+    toolFeats.resize(_size34);
+    uint32_t _i38;
+    for (_i38 = 0; _i38 < _size34; ++_i38)
     {
-      if (!reader.readNested(toolFeats[_i33])) {
-        reader.fail();
-        return false;
+      {
+        toolFeats[_i38].clear();
+        uint32_t _size39;
+        yarp::os::idl::WireState _etype42;
+        reader.readListBegin(_etype42, _size39);
+        toolFeats[_i38].resize(_size39);
+        uint32_t _i43;
+        for (_i43 = 0; _i43 < _size39; ++_i43)
+        {
+          if (!reader.readDouble(toolFeats[_i38][_i43])) {
+            reader.fail();
+            return false;
+          }
+        }
+        reader.readListEnd();
       }
     }
     reader.readListEnd();
@@ -93,10 +117,18 @@ bool ToolFeat3DwithOrient::nested_write_toolname(yarp::os::idl::WireWriter& writ
 bool ToolFeat3DwithOrient::write_toolFeats(yarp::os::idl::WireWriter& writer) {
   {
     if (!writer.writeListBegin(BOTTLE_TAG_LIST, static_cast<uint32_t>(toolFeats.size()))) return false;
-    std::vector<VoxFeat> ::iterator _iter34;
-    for (_iter34 = toolFeats.begin(); _iter34 != toolFeats.end(); ++_iter34)
+    std::vector<std::vector<double> > ::iterator _iter44;
+    for (_iter44 = toolFeats.begin(); _iter44 != toolFeats.end(); ++_iter44)
     {
-      if (!writer.writeNested((*_iter34))) return false;
+      {
+        if (!writer.writeListBegin(BOTTLE_TAG_DOUBLE, static_cast<uint32_t>((*_iter44).size()))) return false;
+        std::vector<double> ::iterator _iter45;
+        for (_iter45 = (*_iter44).begin(); _iter45 != (*_iter44).end(); ++_iter45)
+        {
+          if (!writer.writeDouble((*_iter45))) return false;
+        }
+        if (!writer.writeListEnd()) return false;
+      }
     }
     if (!writer.writeListEnd()) return false;
   }
@@ -105,10 +137,18 @@ bool ToolFeat3DwithOrient::write_toolFeats(yarp::os::idl::WireWriter& writer) {
 bool ToolFeat3DwithOrient::nested_write_toolFeats(yarp::os::idl::WireWriter& writer) {
   {
     if (!writer.writeListBegin(BOTTLE_TAG_LIST, static_cast<uint32_t>(toolFeats.size()))) return false;
-    std::vector<VoxFeat> ::iterator _iter35;
-    for (_iter35 = toolFeats.begin(); _iter35 != toolFeats.end(); ++_iter35)
+    std::vector<std::vector<double> > ::iterator _iter46;
+    for (_iter46 = toolFeats.begin(); _iter46 != toolFeats.end(); ++_iter46)
     {
-      if (!writer.writeNested((*_iter35))) return false;
+      {
+        if (!writer.writeListBegin(BOTTLE_TAG_DOUBLE, static_cast<uint32_t>((*_iter46).size()))) return false;
+        std::vector<double> ::iterator _iter47;
+        for (_iter47 = (*_iter46).begin(); _iter47 != (*_iter46).end(); ++_iter47)
+        {
+          if (!writer.writeDouble((*_iter47))) return false;
+        }
+        if (!writer.writeListEnd()) return false;
+      }
     }
     if (!writer.writeListEnd()) return false;
   }
@@ -188,7 +228,7 @@ bool ToolFeat3DwithOrient::Editor::read(yarp::os::ConnectionReader& connection) 
       }
       if (field=="toolFeats") {
         if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeString("std::vector<VoxFeat>  toolFeats")) return false;
+        if (!writer.writeString("std::vector<std::vector<double> >  toolFeats")) return false;
       }
       if (field=="orientation") {
         if (!writer.writeListHeader(1)) return false;

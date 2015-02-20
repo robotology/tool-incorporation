@@ -6,7 +6,6 @@
 
 #include <yarp/os/Wire.h>
 #include <yarp/os/idl/WireTypes.h>
-#include <VoxFeat.h>
 
 class ToolFeat3D;
 
@@ -15,14 +14,14 @@ class ToolFeat3D : public yarp::os::idl::WirePortable {
 public:
   // Fields
   std::string toolname;
-  std::vector<VoxFeat>  toolFeats;
+  std::vector<std::vector<double> >  toolFeats;
 
   // Default constructor
   ToolFeat3D() : toolname("") {
   }
 
   // Constructor with field values
-  ToolFeat3D(const std::string& toolname,const std::vector<VoxFeat> & toolFeats) : toolname(toolname), toolFeats(toolFeats) {
+  ToolFeat3D(const std::string& toolname,const std::vector<std::vector<double> > & toolFeats) : toolname(toolname), toolFeats(toolFeats) {
   }
 
   // Copy constructor
@@ -110,14 +109,14 @@ public:
       communicate();
       did_set_toolname();
     }
-    void set_toolFeats(const std::vector<VoxFeat> & toolFeats) {
+    void set_toolFeats(const std::vector<std::vector<double> > & toolFeats) {
       will_set_toolFeats();
       obj->toolFeats = toolFeats;
       mark_dirty_toolFeats();
       communicate();
       did_set_toolFeats();
     }
-    void set_toolFeats(int index, const VoxFeat& elem) {
+    void set_toolFeats(int index, const std::vector<double> & elem) {
       will_set_toolFeats();
       obj->toolFeats[index] = elem;
       mark_dirty_toolFeats();
@@ -127,7 +126,7 @@ public:
     const std::string& get_toolname() {
       return obj->toolname;
     }
-    const std::vector<VoxFeat> & get_toolFeats() {
+    const std::vector<std::vector<double> > & get_toolFeats() {
       return obj->toolFeats;
     }
     virtual bool will_set_toolname() { return true; }

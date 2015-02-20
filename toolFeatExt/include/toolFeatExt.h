@@ -28,6 +28,7 @@
 #include <yarp/os/RFModule.h>
 #include <yarp/os/Network.h>
 #include <yarp/os/Module.h>
+#include <yarp/os/RpcServer.h>
 #include <yarp/os/Vocab.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
@@ -52,23 +53,29 @@
 #include "ToolFeat3DwithOrient.h"
 #include "VoxFeat.h"
 
+#include <tool3DFeat_IDLServer.h>
+
 /**********************************************************
     PUBLIC METHODS
 /**********************************************************/
 
 /**********************************************************/
-class ToolFeatExt : public yarp::os::RFModule
+class ToolFeatExt : public yarp::os::RFModule, public tool3DFeat_IDLServer
 {
 protected:
     /* module parameters */
-    yarp::os::RpcServer handlerPort;  // port to handle messages
+    yarp::os::RpcServer rpcInPort;  // port to handle incoming commands
+
+    yarp::os::Port      feat3DoutPort; // Port where the features of the tool are send out (as a thrift Tool3DwithOrient struct)
     std::string path;            // path to folder with .ply or .pcd files
     std::string fname;           // name of the .ply or .pcd cloud file
 
 // add the port to send out the features via thrift.
 
     /* class variables */
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;// Point cloud
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_orig; // Point cloud
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;      // Point cloud of the transformed model
+    yarp::sig::Matrix                   rotMat;     // Rotation Matrix specifying grasp pose
 
     bool verbose;
     int maxDepth;
@@ -76,21 +83,33 @@ protected:
 
     bool closing;
     bool cloudLoaded;
+    bool cloudTransformed;
 
     /* functions*/
-    bool transformFrame(const yarp::sig::Matrix toolPose = yarp::math::eye(4));
     bool loadCloud();
+    bool transformFrame(const yarp::sig::Matrix& toolPose = yarp::math::eye(4,4));
     int  computeFeats();
 
     /* helper functions */
     yarp::sig::Matrix   eigMat2yarpMat(const Eigen::MatrixXf eigMat);
     Eigen::MatrixXf     yarpMat2eigMat(const yarp::sig::Matrix yarpMat);
-    yarp::sig::Matrix   getCanonicalRotMat(const int deg = 0);
 
 public:
 
-    // Access to class variables
+    // RPC Accesible methods
+    bool getFeats();
+    bool setPose(const yarp::sig::Matrix& rotMat);
+    bool setCanonicalPose(const int deg = 0);
+
+    bool bins(const int binsN = 2);
+    bool depth(const int depthN = 2);
+    bool setName(const std::string& cloudname = "cloud_merged.ply");
     bool setVerbose(const std::string& verb);
+    //bool help();
+
+    // module control //
+    bool						attach(yarp::os::RpcServer &source);
+    bool						quit();
 
     // RF modules overrides
     bool						configure(yarp::os::ResourceFinder &rf);
@@ -98,9 +117,6 @@ public:
     bool						close();
     bool						updateModule();
     double						getPeriod();
-    bool                        respond(const yarp::os::Bottle &command, yarp::os::Bottle &reply);
-
-
 };
 
 #endif

@@ -26,39 +26,19 @@ using namespace yarp::sig;
 /**********************************************************
                     PRIVATE METHODS
 /**********************************************************/
-/************************************************************************/
-
-// toolPose is represented by the rotation matrix of the explored object wrt the canonical position.
-// It shall be computed by a previous fucntion/module as the transformation matrix obtained when
-//   registratering the single view to the canonical mode.
-bool ToolFeatExt::transformFrame(const Matrix toolPose)
-{   // transformFrame() rotates the full canonical 3D model to the pose on which it has been found to be
-    //    in order to obtain the pose - dependent 3D features.
-
-    //Load cloud if ain't yet loaded
-    if (!cloudLoaded){
-        if (!loadCloud())
-        {
-            perror ("Couldn't load cloud");
-            return false;
-        }
-    }
-
-    Eigen::Matrix4f TM = yarpMat2eigMat(toolPose);
-
-    // Execute the transformation
-    pcl::transformPointCloud(*cloud, *cloud, TM);
-
-    if (verbose){	printf("Transformation done \n");	}
-
-    return true;
-}
 
 /************************************************************************/
 bool ToolFeatExt::loadCloud()
 {
-    // Load the pointcloud eithrr from a pcd or a ply file.
+    cout << "Loading cloud from file" << path.c_str() << fname.c_str() << endl;
+
+    // (Re-) initialize cloud transformations
+    cloud_orig->clear();
     cloud->clear();
+    cloudTransformed = false;
+    rotMat = yarp::math::eye(4,4);
+
+    // Load the pointcloud either from a pcd or a ply file.
     DIR *dir;
     if ((dir = opendir (path.c_str())) != NULL) {
         string::size_type idx;
@@ -70,24 +50,28 @@ bool ToolFeatExt::loadCloud()
             if(strcmp(ext.c_str(),"ply")==0)
             {
                 printf ("Loading .ply file: %s\n", fname.c_str());
-                if (pcl::io::loadPLYFile (path+fname, *cloud) < 0)	{
+                if (pcl::io::loadPLYFile (path+fname, *cloud_orig) < 0)	{
                     PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
                     return false;
                 }
             }else if(strcmp(ext.c_str(),"pcd")==0)
             {
                 printf ("Loading .pcd file: %s\n", fname.c_str());
-                if (pcl::io::loadPCDFile (path+fname, *cloud) < 0)	{
+                if (pcl::io::loadPCDFile (path+fname, *cloud_orig) < 0)	{
                     PCL_ERROR("Error loading cloud %s.\n", fname.c_str());
                     return false;
                 }
             }else {
-                printf ("Please select .pcd or .ply file.\n");
+                PCL_ERROR("Please select a .pcd or .ply file.\n");
+                return false;
             }
+        }else {
+            PCL_ERROR(" %s does not have valid file format.\n", fname.c_str());
+            return false;
         }
     } else {
         /* could not open directory */
-        perror ("can't load data files");
+        printf ("can't open data directory.");
         return false;
     }
     cloudLoaded = true;
@@ -95,15 +79,53 @@ bool ToolFeatExt::loadCloud()
 }
 
 /************************************************************************/
-// XXX change writing out of features to compile with thrift class
+// toolPose is represented by the rotation matrix of the explored object wrt the canonical position.
+// It shall be computed by a previous fucntion/module as the transformation matrix obtained when
+//   registratering the single view to the canonical mode.
+bool ToolFeatExt::transformFrame(const Matrix &toolPose)
+{   // transformFrame() rotates the full canonical 3D model to the pose on which it has been found to be
+    //    in order to obtain the pose - dependent 3D features.
+
+    //Load cloud if ain't yet loaded
+    if (!cloudLoaded){
+        if (!loadCloud())
+        {
+            printf("Couldn't load cloud");
+            return false;
+        }
+    }
+
+    rotMat = toolPose;
+    cloudTransformed = true;
+
+    if (verbose){	cout << "Transform with Matrix " << endl << toolPose.toString() <<endl;	}
+
+    // format YARP Matrix yo Eigen Matrix
+    Eigen::Matrix4f TM = yarpMat2eigMat(toolPose);
+
+    // Execute the transformation
+    pcl::transformPointCloud(*cloud_orig , *cloud, TM);
+
+    if (verbose){	printf("Transformation done \n");	}
+
+    return true;
+}
+
+/************************************************************************/
 int ToolFeatExt::computeFeats()
     {
     if (!cloudLoaded){
-        if (!loadCloud())    {
-                perror ("Couldn't load cloud");
-                return -1;
-            }
+        if (!loadCloud())
+        {
+            printf("Couldn't load cloud");
+            return -1;
+        }
     }
+
+    if (!cloudTransformed){
+        transformFrame();
+    }
+
     /* ===========================================================================*/
     // Get fixed bounding box to avoid octree automatically figure it out (what might change with resolution)
     pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
@@ -172,8 +194,11 @@ int ToolFeatExt::computeFeats()
     float rangeValid = rangeMax - rangeMin;
     float sizeBin = rangeValid/binsPerDim;
 
-    std::vector < std::vector < float > > featureVectorOccVox;     // Vector containing histograms for occupied voxels
-    std::vector < std::vector < float > > featureVectorAllVox;     // Vector containing histograms for all voxels, also the empty ones
+    std::vector < std::vector < double > > featureVectorOccVox;     // Vector containing histograms for occupied voxels
+    ToolFeat3DwithOrient featureVectorAllVox;     // Vector containing histograms for all voxels, also the empty ones
+    featureVectorAllVox.toolname = fname;
+    featureVectorAllVox.orientation = rotMat;
+    //std::vector < std::vector < float > > featureVectorAllVox;     // Vector containing histograms for all voxels, also the empty ones
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Find the minimum resolution octree (depth =1) to start increase it from there
 
@@ -210,12 +235,10 @@ int ToolFeatExt::computeFeats()
                 for (int k = 0; k < voxPerSide; ++k)
                    voxelOccupancy[i][j][k] = false;
 
-
-
         // Instantiate normal histogram at actual depth
         int numLeaves = octree.getLeafCount();      // Get the number of occupied voxels (leaves) at actual depth
         float voxelHist[numLeaves][binsPerDim][binsPerDim][binsPerDim]; // Histogram 3D matrix per voxel
-        std::vector<float> featVecHist;                                 // Vector containing a seriazed version of the 3D histogram
+        std::vector< double> featVecHist;                                 // Vector containing a seriazed version of the 3D histogram
 
         if(verbose){
             cout << "BB divided into " << voxPerSide << " voxels per side of size "<< minVoxSize << "," << numLeaves << " occupied." << endl;
@@ -386,19 +409,19 @@ int ToolFeatExt::computeFeats()
             for (int j = 0; j < voxPerSide; ++j){
                 for (int k = 0; k < voxPerSide; ++k){
                     if (voxelOccupancy[i][j][k]){        // if the voxel is occupied
-                        std::vector<float> histVec;
+                        std::vector< double > histVec;
                         histVec = featureVectorOccVox[occVoxI];
-                        featureVectorAllVox.push_back(histVec); // copy histogram
+                        featureVectorAllVox.toolFeats.push_back(histVec); // copy histogram
                         occVoxI++;
                     }else{
-                        std::vector < float >  zeroVector(pow(binsPerDim,3),0.0f);
-                        featureVectorAllVox.push_back(zeroVector); // fill with the same amount of zeros
+                        std::vector< double >  zeroVector(pow(binsPerDim,3),0.0f);
+                        featureVectorAllVox.toolFeats.push_back(zeroVector); // fill with the same amount of zeros
                     }
                 }
             }
         }
 
-        if(verbose){cout <<  "Vector has a size of " << featureVectorAllVox.size() << " x " << featVecHist.size() << " at depth "<< depth <<endl;}
+        //if(verbose){cout <<  "Vector has a size of " << featureVectorAllVox.size() << " x " << featVecHist.size() << " at depth "<< depth <<endl;}
 
         // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // Re-initialize octree with double resolution (half minVoxSize) to analyse next level
@@ -411,19 +434,13 @@ int ToolFeatExt::computeFeats()
         octree.addPointsFromInputCloud();
     }
     if(verbose){
-        cout << endl << "======================Feature Extraction Done========================== " << endl;
         // print out end feature vector of vectors
-        cout << "Feature vector contains: " << endl;
-        for (int vox=0; vox<featureVectorAllVox.size();vox++){              //for each voxel
-            for (int bin=0; bin<featureVectorAllVox[vox].size();bin++){     //for each bin
-                cout << featureVectorAllVox[vox][bin] << ", ";
-            }
-            cout << endl;
-        }
-        cout << endl << endl;
+        cout << "Feature vector contains: " << endl << featureVectorAllVox.toString()<< endl;
+        cout << endl << "======================Feature Extraction Done========================== " << endl;
     }
 
     // XXX put featureVectorAllVox in a bottle and send it out.
+    feat3DoutPort.write(featureVectorAllVox);
 
     return 0;
 }
@@ -458,21 +475,76 @@ Eigen::MatrixXf ToolFeatExt::yarpMat2eigMat(const Matrix yarpMat){
     return eigMat;
 }
 
-Matrix ToolFeatExt::getCanonicalRotMat(const int deg){
-
-    float rad = ((float)deg/180) *M_PI; // converse deg into rads
-
-    Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
-    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
-
-    Matrix rotMat = iCub::ctrl::axis2dcm(oy);   // from axis/angle to rotation matrix notation
-    return rotMat;
-}
 
 /**********************************************************
                     PUBLIC METHODS
 /**********************************************************/
 
+// RCP Accesible via trhift.
+
+/**********************************************************/
+bool ToolFeatExt::getFeats()
+{   // computes 3D oriented -normalized voxel wise EGI - tool featues.
+    int ok = computeFeats();
+    if (ok>=0) {
+        fprintf(stdout,"3D Features computed correctly. \n");
+        return true;
+    } else {
+        fprintf(stdout,"3D Features not computed correctly. \n");
+        return false;
+    }
+}
+
+/**********************************************************/
+bool ToolFeatExt::setPose(const Matrix& toolPose)
+{   // Rotates the tool model according tot the given rotation matrix to extract pose dependent features.
+    return transformFrame(toolPose);
+}
+
+/**********************************************************/
+bool ToolFeatExt::setCanonicalPose(const int deg)
+{   // Rotates the tool model to canonical orientations left/front/right.
+    float rad = ((float)deg/180) *M_PI; // converse deg into rads
+
+    Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
+    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
+
+    Matrix toolPose = iCub::ctrl::axis2dcm(oy);   // from axis/angle to rotation matrix notation
+
+    return transformFrame(toolPose);
+}
+
+/**********************************************************/
+bool ToolFeatExt::bins(const int binsN)
+{
+    binsPerDim = binsN;
+    return true;
+}
+
+/**********************************************************/
+bool ToolFeatExt::depth(const int depthN)
+{
+    maxDepth = depthN;
+    return true;
+}
+
+/**********************************************************/
+bool ToolFeatExt::setName(const string& cloudname)
+{   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
+    fname = cloudname;
+    //cloudLoaded = false;
+
+    //if (!cloudLoaded){
+        if (!loadCloud())
+        {
+            printf("Couldn't load cloud.\n");
+            return false;
+        }
+    //}
+    return true;
+}
+
+/**********************************************************/
 bool ToolFeatExt::setVerbose(const string& verb)
 {
     if (verb == "ON"){
@@ -484,8 +556,85 @@ bool ToolFeatExt::setVerbose(const string& verb)
         fprintf(stdout,"Verbose is : %s\n", verb.c_str());
         return true;
     }
+    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
     return false;
 }
+
+/**********************************************************/
+/*
+bool ToolFeatExt::help()
+{
+    cout << "Available commands are:" << endl;
+    cout << "name (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;
+    cout << "getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues." << endl;
+    cout << "setPose (Matrix) Rotates the tool model according tot the given rotation matrix to extract pose dependent features" << endl;
+    cout << "setCanonicalPose (int) Rotates the tool model to canonical orientations left (-90 deg)/front (0 deg)/right (90 deg)." << endl;
+    cout << "bins (int) - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. (Default bins = 2)" << endl;
+    cout << "depth (int)- sets the number of iterative times that the bounding box will be subdivided into octants. Total number of voxels = sum(8^(1:depth)). (Default depth = 2, 72 vox)" << endl;
+    cout << "setVerbose ON/OFF - Sets active the printouts of the program, for debugging or visualization."<< endl;
+    cout << "help - produces this help." << endl;
+    cout << "quit - closes the module." << endl;
+    return true;
+}
+*/
+bool ToolFeatExt::quit()
+{
+    closing = true;
+    return true;
+}
+
+
+/************************* RF overwrites ********************************/
+/************************************************************************/
+bool ToolFeatExt::configure(yarp::os::ResourceFinder &rf)
+{
+    // add and initialize the port to send out the features via thrift.
+    string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
+    string robot = rf.check("robot",Value("icub")).asString().c_str();
+    verbose = rf.check("verbose",Value(true)).asBool();
+    if (strcmp(robot.c_str(),"icub")==0)
+        path = rf.find("clouds_path").asString();
+    else
+        path = rf.find("clouds_path_sim").asString();
+    printf("Path: %s",path.c_str());
+
+    maxDepth = rf.check("maxDepth",Value(2)).asInt();
+    binsPerDim = rf.check("depth",Value(2)).asInt();
+
+
+    //open ports
+    bool ret = true;
+    ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
+    if (!ret){
+        printf("Problems opening ports\n");
+        return false;
+    }
+
+    // open rpc ports
+    bool retRPC = true;
+    retRPC =  retRPC && rpcInPort.open("/"+name+"/rpc:i");
+    if (!retRPC){
+        printf("Problems opening ports\n");
+        return false;
+    }
+    attach(rpcInPort);
+
+    /* Module rpc parameters */
+    closing = false;
+
+    /*Init variables*/
+    cloudLoaded = false;
+    cloudTransformed = false;
+    fname = "cloud_merged.ply";
+    cloud_orig = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
+    cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
+    rotMat = yarp::math::eye(4,4);
+
+    cout << endl << "Configuring done."<<endl;
+
+    return true;
+}
+
 
 double ToolFeatExt::getPeriod()
 {
@@ -497,147 +646,11 @@ bool ToolFeatExt::updateModule()
     return !closing;
 }
 
-
-/************************************************************************/
-bool ToolFeatExt::respond(const Bottle &command, Bottle &reply)
-{
-/* This method is called when a command string is sent via RPC */
-    reply.clear();  // Clear reply bottle
-
-/* Get command string */
-string receivedCmd = command.get(0).asString().c_str();
-int responseCode;   //Will contain Vocab-encoded response
-
-if (receivedCmd == "getFeat") {
-    int ok = computeFeats();
-    if (ok>=0) {
-        responseCode = Vocab::encode("ack");
-        reply.addVocab(responseCode);
-        return true;
-    } else {
-        fprintf(stdout,"3D Features not computed correctly. \n");
-        reply.addString("[nack] 3D Features not computed correctly.");
-        return false;
-    }
-
-
-} else if (receivedCmd == "name") {
-        if (command.size() == 2){
-            fname = command.get(1).asString();
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
-            return true;
-        } else {
-            fprintf(stdout,"Please provide the .pcd file name. \n");
-            reply.addString("[nack] Please provide the .pcd file name.");
-            return false;
-        }
-
-} else if (receivedCmd == "verbose") {
-        string verb;
-        if (command.size() == 2){
-            bool ok = setVerbose(command.get(1).asString());
-            if (ok){
-                responseCode = Vocab::encode("ack");
-                reply.addVocab(responseCode);
-                return true;
-            }else {
-                fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-                reply.addString("[nack] Please set verbose ON or OFF.");
-                return false;
-            }
-        }
-
-} else if (receivedCmd == "bins") {
-        if (command.size() == 2){
-            binsPerDim = command.get(1).asInt();
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
-            return true;
-        } else {
-            fprintf(stdout,"Couldn't set the numbe of bins. \n");
-            reply.addString("[nack] Couldn't set the numbe of bins.");
-            return false;
-        }
-
-} else if (receivedCmd == "depth") {
-        if (command.size() == 2){
-            maxDepth = command.get(1).asInt();
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
-            return true;
-        } else {
-            fprintf(stdout,"Please provide desired max depth of the octree division. \n");
-            reply.addString("[nack] Please provide max octree depth.");
-            return false;
-        }
-
-}else if (receivedCmd == "help"){
-    reply.addVocab(Vocab::encode("many"));
-    reply.addString("Available commands are:");
-    reply.addString("name (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'");
-    reply.addString("getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues.");
-    reply.addString("bins (int) - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. (Default bins = 4)");
-    reply.addString("depth (int)- sets the number of iterative times that the bounding box will be subdivided into octants. Total number of voxels = sum(8^(1:depth)). (Default depth = 2, 72 vox)");
-    reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
-    reply.addString("help - produces this help.");
-    reply.addString("quit - closes the module.");
-
-    responseCode = Vocab::encode("ack");
-    reply.addVocab(responseCode);
-    return true;
-
-} else if (receivedCmd == "quit") {
-    responseCode = Vocab::encode("ack");
-    reply.addVocab(responseCode);
-    closing = true;
-    return true;
-    }
-reply.addString("Invalid command, type [help] for a list of accepted commands.");
-responseCode = Vocab::encode("nack");
-reply.addVocab(responseCode);
-return true;
-}
-
-/************************************************************************/
-bool ToolFeatExt::configure(yarp::os::ResourceFinder &rf)
-{
-
-    // add and initialize the port to send out the features via thrift.
-string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
-string robot = rf.check("robot",Value("icub")).asString().c_str();
-verbose = rf.check("verbose",Value(true)).asBool();
-if (strcmp(robot.c_str(),"icub")==0)
-    path = rf.find("clouds_path").asString();
-else
-    path = rf.find("clouds_path_sim").asString();
-printf("Path: %s",path.c_str());
-
-maxDepth = rf.find("maxDepth").asInt();
-binsPerDim = rf.find("binsPerDim").asInt();
-
-handlerPort.open("/"+name+"/rpc:i");
-    attach(handlerPort);
-
-/* Module rpc parameters */
-closing = false;
-cloudLoaded = false;
-
-/*Init variables*/
-fname = "cloud_merged.ply";
-cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
-
-
-cout << endl << "Configuring done."<<endl;
-
-return true;
-}
-
-/************************************************************************/
 bool ToolFeatExt::interruptModule()
 {
     closing = true;
-    handlerPort.interrupt();
+    rpcInPort.interrupt();
+    feat3DoutPort.interrupt();
     cout<<"Interrupting your module, for port cleanup"<<endl;
     return true;
 }
@@ -646,8 +659,15 @@ bool ToolFeatExt::interruptModule()
 bool ToolFeatExt::close()
 {
     cout<<"Calling close function\n";
-    handlerPort.close();
+    rpcInPort.close();
+    feat3DoutPort.close();
     return true;
+}
+
+/**************************** THRIFT CONTROL*********************************/
+bool ToolFeatExt::attach(yarp::os::RpcServer &source)
+{
+    return this->yarp().attachAsServer(source);
 }
 
     /************************************************************************/
