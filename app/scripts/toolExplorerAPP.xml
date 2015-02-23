@@ -30,15 +30,15 @@
     </module>
     <module>
         <name>toolExplorer</name>
-        <parameters></parameters>
-        <node>icub15</node>
+        <parameters>--from toolExplorer.ini</parameters>
+        <node>icub13</node>
         <prefix></prefix>
         <geometry>(Pos (x 396) (y 326.9))</geometry>
     </module>
     <module>
         <name>toolFeatExt</name>
-        <parameters>--from toolFeatExt.ini --robot icubSim</parameters>
-        <node>localhost</node>
+        <parameters>--from toolFeatExt.ini</parameters>
+        <node>icub13</node>
         <prefix></prefix>
         <geometry>(Pos (x 836) (y 414.9))</geometry>
     </module>
