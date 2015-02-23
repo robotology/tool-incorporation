@@ -502,11 +502,12 @@ protected:
 
         // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
         if (normalizePose) {
+	    printf("Normalizing cloud to hand reference frame \n");
             pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
             transformFrame(cloud, cloudNorm);
             string normS = "_norm";
             savePointsPly(cloudNorm, cloudName+normS);
-            if (verbose){	printf("Cloud normalized to hand reference frame \n");	}
+            printf("Cloud normalized to hand reference frame \n");	
         }
 
         if (verbose){	printf("3D reconstruction obtained and saved.\n");}	
@@ -700,10 +701,7 @@ protected:
     {
         stringstream s;
         s.str("");
-        if (normalizePose)
-            s << cloudsPath + "/norm/" + name.c_str() << numClouds;
-        else
-            s << cloudsPath + "/" + name.c_str() << numClouds;
+        s << cloudsPath + "/" + name.c_str() << numClouds;
         string filename = s.str();
         string filenameNumb = filename+".ply";
         ofstream plyfile;
@@ -743,7 +741,10 @@ public:
         hand = rf.check("hand", Value("right")).asString();
 	    eye = rf.check("camera", Value("left")).asString();
 	    verbose = rf.check("verbose", Value(false)).asBool();
-        normalizePose = rf.check("normalize", Value(true)).asBool();
+       // normalizePose = rf.check("normalize", Value(true)).asBool();
+
+
+	normalizePose = true;
 
 	    //ports
         bool ret = true;
