@@ -269,30 +269,41 @@ public:
 	    reply.addVocab(responseCode);
 	    return true;
 
-    } else if (receivedCmd == "name") {
-            if (command.size() == 2){
-                saveName = command.get(1).asString();
-                responseCode = Vocab::encode("ack");
-                reply.addVocab(responseCode);
-                return true;
-            } else {
-                fprintf(stdout,"Please provide the desired file name. \n");
-                reply.addString("[nack] Please provide the desired file name.");
-                return false;
-            }
+    } else if (receivedCmd == "setName") {
+        if (command.size() == 2){
+            saveName = command.get(1).asString();
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        } else {
+            fprintf(stdout,"Please provide the desired file name. \n");
+            reply.addString("[nack] Please provide the desired file name.");
+            return false;
+        }
 
-	} else if (receivedCmd == "save") {
-	    saving = true;
-	    responseCode = Vocab::encode("ack");
-	    reply.addVocab(responseCode);
-        return true;
+    } else if (receivedCmd == "save") {
+        if (command.size() == 2){
+            string saveF = command.get(1).asString();
+            if (saveF == "ON"){
+                saving = true;
+                fprintf(stdout,"Saving flag is : %s\n", saveF.c_str());
+                return true;
+            } else if (saveF == "OFF"){
+                saving = false;
+                fprintf(stdout,"Saving flag is : %s\n", saveF.c_str());
+                return true;
+            }
+            fprintf(stdout,"Saving flag can only be set to ON or OFF. \n");
+            reply.addString("[nack] Set save flag to ON or OFF. \n");
+            return false;
+        }
 
 	}else if (receivedCmd == "help"){
 		reply.addVocab(Vocab::encode("many"));		
 		reply.addString("Available commands are:");
         reply.addString("merge - Merges all pointclouds on the path folder, or the new ones if a previous merge already exists. Name shall be specified if it's not cloud_merge.ply.");
-        reply.addString("name (string) - Changes the name of the file where the merged cloud will be saved. Default 'cloud_merged.ply'");
-        reply.addString("save - Activates saving the resulting merged point cloud. (Default true).");
+        reply.addString("setName (string) - Changes the name of the file where the merged cloud will be saved. Default 'cloud_merged.ply'");
+        reply.addString("save ON/OFF - Sets ON or OFF saving the resulting merged point cloud. (Default true).");
 		//reply.addString("verbose ON/OFF - Sets active the printouts of the program, for debugging or visualization.");
 		reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");

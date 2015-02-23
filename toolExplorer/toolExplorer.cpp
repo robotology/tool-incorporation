@@ -243,7 +243,7 @@ protected:
 		    responseCode = Vocab::encode("ack");
 		else {
 		    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-		    responseCode = Vocab::encode("nack");
+            responseCode = Vocab::encode("nack");
 		    reply.addVocab(responseCode);
 		    return false;
 		}
@@ -322,6 +322,53 @@ protected:
 
         return true;
     }
+
+    /************************************************************************/
+    // XXX
+
+    /*
+    bool exploreInteractive()
+    {
+        // Explore the tool and incrementally check registration and add merge pointclouds if correct
+
+
+        // Explore the tool from different angles and save pointclouds
+        for (int degX = 60; degX>=-75; degX -= 15)
+        {
+            turnHand(degX,0);
+            printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
+            getPointCloud(false);
+            if (contMerge){
+                mergePointClouds();}
+            Time::delay(0.5);
+        }
+        for (int degY = 0; degY<=60; degY += 15)
+        {
+            turnHand(-60,degY);
+            //lookAround();
+            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+            getPointCloud(false);
+            if (contMerge){
+                mergePointClouds();}
+            Time::delay(0.5);
+        }
+        printf("Exploration finished, merging clouds \n");
+
+        // Merge together registered partial point clouds
+        if (!contMerge){
+            mergePointClouds();}
+        printf("Clouds merged, saving full model \n");
+
+        // Visualize merged pointcloud
+        showPointCloud();
+        printf("PC displayed \n");
+
+        // Extract 3D features from merged pointcloud.
+        extractFeatures();
+
+        return true;
+    }
+    */
 
     /************************************************************************/
     bool turnHand(const int rotDegX = 0, const int rotDegY = 0)
@@ -538,6 +585,7 @@ protected:
         Bottle cmdFext, replyFext;
         cmdFext.clear();	replyFext.clear();
         cmdFext.addString("getFeat");
+        
         rpcFeatExtPort.write(cmdFext,replyFext);
 
         return true;
@@ -558,13 +606,13 @@ protected:
         Bottle cmdMPC, replyMPC;
         cmdMPC.clear();	replyMPC.clear();
         cmdMPC.addString("name");
-        cmdMPC.addString(modelname + "_merged.ply");
+        cmdMPC.addString(modelname + "Merged.ply");
         rpcMergerPort.write(cmdMPC,replyMPC);
 
         Bottle cmdFext, replyFext;
         cmdFext.clear();	replyFext.clear();
-        cmdFext.addString("name");
-        cmdFext.addString(modelname + "_merged.ply");
+        cmdFext.addString("setName");
+        cmdFext.addString(modelname + "Merged.ply");
         rpcFeatExtPort.write(cmdFext,replyFext);
 	    
  	    printf("Name changed to %s.\n", modelname.c_str());

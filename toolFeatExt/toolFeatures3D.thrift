@@ -64,7 +64,7 @@ service tool3DFeat_IDLServer
     // @return true/false on success/failure of changing the files name
     bool setName(1: string cloudname = "cloud_merged.ply");
 
-    // help - produces this thrift rpc help.
+    // help - produces help with longer descritpion of each command and its parameters.
     // @return true/false on success/failure of extracting features
-    //bool help();
+    bool help_commands();
 }

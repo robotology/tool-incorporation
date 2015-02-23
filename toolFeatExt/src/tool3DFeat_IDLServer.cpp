@@ -68,6 +68,14 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class tool3DFeat_IDLServer_help_commands : public yarp::os::Portable {
+public:
+  bool _return;
+  void init();
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 bool tool3DFeat_IDLServer_getFeats::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
@@ -227,6 +235,27 @@ void tool3DFeat_IDLServer_setName::init(const std::string& cloudname) {
   this->cloudname = cloudname;
 }
 
+bool tool3DFeat_IDLServer_help_commands::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("help_commands",1,2)) return false;
+  return true;
+}
+
+bool tool3DFeat_IDLServer_help_commands::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void tool3DFeat_IDLServer_help_commands::init() {
+  _return = false;
+}
+
 tool3DFeat_IDLServer::tool3DFeat_IDLServer() {
   yarp().setOwner(*this);
 }
@@ -296,6 +325,16 @@ bool tool3DFeat_IDLServer::setName(const std::string& cloudname) {
   helper.init(cloudname);
   if (!yarp().canWrite()) {
     fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setName(const std::string& cloudname)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool tool3DFeat_IDLServer::help_commands() {
+  bool _return = false;
+  tool3DFeat_IDLServer_help_commands helper;
+  helper.init();
+  if (!yarp().canWrite()) {
+    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::help_commands()");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -413,6 +452,17 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
+    if (tag == "help_commands") {
+      bool _return;
+      _return = help_commands();
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
     if (tag == "help") {
       std::string functionName;
       if (!reader.readString(functionName)) {
@@ -454,6 +504,7 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     helpString.push_back("depth");
     helpString.push_back("setVerbose");
     helpString.push_back("setName");
+    helpString.push_back("help_commands");
     helpString.push_back("help");
   }
   else {
@@ -477,6 +528,9 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     }
     if (functionName=="setName") {
       helpString.push_back("bool setName(const std::string& cloudname = \"cloud_merged.ply\") ");
+    }
+    if (functionName=="help_commands") {
+      helpString.push_back("bool help_commands() ");
     }
     if (functionName=="help") {
       helpString.push_back("std::vector<std::string> help(const std::string& functionName=\"--all\")");

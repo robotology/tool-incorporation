@@ -24,6 +24,7 @@ public:
   virtual bool depth(const int32_t maxDepth = 2);
   virtual bool setVerbose(const std::string& verb);
   virtual bool setName(const std::string& cloudname = "cloud_merged.ply");
+  virtual bool help_commands();
   virtual bool read(yarp::os::ConnectionReader& connection);
   virtual std::vector<std::string> help(const std::string& functionName="--all");
 };

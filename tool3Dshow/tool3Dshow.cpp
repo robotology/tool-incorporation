@@ -13,6 +13,9 @@
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
+
+#include <iCub/ctrl/math.h>
+#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
 //#include <pcl/filters/statistical_outlier_removal.h>
 //#include <pcl/filters/voxel_grid.h>
 //#include <pcl/features/normal_3d.h>
@@ -24,10 +27,13 @@ using namespace yarp::os;
 class ShowModule:public RFModule
 {
     RpcServer handlerPort; //a port to handle messages
+
+    BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort; // Buffered port to receive clouds.
+
     string path; //path to folder with .ply files
     string fname; //name of the .ply file to show
     bool closing;
-    bool colorCloud;
+
 
 
 /************************************************************************/
@@ -40,6 +46,15 @@ void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl:
     viewer->addCoordinateSystem (0.05);    
     //viewer->initCameraParameters();
     //viewer->setSize(1280, 1024); // Visualiser window size
+
+    bool colorCloud = false;
+    // check if the loaded file contains color information or not
+    for  (int p = 1; p < cloud->points.size(); ++p)
+    {
+        uint32_t rgb = *reinterpret_cast<int*>(&cloud->points[p].rgb);
+        if (rgb != 0)
+            colorCloud = true;
+    }
 
     // Add cloud color if it has not
     if (!colorCloud)    {
@@ -70,10 +85,33 @@ void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl:
     closing = true;
 }
 
+/************************************************************************/
+void mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+{   // Converts mesh from a bottle into pcl pointcloud.
+    for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
+    {
+        pcl::PointXYZRGB pointrgb;
+        pointrgb.x=cloudB.mesh.points.at(i).x;
+        pointrgb.y=cloudB.mesh.points.at(i).y;
+        pointrgb.z=cloudB.mesh.points.at(i).z;
+        if (i<cloudB.mesh.rgbColour.size())
+        {
+            int32_t rgb= cloudB.mesh.rgbColour.at(i).rgba;
+            pointrgb.rgba=rgb;
+            pointrgb.r = (rgb >> 16) & 0x0000ff;
+            pointrgb.g = (rgb >> 8)  & 0x0000ff;
+            pointrgb.b = (rgb)       & 0x0000ff;
+        }
+        else
+            pointrgb.rgb=0;
 
+        cloud->push_back(pointrgb);
+    }
+    printf("Mesh fromatted as Point Cloud \n");
+}
 
 /************************************************************************/
-int showPointcloud()
+int showFileCloud()
 	{
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
@@ -106,18 +144,9 @@ int showPointcloud()
         }
     } else {
         /* could not open directory */
-        perror ("can't load data files");
+        perror ("can't load data file");
         return -1;
     }
-
-    // check if the loaded file contains color information or not
-    for  (int p = 1; p < cloud_in->points.size(); ++p)
-    {
-        uint32_t rgb = *reinterpret_cast<int*>(&cloud_in->points[p].rgb);
-        if (rgb != 0)
-            colorCloud = true;
-    }
-
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
     viewer->setBackgroundColor (0, 0, 0);
@@ -137,6 +166,20 @@ public:
 
     bool updateModule()
     {
+        // read the mesh
+        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(false);	//waits until it receives a cloud bottle
+        if (cloudMesh!=NULL){
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+            printf("Cloud read from port \n");
+            mesh2cloud(*cloudMesh,cloud);
+
+            boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
+            viewer->setBackgroundColor (0, 0, 0);
+            printf("Visualizing point clouds...\n");
+            Visualize(viewer, cloud);
+
+        }
+
         return !closing;
     }
 
@@ -152,7 +195,7 @@ public:
 	int responseCode;   //Will contain Vocab-encoded response
 
 	if (receivedCmd == "show") {        
-	    int ok = showPointcloud();
+        int ok = showFileCloud();
 	    if (ok>=0) { 
 		    responseCode = Vocab::encode("ack");
 		    reply.addVocab(responseCode);
@@ -218,7 +261,6 @@ public:
 
 	/* Module rpc parameters */
     closing = false;
-    colorCloud = false;
 
 	/*Init variables*/
 	fname = "cloud_merged.ply";

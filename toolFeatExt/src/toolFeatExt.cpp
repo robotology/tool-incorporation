@@ -561,8 +561,8 @@ bool ToolFeatExt::setVerbose(const string& verb)
 }
 
 /**********************************************************/
-/*
-bool ToolFeatExt::help()
+
+bool ToolFeatExt::help_commands()
 {
     cout << "Available commands are:" << endl;
     cout << "name (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;
@@ -576,7 +576,7 @@ bool ToolFeatExt::help()
     cout << "quit - closes the module." << endl;
     return true;
 }
-*/
+
 bool ToolFeatExt::quit()
 {
     closing = true;

@@ -105,7 +105,7 @@ public:
     bool depth(const int depthN = 2);
     bool setName(const std::string& cloudname = "cloud_merged.ply");
     bool setVerbose(const std::string& verb);
-    //bool help();
+    bool help_commands();
 
     // module control //
     bool						attach(yarp::os::RpcServer &source);
