@@ -5,8 +5,8 @@
 cmake_minimum_required(VERSION 2.6.9)
 project(toolModeler)
 
-find_package(YARP)
-find_package(ICUB)
+find_package(YARP REQUIRED)
+find_package(ICUB REQUIRED)
 find_package(ICUBcontrib REQUIRED)
 #find_package(PCL 1.7)
 

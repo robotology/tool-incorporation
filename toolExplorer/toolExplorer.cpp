@@ -87,7 +87,7 @@ protected:
     // module parameters
     bool saveF;
     bool closing;    
-    int numClouds;
+    int numCloudsSaved;
 
     /************************************************************************/
     bool respond(const Bottle &command, Bottle &reply)
@@ -125,7 +125,9 @@ protected:
 	}else if (receivedCmd == "get3D"){
 		// segment object and get the pointcloud using objectReconstrucor module
 		// save it in file or array
-		bool ok = getPointCloud(false, saveF);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        bool ok = getPointCloud(cloud);
+
 		if (ok)
 		    responseCode = Vocab::encode("ack");
 		else {
@@ -284,91 +286,115 @@ protected:
     }
    
     /************************************************************************/
-    bool explore(bool contMerge = true)
+    bool explore()
     {
         // Explore the tool from different angles and save pointclouds
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        string savename = cloudName;
+        if (normalizePose)
+             savename = savename + "_norm";
+
         for (int degX = 60; degX>=-75; degX -= 15)
         {
-            turnHand(degX,0);
+            cloud->points.clear();
+            turnHand(degX,0);            
+            //lookAround();
+            getPointCloud(cloud);
             printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-            getPointCloud(false);
-            if (contMerge){
-                mergePointClouds();}
+            savePointsPly(cloud,savename);
             Time::delay(0.5);
         }
         for (int degY = 0; degY<=60; degY += 15)
         {
+            cloud->points.clear();
             turnHand(-60,degY);
             //lookAround();
-            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
-            getPointCloud(false);
-            if (contMerge){
-                mergePointClouds();}
+            getPointCloud(cloud);
+            savePointsPly(cloud,savename);
+            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );            
             Time::delay(0.5);
         }
         printf("Exploration finished, merging clouds \n");
 
         // Merge together registered partial point clouds
-        if (!contMerge){
-            mergePointClouds();}
+        mergePointClouds();
         printf("Clouds merged, saving full model \n");
 
         // Visualize merged pointcloud
-        showPointCloud();
+        showPointCloud(cloud);
         printf("PC displayed \n");
 
         // Extract 3D features from merged pointcloud.
-        extractFeatures();
+        // extractFeatures();
 
         return true;
     }
 
     /************************************************************************/
-    // XXX
-
-    /*
     bool exploreInteractive()
-    {
-        // Explore the tool and incrementally check registration and add merge pointclouds if correct
+    {   // Explore the tool and incrementally check registration and add merge pointclouds if correct
+
+        // intialize cloud and set name
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        string savename = cloudName;
+        if (normalizePose)
+             savename = savename + "_norm";
+
+        // set angles for exploration limits
+        int minRotX = -75; int maxRotX = 60;
+        int minRotY = 0;   int maxRotY = 60;
+        int angleStep = 15;
+
+        int posN_X = 1+(maxRotX-minRotX)/angleStep;
+        int posN_Y = 1+(maxRotY-minRotY)/angleStep;
+
+        Vector positionsX(posN_X);       // Vector with the possible angles on X
+        Vector positionsY(posN_Y);       // Vector with the possible angles on Y
+        bool visitedPos[posN_X][posN_Y]; // Matrix to check which positions have been visited
 
 
-        // Explore the tool from different angles and save pointclouds
-        for (int degX = 60; degX>=-75; degX -= 15)
+        // Fill in the vectors with the possible values
+        for (int iX = 0; iX<=posN_X; iX++ )
+            positionsX[iX] = minRotX + iX*angleStep;
+
+        for (int iY = 0; iY<=posN_Y; iY++ )
+            positionsY[iY] = minRotY + iY*angleStep;
+
+        // Perform interactive exploration
+        int Xind = 0; Yind = 0;
+        bool explorationDone = false;
+        while (explorationDone)
         {
-            turnHand(degX,0);
-            printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-            getPointCloud(false);
-            if (contMerge){
-                mergePointClouds();}
-            Time::delay(0.5);
-        }
-        for (int degY = 0; degY<=60; degY += 15)
-        {
-            turnHand(-60,degY);
+            cloud->points.clear();
+            if (randExp){
+                Xind = round(yarp::math::Rand.scalar()*posN_X);
+                Yind = round(yarp::math::Rand.scalar()*posN_Y);
+            }
+
+            turnHand(positionsX[Xind], positionsY[Yind]);
             //lookAround();
-            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
-            getPointCloud(false);
-            if (contMerge){
-                mergePointClouds();}
-            Time::delay(0.5);
-        }
-        printf("Exploration finished, merging clouds \n");
+            getPointCloud(cloud);
 
-        // Merge together registered partial point clouds
-        if (!contMerge){
-            mergePointClouds();}
-        printf("Clouds merged, saving full model \n");
+            // Display the cloud
+
+            // If it is ok, do the merge and display again.
+            mergePointClouds();
+            // If merge is good, save
+
+            // Ask if more registrations need to be made, and if so, loop again. Otherwise, break.
+
+
+
+
+            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+        }
 
         // Visualize merged pointcloud
         showPointCloud();
         printf("PC displayed \n");
 
-        // Extract 3D features from merged pointcloud.
-        extractFeatures();
-
         return true;
     }
-    */
 
     /************************************************************************/
     bool turnHand(const int rotDegX = 0, const int rotDegY = 0)
@@ -456,7 +482,7 @@ protected:
     }
 
     /************************************************************************/
-    bool getPointCloud(const bool visF, const bool saveFlag = true)
+    bool getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 	{
 	    // read coordinates from yarpview
 	    if (verbose){printf("Getting tip coordinates \n");}
@@ -464,16 +490,6 @@ protected:
 	    int u = toolTipIn->get(0).asInt();
 	    int v = toolTipIn->get(1).asInt();
 	    if (verbose){cout << "Retrieving tool blob from u: "<< u << ", v: "<< v << endl;	}
-		
-	    // Set obj rec to save mode to keep ply files.
-	    Bottle cmdOR, replyOR;
-	    if (saveFlag){
-		    cmdOR.clear();	replyOR.clear();
-		    cmdOR.addString("set");
-		    cmdOR.addString("write");
-		    cmdOR.addString("on");
-		    rpcObjRecPort.write(cmdOR,replyOR);
-	    }
 		
         // send image blob coordinates as rpc to objectRec to seed the cloud
 	    cmdOR.clear();	replyOR.clear();
@@ -484,13 +500,10 @@ protected:
 	    // requests 3D reconstruction to objectReconst module
 	    cmdOR.clear();	replyOR.clear();
 	    cmdOR.addString("3Drec");
-        if (visF){
-    	    cmdOR.addString("visualize");
-        }
 	    rpcObjRecPort.write(cmdOR,replyOR);
 
         // read the cloud from the objectReconst output port
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
         iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(true);	//waits until it receives coordinates
         if (cloudMesh!=NULL){
             if (verbose){	printf("Cloud read from port \n");	}
@@ -502,21 +515,19 @@ protected:
 
         // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
         if (normalizePose) {
-	    printf("Normalizing cloud to hand reference frame \n");
-            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-            transformFrame(cloud, cloudNorm);
-            string normS = "_norm";
-            savePointsPly(cloudNorm, cloudName+normS);
-            printf("Cloud normalized to hand reference frame \n");	
+            printf("Normalizing cloud to hand reference frame \n");
+            //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+            transformFrame(cloud, cloud);
+            printf("Cloud normalized to hand reference frame \n");
         }
 
-        if (verbose){	printf("3D reconstruction obtained and saved.\n");}	
+        if (verbose){	printf("3D reconstruction obtained.\n");}
 
         return true;
 	}
 
     /************************************************************************/
-    bool transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out, const bool saveFlag = true)
+    bool transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out)
     {
         // Transform (translate-rotate) the pointcloud by inverting the hand pose
         if (hand=="left")
@@ -568,7 +579,7 @@ protected:
     }
     
     /************************************************************************/
-    bool showPointCloud()
+    bool showPointCloud() //XXX Change so tool3D show module receives the cloud via thrift
 	{
         // Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer
         Bottle cmdVis, replyVis;
@@ -697,11 +708,11 @@ protected:
     }
 
     /************************************************************************/
-    void savePointsPly(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& name)
+    void savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& name)
     {
         stringstream s;
         s.str("");
-        s << cloudsPath + "/" + name.c_str() << numClouds;
+        s << cloudsPath + "/" + name.c_str() << numCloudsSaved;
         string filename = s.str();
         string filenameNumb = filename+".ply";
         ofstream plyfile;
@@ -722,7 +733,7 @@ protected:
 
         plyfile.close();
 
-        numClouds++;
+        numCloudsSaved++;
         fprintf(stdout, "Writing finished\n");
     }
 
@@ -744,7 +755,7 @@ public:
        // normalizePose = rf.check("normalize", Value(true)).asBool();
 
 
-	normalizePose = true;
+        normalizePose = true;
 
 	    //ports
         bool ret = true;
@@ -840,7 +851,7 @@ public:
 
         closing = false;
     	saveF = true;
-        numClouds = 0;
+        numCloudsSaved = 0;
     	
     	cout << endl << "Configuring done." << endl;
             	
