@@ -31,11 +31,19 @@
 
 #include <iCub/ctrl/math.h>
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+#include <iCub/data3D/RGBA.h>
 
+#include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/common/transforms.h>
-#include <pcl/point_cloud.h>
+#include <pcl/registration/icp.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/fpfh.h>
+#include <pcl/registration/ia_ransac.h>
 
 YARP_DECLARE_DEVICES(icubmod)
 
@@ -54,7 +62,8 @@ protected:
     
     // ports
     BufferedPort<Bottle >   seedInPort;
-    BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort;
+    BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> meshInPort;
+    BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> meshOutPort;
 
     // rpc ports
     RpcServer               rpcPort;
@@ -86,20 +95,52 @@ protected:
 
     // module parameters
     bool saveF;
+    bool initAlignment;
     bool closing;    
     int numCloudsSaved;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in;       // Last registered pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_temp;   // Merged pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_merged;   // Merged pointcloud
+
 
     /************************************************************************/
     bool respond(const Bottle &command, Bottle &reply)
     {
 	/* This method is called when a command string is sent via RPC */
-    	reply.clear();  // Clear reply bottle
+    reply.clear();  // Clear reply bottle
 
 	/* Get command string */
 	string receivedCmd = command.get(0).asString().c_str();
 	int responseCode;   //Will contain Vocab-encoded response
 
-	if (receivedCmd == "turnHand"){        
+    if (receivedCmd == "explore"){
+        // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
+        bool ok = explore();
+        if (ok){
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        } else {
+            fprintf(stdout,"Couldnt obtain 3D model successfully. \n");
+            reply.addString("[nack] Couldnt obtain 3D model successfully.\n");
+            return false;
+        }
+
+    }else if (receivedCmd == "exploreInt"){
+        // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
+        bool ok = exploreInteractive();
+        if (ok){
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        } else {
+            fprintf(stdout,"There was an error during the interactive exploration. \n");
+            reply.addString("[nack] There was an error during the interactive exploration. \n");
+            return false;
+        }
+
+    }else if (receivedCmd == "turnHand"){
 		// Turn the hand 'int' degrees, or go to 0 if no parameter was given.
 		int rotDegX = 0;
 		int rotDegY = 0;
@@ -111,36 +152,75 @@ protected:
 		}			
 
         bool ok = turnHand(rotDegX, rotDegY);
-		if (ok)
+        if (ok){
 		    responseCode = Vocab::encode("ack");
-		else {
-		    fprintf(stdout,"Couldnt go to the desired position. \n");
-		    responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
+            reply.addVocab(responseCode);
+            return true;
+        } else {
+            fprintf(stdout,"Couldnt go to the desired position. \n");
+            reply.addString("[nack] Couldnt go to the desired position. \n" );
   		    return false;
 		}
-		reply.addVocab(responseCode);
-		return true;
 
 	}else if (receivedCmd == "get3D"){
-		// segment object and get the pointcloud using objectReconstrucor module
-		// save it in file or array
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-        bool ok = getPointCloud(cloud);
-
-		if (ok)
+        // segment object and get the pointcloud using objectReconstrucor module save it in file or array        
+        bool ok = getPointCloud();
+        if (ok) {
+            savePointsPly(cloud_in,cloudName);
 		    responseCode = Vocab::encode("ack");
-		else {
+            reply.addVocab(responseCode);
+            return true;
+        } else {
 		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
-		    responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
+            reply.addString("[nack] Couldnt reconstruct pointcloud. \n");
 		    return false;
-		}
-		reply.addVocab(responseCode);
-		return true;
+        }
 
-	}else if (receivedCmd == "modelname"){
-		// changes the name with which files will be saved by the object-reconstruction module
+    }else if (receivedCmd == "merge"){
+        // checks that enough pointclouds have been gathered
+		// and use merge_point_clouds module to merge them
+        // saving the complete pointcloud is done by the merging module
+        bool ok = mergeAllPointClouds();
+        if (ok){
+		    responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        }else {
+		    fprintf(stdout,"Couldnt merge pointclouds. \n");
+            reply.addString("[nack] Couldnt merge pointclouds. \n");
+            return false;
+		}
+
+
+    }else if (receivedCmd == "normalize"){
+        // activates the normalization of the pointcloud to the hand reference frame.
+        bool ok = setNormalization(command.get(1).asString());
+        if (ok){
+            responseCode = Vocab::encode("ack");        
+            reply.addVocab(responseCode);
+            return true;}
+        else {
+            fprintf(stdout,"Normalization has to be set to ON or OFF. \n");
+            reply.addString("[nack] Normalization has to be set to ON or OFF. \n");
+            return false;
+        }
+
+
+    }else if (receivedCmd == "FPFH"){
+        // activates the normalization of the pointcloud to the hand reference frame.
+        bool ok = setInitialAlignment(command.get(1).asString());
+        if (ok){
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;}
+        else {
+            fprintf(stdout,"FPFH based Initial Alignment has to be set to ON or OFF. \n");
+            reply.addString("[nack] FPFH based Initial Alignment has to be set to ON or OFF. \n");
+            return false;
+        }
+
+    }else if (receivedCmd == "modelname"){
+        // changes the name with which files will be saved by the object-reconstruction module
         string modelname;
         if (command.size() >= 2){
             modelname = command.get(1).asString();
@@ -148,127 +228,72 @@ protected:
             fprintf(stdout,"Please provide a name. \n");
             return false;
         }
-		bool ok = changeModelName(modelname);
-		if (ok){
-		    responseCode = Vocab::encode("ack");
-	    	reply.addVocab(responseCode);
-    		return true;
-		}else {
-		    fprintf(stdout,"Couldnt change the name. \n");
-		    responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
-		    return false;
-		}
-
-	}else if (receivedCmd == "merge"){
-        // checks that enough pointclouds have been gathered
-		// and use merge_point_clouds module to merge them
-        // saving the complete pointcloud is done by the merging module
-		bool ok = mergePointClouds();
-		if (ok)
-		    responseCode = Vocab::encode("ack");
-		else {
-		    fprintf(stdout,"Couldnt merge pointclouds. \n");
-		    responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
-		    return false;
-		}
-		reply.addVocab(responseCode);
-		return true;
-
-    }else if (receivedCmd == "normalize"){
-        // activates the normalization of the pointcloud to the hand reference frame.
-        bool ok = setNormalization(command.get(1).asString());
-        if (ok)
+        bool ok = changeModelName(modelname);
+        if (ok){
             responseCode = Vocab::encode("ack");
-        else {
-            fprintf(stdout,"Normalization has to be set to ON or OFF. \n");
-            responseCode = Vocab::encode("nack");
             reply.addVocab(responseCode);
+            return true;
+        }else {
+            fprintf(stdout,"Couldnt change the name. \n");
+            reply.addString("[nack] Couldnt change the name. \n");
             return false;
         }
-        reply.addVocab(responseCode);
-        return true;
-
-	}else if (receivedCmd == "explore"){
-        // Moves the tool in different direction to obtain different points of view
-        // and extract corresponding partial pointclouds.
-		bool contF = true;
-		if (command.size() == 2){
-			string cmd2 = command.get(1).asString();
-			if (cmd2 == "all"){
-			    contF= false;}			
-		}
-		bool ok = explore(contF);
-
-		if (ok)
-		    responseCode = Vocab::encode("ack");
-		else {
-		    fprintf(stdout,"Couldnt obtain 3D model successfully. \n");
-		    responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
-		    return false;
-		}
-		reply.addVocab(responseCode);
-		return true;
 
 	}else if (receivedCmd == "hand"){
 		bool ok = setHand(command.get(1).asString());
-		if (ok)
-		    responseCode = Vocab::encode("ack");
-		else {
+        if (ok){
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        } else {
 		    fprintf(stdout,"Hand can only be set to 'right' or 'left'. \n");
-		    responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
-		    return false;
+            reply.addString("[nack] Hand can only be set to 'right' or 'left'. \n");
+            return false;
 		}
-		reply.addVocab(responseCode);
-		return true;
 
 	}else if (receivedCmd == "eye"){
 		bool ok = setEye(command.get(1).asString());
-		if (ok)
+        if (ok){
 		    responseCode = Vocab::encode("ack");
-		else {
+            reply.addVocab(responseCode);
+            return true;
+        }else {
 		    fprintf(stdout,"Eye can only be set to 'right' or 'left'. \n");
-		    responseCode = Vocab::encode("nack");
-		    		    reply.addVocab(responseCode);
-		    return false;
-		    
+            reply.addString("[nack] Eye can only be set to 'right' or 'left'. \n");
+		    return false;		    
 		}
-		reply.addVocab(responseCode);
-		return true;
 
 	}else if (receivedCmd == "verbose"){
 		bool ok = setVerbose(command.get(1).asString());
-		if (ok)
-		    responseCode = Vocab::encode("ack");
+        if (ok){
+            responseCode = Vocab::encode("ack");
+            reply.addVocab(responseCode);
+            return true;
+        }
 		else {
 		    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-            responseCode = Vocab::encode("nack");
-		    reply.addVocab(responseCode);
+            reply.addString("[nack] Verbose can only be set to ON or OFF. \n");
 		    return false;
 		}
-		reply.addVocab(responseCode);
-		return true;
 
 
 	}else if (receivedCmd == "help"){
 		reply.addVocab(Vocab::encode("many"));
 		responseCode = Vocab::encode("ack");
 		reply.addString("Available commands are:");
-		reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
+        reply.addString("explore - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
+        reply.addString("exploreInt - interactively explores the tool and asks for confirmation on each registration until a proper 3D model is built.");
+        reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
-		reply.addString("merge - use merge_point_clouds module to merge gathered views.");
-        reply.addString("transform - transforms the poincloud using affine to the reference frame of the hand.");
-		reply.addString("explore (all)- gets 3D pointcloud from different perspectives and merges them in a single model. If 'all' is given, it will merge all pointclouds at the end, otherwise incrementally.");
+		reply.addString("merge - use merge_point_clouds module to merge gathered views.");        
 		reply.addString("modelname (string) - Changes the name with which the pointclouds will be saved.");
-        reply.addString("hand (left/right) - Sets the active hand (default right).");
-        reply.addString("eye (left/right) - Sets the active eye (default left).");
+        reply.addString("nomalize (ON/OFF) - Activates/deactivates normalization of the cloud to the hand coordinate frame.");
+        reply.addString("FPFH (ON/OFF) - Activates/deactivates fast local features (FPFH) based Initial alignment for registration.");
         reply.addString("verbose (ON/OFF) - Sets ON/OFF printouts of the program, for debugging or visualization.");
+        reply.addString("hand (left/right) - Sets the active hand (default right).");
+        reply.addString("eye (left/right) - Sets the active eye (default left).");              
 		reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
-
 		reply.addVocab(responseCode);
 		return true;
 
@@ -289,39 +314,34 @@ protected:
     bool explore()
     {
         // Explore the tool from different angles and save pointclouds
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-        string savename = cloudName;
-        if (normalizePose)
-             savename = savename + "_norm";
+        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
         for (int degX = 60; degX>=-75; degX -= 15)
         {
-            cloud->points.clear();
             turnHand(degX,0);            
             //lookAround();
-            getPointCloud(cloud);
+            getPointCloud();
             printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-            savePointsPly(cloud,savename);
+            savePointsPly(cloud_in,cloudName);
             Time::delay(0.5);
         }
         for (int degY = 0; degY<=60; degY += 15)
         {
-            cloud->points.clear();
             turnHand(-60,degY);
             //lookAround();
-            getPointCloud(cloud);
-            savePointsPly(cloud,savename);
+            getPointCloud();
+            savePointsPly(cloud_in,cloudName);
             printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );            
             Time::delay(0.5);
         }
         printf("Exploration finished, merging clouds \n");
 
         // Merge together registered partial point clouds
-        mergePointClouds();
+        mergeAllPointClouds();
         printf("Clouds merged, saving full model \n");
 
         // Visualize merged pointcloud
-        showPointCloud(cloud);
+        showPointCloudFromFile();
         printf("PC displayed \n");
 
         // Extract 3D features from merged pointcloud.
@@ -334,24 +354,17 @@ protected:
     bool exploreInteractive()
     {   // Explore the tool and incrementally check registration and add merge pointclouds if correct
 
-        // intialize cloud and set name
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-        string savename = cloudName;
-        if (normalizePose)
-             savename = savename + "_norm";
-
         // set angles for exploration limits
         int minRotX = -75; int maxRotX = 60;
         int minRotY = 0;   int maxRotY = 60;
         int angleStep = 15;
 
-        int posN_X = 1+(maxRotX-minRotX)/angleStep;
-        int posN_Y = 1+(maxRotY-minRotY)/angleStep;
+        int posN_X = 1 + (maxRotX-minRotX)/angleStep;
+        int posN_Y = 1 + (maxRotY-minRotY)/angleStep;
 
         Vector positionsX(posN_X);       // Vector with the possible angles on X
         Vector positionsY(posN_Y);       // Vector with the possible angles on Y
         bool visitedPos[posN_X][posN_Y]; // Matrix to check which positions have been visited
-
 
         // Fill in the vectors with the possible values
         for (int iX = 0; iX<=posN_X; iX++ )
@@ -360,38 +373,106 @@ protected:
         for (int iY = 0; iY<=posN_Y; iY++ )
             positionsY[iY] = minRotY + iY*angleStep;
 
-        // Perform interactive exploration
-        int Xind = 0; Yind = 0;
-        bool explorationDone = false;
-        while (explorationDone)
+        // Register the first pointcloud to initialize
+        bool initDone = false;
+        cloud_merged->clear();
+        while (!initDone)
         {
-            cloud->points.clear();
-            if (randExp){
-                Xind = round(yarp::math::Rand.scalar()*posN_X);
-                Yind = round(yarp::math::Rand.scalar()*posN_Y);
-            }
-
-            turnHand(positionsX[Xind], positionsY[Yind]);
-            //lookAround();
-            getPointCloud(cloud);
+            turnHand(0, 0);
+            getPointCloud();
 
             // Display the cloud
+            iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+            cloud2mesh(cloud_in, meshBottle);
+            meshOutPort.write();
+
+            printf("Is the registered cloud clean? (y/n)? \n");
+            string answerInit;
+            cin >> answerInit;
+            if ((answerInit == "y")||(answerInit == "Y"))
+            {
+                *cloud_merged = *cloud_in;  //Initialize cloud merged
+                initDone = true;
+                printf("Base cloud initialized \n");
+            }else {
+                printf(" Try again \n");
+            }
+
+        }
+
+        // Perform interactive exploration
+        yarp::math::Rand randG; // YARP random generator
+        iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+        int Xind = 0; int Yind = 0;
+        bool explorationDone = false;        
+        while (!explorationDone)
+        {
+            //if (randExp){
+                Xind = round(randG.scalar()*posN_X);
+                Yind = round(randG.scalar()*posN_Y);
+            //}
+
+            turnHand(positionsX[Xind], positionsY[Yind]);
+            getPointCloud();
+
+            // Display the cloud            
+            cloud2mesh(cloud_in, meshBottle);
+            meshOutPort.write();
 
             // If it is ok, do the merge and display again.
-            mergePointClouds();
-            // If merge is good, save
+            printf("Is the registered cloud clean? (y/n)? \n >> ");
+            string answerReg;
+            cin >> answerReg;
+            if ((answerReg == "y")||(answerReg == "Y"))
+            {
+                printf("\n Saving partial registration for later use \n ");
+                savePointsPly(cloud_merged, cloudName);
 
-            // Ask if more registrations need to be made, and if so, loop again. Otherwise, break.
+                // If the cloud is clean, merge the last recorded cloud_in with the existing cloud_merged and save on cloud_temp
+                mergePointClouds();
 
+                // Display the merged cloud
+                cloud2mesh(cloud_temp, meshBottle);
+                meshOutPort.write();
 
+                // If merge is good, update model
+                printf("Is the merged cloud clean? (y/n)? \n >> ");
+                string answerMerge;
+                cin >> answerMerge;
+                if ((answerMerge == "y")||(answerMerge == "Y"))
+                {
+                    cloud_merged->clear();
+                    *cloud_merged = *cloud_temp;
+                    printf(" The model has been updated \n");
 
+                    // Ask if more registrations need to be made, and if so, loop again. Otherwise, break.
+                    printf(" Is it good enough? (y/n) \n");
+                    string answerModel;
+                    cin >> answerModel;
+                    if ((answerModel == "y")||(answerModel == "Y"))
+                    {
+                        string  mergedName = cloudName + "Merged";
+                        savePointsPly(cloud_merged, mergedName);
+                        printf(" Final model saved as %s, finishing exploration \n", mergedName.c_str());
+                        explorationDone = true;
+                    } else {
+                        printf(" Model not finished, continuing with exploration \n");
+                    }
+                } else {
+                    printf("\n Ignoring merge, continue with exploration \n");
+                }
+            } else {
+                printf("\n Unproper registration, try again \n");
+            }
 
-            printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+            printf("Exploration from  rot X= %f, Y= %f done. \n",positionsX[Xind] , positionsY[Yind] );
         }
 
         // Visualize merged pointcloud
-        showPointCloud();
-        printf("PC displayed \n");
+        printf("Model finished, visualizing \n");
+        cloud2mesh(cloud_merged, meshBottle);
+        meshOutPort.write();
+
 
         return true;
     }
@@ -482,9 +563,11 @@ protected:
     }
 
     /************************************************************************/
-    bool getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
-	{
-	    // read coordinates from yarpview
+    bool getPointCloud()//(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+	{        
+        cloud_in->clear();   // clear receiving cloud
+
+        // read coordinates from yarpview
 	    if (verbose){printf("Getting tip coordinates \n");}
 	    Bottle *toolTipIn = seedInPort.read(true);	//waits until it receives coordinates
 	    int u = toolTipIn->get(0).asInt();
@@ -492,6 +575,7 @@ protected:
 	    if (verbose){cout << "Retrieving tool blob from u: "<< u << ", v: "<< v << endl;	}
 		
         // send image blob coordinates as rpc to objectRec to seed the cloud
+        Bottle cmdOR, replyOR;
 	    cmdOR.clear();	replyOR.clear();
 	    cmdOR.addInt(u);
 	    cmdOR.addInt(v);
@@ -504,20 +588,36 @@ protected:
 
         // read the cloud from the objectReconst output port
         //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(true);	//waits until it receives coordinates
+        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = meshInPort.read(true);	//waits until it receives coordinates
         if (cloudMesh!=NULL){
             if (verbose){	printf("Cloud read from port \n");	}
-            mesh2cloud(*cloudMesh,cloud);
+            mesh2cloud(*cloudMesh,cloud_in);
         } else{
             if (verbose){	printf("Couldnt read returned cloud \n");	}
             return -1;
         }
 
+        // Apply some filtering to clean the cloud
+        // Process the cloud by removing distant points ...
+        const float depth_limit = 0.5;
+        pcl::PassThrough<pcl::PointXYZRGB> pass;
+        pass.setInputCloud (cloud_in);
+        pass.setFilterFieldName ("z");
+        pass.setFilterLimits (0, depth_limit);
+        pass.filter (*cloud_in);
+
+         // ... and removing outliers
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; //filter to remove outliers
+        sor.setStddevMulThresh (1.0);
+        sor.setInputCloud (cloud_in);
+        sor.setMeanK(cloud_in->size()/2);
+        sor.filter (*cloud_in);
+
         // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
         if (normalizePose) {
             printf("Normalizing cloud to hand reference frame \n");
             //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-            transformFrame(cloud, cloud);
+            transformFrame(cloud_in, cloud_in);
             printf("Cloud normalized to hand reference frame \n");
         }
 
@@ -527,7 +627,7 @@ protected:
 	}
 
     /************************************************************************/
-    bool transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out)
+    bool transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
     {
         // Transform (translate-rotate) the pointcloud by inverting the hand pose
         if (hand=="left")
@@ -559,7 +659,7 @@ protected:
         cout << TM.matrix() << endl;
 
         // Executing the transformation
-        pcl::transformPointCloud(*cloud_in, *cloud_out, TM);
+        pcl::transformPointCloud(*cloud_orig, *cloud_trans, TM);
 
         if (verbose){	printf("Transformation done \n");	}
 
@@ -567,9 +667,96 @@ protected:
     }
 
     /************************************************************************/
-    bool mergePointClouds()
+    bool mergePointClouds()// XXX change so that the merged cloud is written on cloud_merged
+    {
+        cloud_temp->clear();
+        *cloud_temp = *cloud_merged;        // work on the previously obtaiened merged cloud
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+        if (initAlignment) // Use FPFH features for initial alignment
+        {
+            printf("Applying FPFH alignment... \n");
+            pcl::PointCloud<pcl::FPFHSignature33>::Ptr features (new pcl::PointCloud<pcl::FPFHSignature33>);
+            pcl::PointCloud<pcl::FPFHSignature33>::Ptr features_target (new pcl::PointCloud<pcl::FPFHSignature33>);
+
+
+            // Feature computation
+            computeLocalFeatures(cloud_in, features);
+            computeLocalFeatures(cloud_merged, features_target);
+
+            // Perform initial alignment
+            pcl::SampleConsensusInitialAlignment<pcl::PointXYZRGB, pcl::PointXYZRGB, pcl::FPFHSignature33> sac_ia;
+            sac_ia.setMinSampleDistance (0.05f);
+            sac_ia.setMaxCorrespondenceDistance (0.01f*0.01f);
+            sac_ia.setMaximumIterations (500);
+
+            sac_ia.setInputTarget(cloud_merged);
+            sac_ia.setTargetFeatures (features_target);
+
+            sac_ia.setInputSource(cloud_in);
+            sac_ia.setSourceFeatures (features);
+
+            sac_ia.align(*cloud_aligned);
+            cout << "FPFH has converged:" << sac_ia.hasConverged() << " score: " << sac_ia.getFitnessScore() << endl;
+
+        } else {          //  Apply good old ICP registration
+
+            printf("Applying ICP alignment... \n");
+            // The Iterative Closest Point algorithm
+            pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+            int iterations = 50;
+            float distance = 0.003;   // 3 mm accepted as max distance between models
+            icp.setMaximumIterations(iterations);
+            icp.setMaxCorrespondenceDistance (distance);
+            icp.setRANSACOutlierRejectionThreshold (distance);  // Apply RANSAC too
+            icp.setTransformationEpsilon (1e-6);
+
+            //ICP algorithm
+            icp.setInputSource(cloud_in);
+            icp.setInputTarget(cloud_merged);
+            icp.align(*cloud_aligned);
+            cout << "ICP has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << endl;
+
+        }
+
+        *cloud_temp+=*cloud_aligned;             // write registration first to a temporal merged
+    }
+
+    void computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
+    {
+        pcl::search::KdTree<pcl::PointXYZRGB> ::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+        pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+
+        computeSurfaceNormals(cloud, normals);
+
+        pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh_est;
+        fpfh_est.setInputCloud(cloud);
+        fpfh_est.setInputNormals(normals);
+        fpfh_est.setSearchMethod(tree);
+        fpfh_est.setRadiusSearch(0.02f);
+        fpfh_est.compute(*features);
+    }
+
+
+    void computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
+    {
+
+        pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+        pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
+
+        norm_est.setInputCloud(cloud);
+        norm_est.setSearchMethod(tree);
+        norm_est.setRadiusSearch(0.02f);
+        norm_est.compute(*normals);
+    }
+
+
+
+    /************************************************************************/
+    bool mergeAllPointClouds()
 	{
-    // calls 'merge' rpc command to mergeClouds
+        // calls 'merge' rpc command to mergeClouds
         Bottle cmdMPC, replyMPC;
         cmdMPC.clear();	replyMPC.clear();
         cmdMPC.addString("merge");
@@ -578,9 +765,17 @@ protected:
         return true;
     }
     
+
     /************************************************************************/
-    bool showPointCloud() //XXX Change so tool3D show module receives the cloud via thrift
-	{
+    bool showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud) //XXX Change so the bottle is sent as Mesh on port to tool3Dshow. This will make tool3D show to display it.
+    {
+
+        return true;
+    }
+
+    /************************************************************************/
+    bool showPointCloudFromFile()
+    {
         // Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer
         Bottle cmdVis, replyVis;
         cmdVis.clear();	replyVis.clear();
@@ -591,7 +786,7 @@ protected:
     }
 
     /************************************************************************/
-    bool extractFeatures()
+    bool extractFeatures() // XXX Change so that cloud can be sent directly via thrift.
     {
         // Sends an RPC command to the toolFeatExt module to extract the 3D features of the merged point cloud/
         Bottle cmdFext, replyFext;
@@ -660,6 +855,21 @@ protected:
         return false;
     }
 
+
+    bool setInitialAlignment(const string& fpfh)
+    {
+        if (fpfh == "ON"){
+            initAlignment = true;
+            fprintf(stdout,"Initial Alignment is : %s\n", fpfh.c_str());
+            return true;
+        } else if (fpfh == "OFF"){
+            initAlignment = false;
+            fprintf(stdout,"Initial Alignment is : %s\n", fpfh.c_str());
+            return true;
+        }
+        return false;
+    }
+
     bool setHand(const string& handName)
 	{
 	    if ((handName == "left")|| (handName == "right")){
@@ -683,17 +893,17 @@ protected:
 
     /*************************** -Helper functions- ******************************/
 
-    void mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+    void mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& meshB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
     {   // Converts mesh from a bottle into pcl pointcloud.
-        for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
+        for (size_t i = 0; i<meshB.mesh.points.size(); ++i)
         {
             pcl::PointXYZRGB pointrgb;
-            pointrgb.x=cloudB.mesh.points.at(i).x;
-            pointrgb.y=cloudB.mesh.points.at(i).y;
-            pointrgb.z=cloudB.mesh.points.at(i).z;
-            if (i<cloudB.mesh.rgbColour.size())
+            pointrgb.x=meshB.mesh.points.at(i).x;
+            pointrgb.y=meshB.mesh.points.at(i).y;
+            pointrgb.z=meshB.mesh.points.at(i).z;
+            if (i<meshB.mesh.rgbColour.size())
             {
-                int32_t rgb= cloudB.mesh.rgbColour.at(i).rgba;
+                int32_t rgb= meshB.mesh.rgbColour.at(i).rgba;
                 pointrgb.rgba=rgb;
                 pointrgb.r = (rgb >> 16) & 0x0000ff;
                 pointrgb.g = (rgb >> 8)  & 0x0000ff;
@@ -707,12 +917,30 @@ protected:
         if (verbose){	printf("Mesh fromatted as Point Cloud \n");	}
     }
 
+
+    void cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB)
+    {   // Converts pointcloud to surfaceMesh bottle.
+
+        meshB.mesh.points.clear();
+        meshB.mesh.rgbColour.clear();
+        for (unsigned int i=0; i<cloud->width; i++)
+        {
+            meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud->at(i).x,cloud->at(i).y, cloud->at(i).z));
+            meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud->at(i).rgba));
+        }
+    }
+
+
     /************************************************************************/
     void savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& name)
     {
+        string savename;
+        if (normalizePose)
+             savename = name + "_norm";
+
         stringstream s;
         s.str("");
-        s << cloudsPath + "/" + name.c_str() << numCloudsSaved;
+        s << cloudsPath + "/" + savename.c_str() << numCloudsSaved;
         string filename = s.str();
         string filenameNumb = filename+".ply";
         ofstream plyfile;
@@ -760,7 +988,7 @@ public:
 	    //ports
         bool ret = true;
         ret = seedInPort.open(("/"+name+"/seed:i").c_str());	                       // input port to receive data from user
-        ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                  // port to receive pointclouds from
+        ret = ret && meshInPort.open(("/"+name+"/clouds:i").c_str());                  // port to receive pointclouds from
         if (!ret){
             printf("Problems opening ports\n");
             return false;
@@ -851,7 +1079,12 @@ public:
 
         closing = false;
     	saveF = true;
+        initAlignment = false;
         numCloudsSaved = 0;
+
+        cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        cloud_temp = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
     	
     	cout << endl << "Configuring done." << endl;
             	
@@ -875,7 +1108,7 @@ public:
 	    ivel->stop(4);
 
         seedInPort.interrupt();
-        cloudsInPort.interrupt();
+        meshInPort.interrupt();
 
         rpcPort.interrupt();
         rpcObjRecPort.interrupt();
@@ -890,7 +1123,7 @@ public:
     bool close()
     {
         seedInPort.close();
-        cloudsInPort.close();
+        meshInPort.close();
 
         rpcPort.close();
         rpcObjRecPort.close();

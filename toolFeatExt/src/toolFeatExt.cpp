@@ -565,7 +565,7 @@ bool ToolFeatExt::setVerbose(const string& verb)
 bool ToolFeatExt::help_commands()
 {
     cout << "Available commands are:" << endl;
-    cout << "name (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;
+    cout << "setName (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;
     cout << "getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues." << endl;
     cout << "setPose (Matrix) Rotates the tool model according tot the given rotation matrix to extract pose dependent features" << endl;
     cout << "setCanonicalPose (int) Rotates the tool model to canonical orientations left (-90 deg)/front (0 deg)/right (90 deg)." << endl;
