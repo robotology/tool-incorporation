@@ -94,7 +94,6 @@ protected:
     bool normalizePose;
 
     // module parameters
-    bool saveF;
     bool initAlignment;
     bool closing;    
     int numCloudsSaved;
@@ -285,7 +284,7 @@ protected:
         reply.addString("exploreInt - interactively explores the tool and asks for confirmation on each registration until a proper 3D model is built.");
         reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
-		reply.addString("merge - use merge_point_clouds module to merge gathered views.");        
+		reply.addString("merge - use merge_point_clouds module to merge gathered views.");                
 		reply.addString("modelname (string) - Changes the name with which the pointclouds will be saved.");
         reply.addString("nomalize (ON/OFF) - Activates/deactivates normalization of the cloud to the hand coordinate frame.");
         reply.addString("FPFH (ON/OFF) - Activates/deactivates fast local features (FPFH) based Initial alignment for registration.");
@@ -316,6 +315,7 @@ protected:
         // Explore the tool from different angles and save pointclouds
         //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
+        string  mergedName = cloudName + "_merged";
         for (int degX = 60; degX>=-75; degX -= 15)
         {
             turnHand(degX,0);            
@@ -341,7 +341,7 @@ protected:
         printf("Clouds merged, saving full model \n");
 
         // Visualize merged pointcloud
-        showPointCloudFromFile();
+        showPointCloudFromFile(cloudName + "_merged.ply");
         printf("PC displayed \n");
 
         // Extract 3D features from merged pointcloud.
@@ -366,6 +366,7 @@ protected:
         Vector positionsY(posN_Y);       // Vector with the possible angles on Y
         bool visitedPos[posN_X][posN_Y]; // Matrix to check which positions have been visited
 
+
         // Fill in the vectors with the possible values
         for (int iX = 0; iX<=posN_X; iX++ )
             positionsX[iX] = minRotX + iX*angleStep;
@@ -373,18 +374,22 @@ protected:
         for (int iY = 0; iY<=posN_Y; iY++ )
             positionsY[iY] = minRotY + iY*angleStep;
 
+
+        iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
         // Register the first pointcloud to initialize
         bool initDone = false;
         cloud_merged->clear();
+        string  mergedName = cloudName + "_merged";
         while (!initDone)
         {
             turnHand(0, 0);
-            getPointCloud();
 
-            // Display the cloud
-            iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
-            cloud2mesh(cloud_in, meshBottle);
-            meshOutPort.write();
+            // Register and display the cloud
+            if (robot == " icub"){
+                getPointCloud();
+                cloud2mesh(cloud_in, meshBottle);
+                meshOutPort.write();
+            }
 
             printf("Is the registered cloud clean? (y/n)? \n");
             string answerInit;
@@ -392,17 +397,16 @@ protected:
             if ((answerInit == "y")||(answerInit == "Y"))
             {
                 *cloud_merged = *cloud_in;  //Initialize cloud merged
+                savePointsPly(cloud_merged, mergedName,false);
                 initDone = true;
                 printf("Base cloud initialized \n");
             }else {
                 printf(" Try again \n");
             }
-
         }
 
         // Perform interactive exploration
-        yarp::math::Rand randG; // YARP random generator
-        iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+        yarp::math::Rand randG; // YARP random generator        
         int Xind = 0; int Yind = 0;
         bool explorationDone = false;        
         while (!explorationDone)
@@ -413,11 +417,13 @@ protected:
             //}
 
             turnHand(positionsX[Xind], positionsY[Yind]);
-            getPointCloud();
 
-            // Display the cloud            
-            cloud2mesh(cloud_in, meshBottle);
-            meshOutPort.write();
+            // Register and display the cloud
+            if (robot == "icub"){
+                getPointCloud();
+                cloud2mesh(cloud_in, meshBottle);
+                meshOutPort.write();
+            }
 
             // If it is ok, do the merge and display again.
             printf("Is the registered cloud clean? (y/n)? \n >> ");
@@ -426,7 +432,7 @@ protected:
             if ((answerReg == "y")||(answerReg == "Y"))
             {
                 printf("\n Saving partial registration for later use \n ");
-                savePointsPly(cloud_merged, cloudName);
+                savePointsPly(cloud_in, cloudName);
 
                 // If the cloud is clean, merge the last recorded cloud_in with the existing cloud_merged and save on cloud_temp
                 mergePointClouds();
@@ -446,13 +452,12 @@ protected:
                     printf(" The model has been updated \n");
 
                     // Ask if more registrations need to be made, and if so, loop again. Otherwise, break.
-                    printf(" Is it good enough? (y/n) \n");
+                    printf(" Should I take another registration? (y/n) \n");
                     string answerModel;
                     cin >> answerModel;
                     if ((answerModel == "y")||(answerModel == "Y"))
-                    {
-                        string  mergedName = cloudName + "Merged";
-                        savePointsPly(cloud_merged, mergedName);
+                    {                        
+                        savePointsPly(cloud_merged, mergedName, false);
                         printf(" Final model saved as %s, finishing exploration \n", mergedName.c_str());
                         explorationDone = true;
                     } else {
@@ -464,7 +469,6 @@ protected:
             } else {
                 printf("\n Unproper registration, try again \n");
             }
-
             printf("Exploration from  rot X= %f, Y= %f done. \n",positionsX[Xind] , positionsY[Yind] );
         }
 
@@ -472,7 +476,6 @@ protected:
         printf("Model finished, visualizing \n");
         cloud2mesh(cloud_merged, meshBottle);
         meshOutPort.write();
-
 
         return true;
     }
@@ -667,7 +670,7 @@ protected:
     }
 
     /************************************************************************/
-    bool mergePointClouds()// XXX change so that the merged cloud is written on cloud_merged
+    bool mergePointClouds()
     {
         cloud_temp->clear();
         *cloud_temp = *cloud_merged;        // work on the previously obtaiened merged cloud
@@ -774,10 +777,16 @@ protected:
     }
 
     /************************************************************************/
-    bool showPointCloudFromFile()
+    bool showPointCloudFromFile(const string& fname)
     {
-        // Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer
+
         Bottle cmdVis, replyVis;
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("name");
+        cmdVis.addString(fname);
+        rpcVisualizerPort.write(cmdVis,replyVis);
+
+        // Sends an RPC command to the tool3Dshow module to display the merged pointcloud on the visualizer
         cmdVis.clear();	replyVis.clear();
         cmdVis.addString("show");
         rpcVisualizerPort.write(cmdVis,replyVis);
@@ -813,13 +822,13 @@ protected:
         Bottle cmdMPC, replyMPC;
         cmdMPC.clear();	replyMPC.clear();
         cmdMPC.addString("name");
-        cmdMPC.addString(modelname + "Merged.ply");
+        cmdMPC.addString(modelname + "_merged");
         rpcMergerPort.write(cmdMPC,replyMPC);
 
         Bottle cmdFext, replyFext;
         cmdFext.clear();	replyFext.clear();
         cmdFext.addString("setName");
-        cmdFext.addString(modelname + "Merged.ply");
+        cmdFext.addString(modelname + "_merged.ply");
         rpcFeatExtPort.write(cmdFext,replyFext);
 	    
  	    printf("Name changed to %s.\n", modelname.c_str());
@@ -932,15 +941,17 @@ protected:
 
 
     /************************************************************************/
-    void savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& name)
+    void savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savename, const bool addNum = true)
     {
-        string savename;
-        if (normalizePose)
-             savename = name + "_norm";
-
         stringstream s;
         s.str("");
-        s << cloudsPath + "/" + savename.c_str() << numCloudsSaved;
+        if (addNum){
+            s << cloudsPath + "/" + savename.c_str() << numCloudsSaved;
+            numCloudsSaved++;
+        } else {
+            s << cloudsPath + "/" + savename.c_str();
+        }
+
         string filename = s.str();
         string filenameNumb = filename+".ply";
         ofstream plyfile;
@@ -961,7 +972,6 @@ protected:
 
         plyfile.close();
 
-        numCloudsSaved++;
         fprintf(stdout, "Writing finished\n");
     }
 
@@ -976,14 +986,14 @@ public:
             cloudsPath = rf.find("clouds_path").asString();
         else
             cloudsPath = rf.find("clouds_path_sim").asString();
+
+        printf("Path: %s",cloudsPath.c_str());
+
         cloudName = rf.check("modelName", Value("cloud")).asString();
         hand = rf.check("hand", Value("right")).asString();
 	    eye = rf.check("camera", Value("left")).asString();
 	    verbose = rf.check("verbose", Value(false)).asBool();
-       // normalizePose = rf.check("normalize", Value(true)).asBool();
-
-
-        normalizePose = true;
+        normalizePose = rf.check("normalizePose", Value(true)).asBool();
 
 	    //ports
         bool ret = true;
@@ -1078,7 +1088,6 @@ public:
 
 
         closing = false;
-    	saveF = true;
         initAlignment = false;
         numCloudsSaved = 0;
 

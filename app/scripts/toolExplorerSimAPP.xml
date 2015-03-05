@@ -37,7 +37,7 @@
     </module>
     <module>
         <name>toolExplorer</name>
-        <parameters>--from toolExplorer --robot icubSim</parameters>
+        <parameters>--from toolExplorer.ini --robot icubSim</parameters>
         <node>localhost</node>
         <prefix></prefix>
         <geometry>(Pos (x 367) (y 454.9))</geometry>

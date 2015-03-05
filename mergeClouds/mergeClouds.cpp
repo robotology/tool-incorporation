@@ -342,7 +342,7 @@ public:
     closing = false;
 
 	/*Init variables*/
-    saveName = "cloud_merged.ply";
+    saveName = "cloud_merged";
 	initF = true;	
 	filesScanned = 0;
 

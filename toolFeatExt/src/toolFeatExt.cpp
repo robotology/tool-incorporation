@@ -495,6 +495,27 @@ bool ToolFeatExt::getFeats()
     }
 }
 
+bool ToolFeatExt::getSamples(const int n, const float deg)
+{
+    loadCloud();            // Load the cloud in its canonical position
+    float maxVar = 10;      //Define the maximum variation, on degrees, wrt the given orientation angle
+
+    yarp::math::Rand randG; // YARP random generator
+    Vector degVarVec = randG.vector(n); // Generate a vector of slgiht variations to the main orientation angle
+    for (int s=0;s<n;++s)
+    {
+        if(!setCanonicalPose(deg + degVarVec[s]*maxVar-maxVar/2))   // Transform model to close but different position
+        {
+            printf("Error transforming frame to canonical position . \n");
+        }
+
+        if (!computeFeats()) {
+            printf("Error computing features. \n");
+        }
+    }
+    printf("Features extracted from tool pose samples. \n");
+}
+
 /**********************************************************/
 bool ToolFeatExt::setPose(const Matrix& toolPose)
 {   // Rotates the tool model according tot the given rotation matrix to extract pose dependent features.
@@ -502,9 +523,9 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 }
 
 /**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const int deg)
+bool ToolFeatExt::setCanonicalPose(const float deg)
 {   // Rotates the tool model to canonical orientations left/front/right.
-    float rad = ((float)deg/180) *M_PI; // converse deg into rads
+    float rad = (deg/180) *M_PI; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
     oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
@@ -565,10 +586,11 @@ bool ToolFeatExt::setVerbose(const string& verb)
 bool ToolFeatExt::help_commands()
 {
     cout << "Available commands are:" << endl;
-    cout << "setName (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;
     cout << "getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues." << endl;
+    cout << "getSamples (int) (float) - generate 'int' number of poses of the tool oriented to 'float' degrees (-90 to 90)." <<endl;
+    cout << "setName (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;    
     cout << "setPose (Matrix) Rotates the tool model according tot the given rotation matrix to extract pose dependent features" << endl;
-    cout << "setCanonicalPose (int) Rotates the tool model to canonical orientations left (-90 deg)/front (0 deg)/right (90 deg)." << endl;
+    cout << "setCanonicalPose (float) Rotates the tool model to canonical position oriented 'float'degrees (left = -90 deg)/front = 0 deg / right = 90 deg)." << endl;
     cout << "bins (int) - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. (Default bins = 2)" << endl;
     cout << "depth (int)- sets the number of iterative times that the bounding box will be subdivided into octants. Total number of voxels = sum(8^(1:depth)). (Default depth = 2, 72 vox)" << endl;
     cout << "setVerbose ON/OFF - Sets active the printouts of the program, for debugging or visualization."<< endl;

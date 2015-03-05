@@ -31,6 +31,7 @@
 #include <yarp/os/RpcServer.h>
 #include <yarp/os/Vocab.h>
 #include <yarp/sig/all.h>
+#include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
 
 #include <iCub/ctrl/math.h>
@@ -98,8 +99,9 @@ public:
 
     // RPC Accesible methods
     bool getFeats();
+    bool getSamples(const int n = 10, const float deg = 0);
     bool setPose(const yarp::sig::Matrix& rotMat);
-    bool setCanonicalPose(const int deg = 0);
+    bool setCanonicalPose(const float deg = 0);
 
     bool bins(const int binsN = 2);
     bool depth(const int depthN = 2);

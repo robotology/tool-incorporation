@@ -116,6 +116,8 @@ int showFileCloud()
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
     DIR *dir;
+
+    cout << "Attempting to load " << (path + fname).c_str() << "... "<< endl;
     if ((dir = opendir (path.c_str())) != NULL) {
         string::size_type idx;
         idx = fname.rfind('.');
@@ -144,7 +146,7 @@ int showFileCloud()
         }
     } else {
         /* could not open directory */
-        perror ("can't load data file");
+        perror ("can't open directory");
         return -1;
     }
 
@@ -263,7 +265,7 @@ public:
     closing = false;
 
 	/*Init variables*/
-	fname = "cloud_merged.ply";
+    fname = "cloud_merged.ply";
 
 	cout << endl << "Configuring done."<<endl;
 

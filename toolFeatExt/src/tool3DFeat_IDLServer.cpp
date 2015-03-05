@@ -14,6 +14,25 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class tool3DFeat_IDLServer_getSamples : public yarp::os::Portable {
+public:
+  int32_t n;
+  double deg;
+  bool _return;
+  void init(const int32_t n, const double deg);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
+class tool3DFeat_IDLServer_setName : public yarp::os::Portable {
+public:
+  std::string cloudname;
+  bool _return;
+  void init(const std::string& cloudname);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class tool3DFeat_IDLServer_setPose : public yarp::os::Portable {
 public:
   yarp::sig::Matrix toolPose;
@@ -25,9 +44,9 @@ public:
 
 class tool3DFeat_IDLServer_setCanonicalPose : public yarp::os::Portable {
 public:
-  int32_t deg;
+  double deg;
   bool _return;
-  void init(const int32_t deg);
+  void init(const double deg);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -55,15 +74,6 @@ public:
   std::string verb;
   bool _return;
   void init(const std::string& verb);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
-};
-
-class tool3DFeat_IDLServer_setName : public yarp::os::Portable {
-public:
-  std::string cloudname;
-  bool _return;
-  void init(const std::string& cloudname);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -97,6 +107,54 @@ void tool3DFeat_IDLServer_getFeats::init() {
   _return = false;
 }
 
+bool tool3DFeat_IDLServer_getSamples::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(3)) return false;
+  if (!writer.writeTag("getSamples",1,1)) return false;
+  if (!writer.writeI32(n)) return false;
+  if (!writer.writeDouble(deg)) return false;
+  return true;
+}
+
+bool tool3DFeat_IDLServer_getSamples::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void tool3DFeat_IDLServer_getSamples::init(const int32_t n, const double deg) {
+  _return = false;
+  this->n = n;
+  this->deg = deg;
+}
+
+bool tool3DFeat_IDLServer_setName::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("setName",1,1)) return false;
+  if (!writer.writeString(cloudname)) return false;
+  return true;
+}
+
+bool tool3DFeat_IDLServer_setName::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void tool3DFeat_IDLServer_setName::init(const std::string& cloudname) {
+  _return = false;
+  this->cloudname = cloudname;
+}
+
 bool tool3DFeat_IDLServer_setPose::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
@@ -124,7 +182,7 @@ bool tool3DFeat_IDLServer_setCanonicalPose::write(yarp::os::ConnectionWriter& co
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("setCanonicalPose",1,1)) return false;
-  if (!writer.writeI32(deg)) return false;
+  if (!writer.writeDouble(deg)) return false;
   return true;
 }
 
@@ -138,7 +196,7 @@ bool tool3DFeat_IDLServer_setCanonicalPose::read(yarp::os::ConnectionReader& con
   return true;
 }
 
-void tool3DFeat_IDLServer_setCanonicalPose::init(const int32_t deg) {
+void tool3DFeat_IDLServer_setCanonicalPose::init(const double deg) {
   _return = false;
   this->deg = deg;
 }
@@ -212,29 +270,6 @@ void tool3DFeat_IDLServer_setVerbose::init(const std::string& verb) {
   this->verb = verb;
 }
 
-bool tool3DFeat_IDLServer_setName::write(yarp::os::ConnectionWriter& connection) {
-  yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
-  if (!writer.writeTag("setName",1,1)) return false;
-  if (!writer.writeString(cloudname)) return false;
-  return true;
-}
-
-bool tool3DFeat_IDLServer_setName::read(yarp::os::ConnectionReader& connection) {
-  yarp::os::idl::WireReader reader(connection);
-  if (!reader.readListReturn()) return false;
-  if (!reader.readBool(_return)) {
-    reader.fail();
-    return false;
-  }
-  return true;
-}
-
-void tool3DFeat_IDLServer_setName::init(const std::string& cloudname) {
-  _return = false;
-  this->cloudname = cloudname;
-}
-
 bool tool3DFeat_IDLServer_help_commands::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
@@ -269,6 +304,26 @@ bool tool3DFeat_IDLServer::getFeats() {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
+bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg) {
+  bool _return = false;
+  tool3DFeat_IDLServer_getSamples helper;
+  helper.init(n,deg);
+  if (!yarp().canWrite()) {
+    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool tool3DFeat_IDLServer::setName(const std::string& cloudname) {
+  bool _return = false;
+  tool3DFeat_IDLServer_setName helper;
+  helper.init(cloudname);
+  if (!yarp().canWrite()) {
+    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setName(const std::string& cloudname)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
 bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   bool _return = false;
   tool3DFeat_IDLServer_setPose helper;
@@ -279,12 +334,12 @@ bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::setCanonicalPose(const int32_t deg) {
+bool tool3DFeat_IDLServer::setCanonicalPose(const double deg) {
   bool _return = false;
   tool3DFeat_IDLServer_setCanonicalPose helper;
   helper.init(deg);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setCanonicalPose(const int32_t deg)");
+    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -315,16 +370,6 @@ bool tool3DFeat_IDLServer::setVerbose(const std::string& verb) {
   helper.init(verb);
   if (!yarp().canWrite()) {
     fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setVerbose(const std::string& verb)");
-  }
-  bool ok = yarp().write(helper,helper);
-  return ok?helper._return:_return;
-}
-bool tool3DFeat_IDLServer::setName(const std::string& cloudname) {
-  bool _return = false;
-  tool3DFeat_IDLServer_setName helper;
-  helper.init(cloudname);
-  if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setName(const std::string& cloudname)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -360,6 +405,40 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
+    if (tag == "getSamples") {
+      int32_t n;
+      double deg;
+      if (!reader.readI32(n)) {
+        n = 10;
+      }
+      if (!reader.readDouble(deg)) {
+        deg = 0;
+      }
+      bool _return;
+      _return = getSamples(n,deg);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "setName") {
+      std::string cloudname;
+      if (!reader.readString(cloudname)) {
+        cloudname = "cloud_merged.ply";
+      }
+      bool _return;
+      _return = setName(cloudname);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
     if (tag == "setPose") {
       yarp::sig::Matrix toolPose;
       if (!reader.read(toolPose)) {
@@ -377,8 +456,8 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       return true;
     }
     if (tag == "setCanonicalPose") {
-      int32_t deg;
-      if (!reader.readI32(deg)) {
+      double deg;
+      if (!reader.readDouble(deg)) {
         deg = 0;
       }
       bool _return;
@@ -437,21 +516,6 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
-    if (tag == "setName") {
-      std::string cloudname;
-      if (!reader.readString(cloudname)) {
-        cloudname = "cloud_merged.ply";
-      }
-      bool _return;
-      _return = setName(cloudname);
-      yarp::os::idl::WireWriter writer(reader);
-      if (!writer.isNull()) {
-        if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeBool(_return)) return false;
-      }
-      reader.accept();
-      return true;
-    }
     if (tag == "help_commands") {
       bool _return;
       _return = help_commands();
@@ -498,12 +562,13 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
   if(showAll) {
     helpString.push_back("*** Available commands:");
     helpString.push_back("getFeats");
+    helpString.push_back("getSamples");
+    helpString.push_back("setName");
     helpString.push_back("setPose");
     helpString.push_back("setCanonicalPose");
     helpString.push_back("bins");
     helpString.push_back("depth");
     helpString.push_back("setVerbose");
-    helpString.push_back("setName");
     helpString.push_back("help_commands");
     helpString.push_back("help");
   }
@@ -511,11 +576,17 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     if (functionName=="getFeats") {
       helpString.push_back("bool getFeats() ");
     }
+    if (functionName=="getSamples") {
+      helpString.push_back("bool getSamples(const int32_t n = 10, const double deg = 0) ");
+    }
+    if (functionName=="setName") {
+      helpString.push_back("bool setName(const std::string& cloudname = \"cloud_merged.ply\") ");
+    }
     if (functionName=="setPose") {
       helpString.push_back("bool setPose(const yarp::sig::Matrix& toolPose) ");
     }
     if (functionName=="setCanonicalPose") {
-      helpString.push_back("bool setCanonicalPose(const int32_t deg = 0) ");
+      helpString.push_back("bool setCanonicalPose(const double deg = 0) ");
     }
     if (functionName=="bins") {
       helpString.push_back("bool bins(const int32_t nbins = 2) ");
@@ -525,9 +596,6 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     }
     if (functionName=="setVerbose") {
       helpString.push_back("bool setVerbose(const std::string& verb) ");
-    }
-    if (functionName=="setName") {
-      helpString.push_back("bool setName(const std::string& cloudname = \"cloud_merged.ply\") ");
     }
     if (functionName=="help_commands") {
       helpString.push_back("bool help_commands() ");
