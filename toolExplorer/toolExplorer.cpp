@@ -164,7 +164,10 @@ protected:
 	}else if (receivedCmd == "get3D"){
         // segment object and get the pointcloud using objectReconstrucor module save it in file or array        
         bool ok = getPointCloud();
-        if (ok) {
+        if (ok) {            
+            iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+            cloud2mesh(cloud_in, meshBottle);
+            meshOutPort.write();
             savePointsPly(cloud_in,cloudName);
 		    responseCode = Vocab::encode("ack");
             reply.addVocab(responseCode);
