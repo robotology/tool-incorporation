@@ -45,7 +45,7 @@ void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl:
     viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
     viewer->addCoordinateSystem (0.05);    
     //viewer->initCameraParameters();
-    //viewer->setSize(1280, 1024); // Visualiser window size
+    //viewer->setSize(1000, 1000); // Visualiser window size
 
     bool colorCloud = false;
     // check if the loaded file contains color information or not
