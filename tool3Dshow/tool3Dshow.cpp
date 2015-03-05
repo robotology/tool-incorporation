@@ -278,6 +278,7 @@ public:
     {
         closing = true;
         handlerPort.interrupt();
+        cloudsInPort.interrupt();
         cout<<"Interrupting your module, for port cleanup"<<endl;
         return true;
     }
@@ -286,6 +287,7 @@ public:
     bool close()
     {
         cout<<"Calling close function\n";
+        cloudsInPort.close();
         handlerPort.close();
         return true;
     }

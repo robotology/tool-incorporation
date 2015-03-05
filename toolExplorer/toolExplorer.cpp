@@ -1122,6 +1122,7 @@ public:
 
         seedInPort.interrupt();
         meshInPort.interrupt();
+        meshOutPort.interrupt();
 
         rpcPort.interrupt();
         rpcObjRecPort.interrupt();
@@ -1137,6 +1138,7 @@ public:
     {
         seedInPort.close();
         meshInPort.close();
+        meshOutPort.close();
 
         rpcPort.close();
         rpcObjRecPort.close();
