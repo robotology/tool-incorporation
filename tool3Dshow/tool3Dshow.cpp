@@ -179,10 +179,7 @@ public:
             printf("Visualizing point clouds...\n");
             Visualize(viewer, cloud);
 
-        }else{
-            printf("Received something but not a cloud...\n");
-	}
-
+        }
         return !closing;
     }
 
