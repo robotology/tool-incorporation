@@ -163,13 +163,13 @@ public:
 
     double getPeriod()
     {
-        return 1; //module periodicity (seconds)
+        return 0.2; //module periodicity (seconds)
     }
 
     bool updateModule()
     {
         // read the mesh
-        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(false);	//waits until it receives a cloud bottle
+        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(false);	//keeps on reading until it receives a cloud bottle
         if (cloudMesh!=NULL){
             pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
             printf("Cloud read from port \n");
@@ -179,7 +179,9 @@ public:
             printf("Visualizing point clouds...\n");
             Visualize(viewer, cloud);
 
-        }
+        }else{
+            printf("Received something but not a cloud...\n");
+	}
 
         return !closing;
     }
