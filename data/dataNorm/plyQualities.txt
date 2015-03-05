@@ -1,0 +1,7 @@
+greenRake2_norm:
+0: Great
+1: Great 
+2: Bumpy, great spikes
+3: no handle, good surface
+4: some holes, great spikes
+5: half missing. 
