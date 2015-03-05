@@ -94,7 +94,7 @@
     </connection>
     <connection>
         <from>/objectReconstr/mesh:o</from>
-        <to>/toolExplorer/clouds:i</to>
+        <to>/toolExplorer/mesh:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 476.5) (y 303.5)) ((x 577) (y 200)) ((x 397) (y 407))  )</geometry>
     </connection>
