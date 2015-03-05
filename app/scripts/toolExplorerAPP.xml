@@ -69,6 +69,12 @@
         <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
     </connection>
     <connection>
+        <from>/toolExplorer/mesh:o</from>
+        <to>/tool3Dshow/mesh:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
+    </connection>
+    <connection>
         <from>/toolExplorer/featExt:rpc</from>
         <to>/toolFeatExt/rpc:i</to>
         <protocol>tcp</protocol>

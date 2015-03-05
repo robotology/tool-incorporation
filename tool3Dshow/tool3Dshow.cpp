@@ -176,7 +176,6 @@ public:
             mesh2cloud(*cloudMesh,cloud);
 
             boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
-            viewer->setBackgroundColor (0, 0, 0);
             printf("Visualizing point clouds...\n");
             Visualize(viewer, cloud);
 
@@ -260,6 +259,8 @@ public:
 	printf("Path: %s",path.c_str());		
 	handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
+
+    cloudsInPort.open("/"+name+"/mesh:i");
 
 	/* Module rpc parameters */
     closing = false;

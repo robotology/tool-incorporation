@@ -1001,7 +1001,8 @@ public:
 	    //ports
         bool ret = true;
         ret = seedInPort.open(("/"+name+"/seed:i").c_str());	                       // input port to receive data from user
-        ret = ret && meshInPort.open(("/"+name+"/clouds:i").c_str());                  // port to receive pointclouds from
+        ret = ret && meshInPort.open(("/"+name+"/mesh:i").c_str());                  // port to receive pointclouds from
+        ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
         if (!ret){
             printf("Problems opening ports\n");
             return false;
