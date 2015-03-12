@@ -34,7 +34,7 @@
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
 
-#include <iCub/ctrl/math.h>
+//#include <iCub/ctrl/math.h>
 
 //PCL libs
 #include <pcl/point_cloud.h>
@@ -99,9 +99,9 @@ public:
 
     // RPC Accesible methods
     bool getFeats();
-    bool getSamples(const int n = 10, const float deg = 0);
+    bool getSamples(const int n, const double deg);
     bool setPose(const yarp::sig::Matrix& rotMat);
-    bool setCanonicalPose(const float deg = 0);
+    bool setCanonicalPose(const double deg);
 
     bool bins(const int binsN = 2);
     bool depth(const int depthN = 2);

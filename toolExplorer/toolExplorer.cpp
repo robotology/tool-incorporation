@@ -29,7 +29,6 @@
 #include <yarp/os/RFModule.h>
 #include <yarp/os/BufferedPort.h>
 
-#include <iCub/ctrl/math.h>
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
 #include <iCub/data3D/RGBA.h>
 
@@ -52,8 +51,6 @@ using namespace yarp::os;
 using namespace yarp::sig;
 using namespace yarp::dev;
 using namespace yarp::math;
-using namespace iCub::ctrl;
-
 
 /************************************************************************/
 class ToolExplorer: public RFModule
@@ -522,8 +519,8 @@ protected:
 
         // Rotate the hand to observe the tool from different positions
         Vector ox(4), oy(4);
-        ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=CTRL_DEG2RAD*(hand=="left"?-rotDegX:rotDegX); // rotation over X axis
-        oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=CTRL_DEG2RAD*(hand=="left"?-rotDegY:rotDegY); // rotation over Y axis
+        ox[0]=1.0; ox[1]=0.0; ox[2]=0.0; ox[3]=(M_PI/180.0)*(hand=="left"?-rotDegX:rotDegX); // rotation over X axis
+        oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]=(M_PI/180.0)*(hand=="left"?-rotDegY:rotDegY); // rotation over Y axis
 
         Matrix Ry=axis2dcm(oy);    // from axis/angle to rotation matrix notation
         Matrix Rx=axis2dcm(ox);

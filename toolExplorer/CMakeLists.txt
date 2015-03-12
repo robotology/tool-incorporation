@@ -7,13 +7,14 @@ SET(PROJECTNAME toolExplorer)
 PROJECT(${PROJECTNAME})
 
 find_package(PCL 1.7 REQUIRED)
+find_package(ICUB REQUIRED)
 
 include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 include_directories(${PCL_INCLUDE_DIRS}) 
 include_directories(${objects3D_INCLUDE_DIRS})
 
-
+list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 link_directories(${PCL_LIBRARY_DIRS})
 link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by default, but it's not, so add it just in case.
 add_definitions(${PCL_DEFINITIONS})
@@ -21,7 +22,7 @@ add_definitions(${PCL_DEFINITIONS})
 set(source toolExplorer.cpp)
 
 add_executable(${PROJECTNAME} ${source})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} objects3D icubmod ctrlLib)
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} objects3D icubmod)
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

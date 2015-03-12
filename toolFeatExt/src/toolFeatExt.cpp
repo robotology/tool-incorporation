@@ -21,6 +21,7 @@
 using namespace std;
 using namespace yarp::os;
 using namespace yarp::sig;
+using namespace yarp::math;
 //using namespace iCub::ctrl;
 
 /**********************************************************
@@ -36,7 +37,7 @@ bool ToolFeatExt::loadCloud()
     cloud_orig->clear();
     cloud->clear();
     cloudTransformed = false;
-    rotMat = yarp::math::eye(4,4);
+    rotMat = eye(4,4);
 
     // Load the pointcloud either from a pcd or a ply file.
     DIR *dir;
@@ -316,6 +317,7 @@ int ToolFeatExt::computeFeats()
 
             // Compute normal histogram looping through normals in voxel.
             unsigned int okNormalsVox = 0;
+            unsigned int nanCountVox = 0;
             for (size_t i = 0; i < voxelCloudNormals->points.size (); ++i)
             {
                 int xbin, ybin, zbin;
@@ -336,20 +338,23 @@ int ToolFeatExt::computeFeats()
                     okNormalsVox ++;
                 }else{
                     nanCount++;
+                    nanCountVox++;
                     //std::cout << "Normal is NaN." << std::endl;
 
                 }
             }   //- close loop over normal points in voxel
             std::cout << "." ;
+            std::cout << "Voxel (" << occx << "," << occy << "," << occz << ")" << "has " << okNormalsVox << " valid points and " << nanCountVox << " NaNs." << std::endl;
 
             //Normalize by the total number of point in voxel so that each histogram has sum 1, independent of the number of points in the voxel.
             for (int i = 0; i < binsPerDim; ++i){
                 for (int j = 0; j < binsPerDim; ++j){
                     for (int k = 0; k < binsPerDim; ++k){
-                       voxelHist[voxelI][i][j][k] = voxelHist[voxelI][i][j][k] / (float) okNormalsVox;
+                        if (okNormalsVox){              // Avoid dividing by 0.
+                            voxelHist[voxelI][i][j][k] = voxelHist[voxelI][i][j][k] / (float) okNormalsVox;}
 
-                       // Push into feature vector per histogram
-                       featVecHist.push_back(voxelHist[voxelI][i][j][k]);
+                        // Push into feature vector per histogram
+                        featVecHist.push_back(voxelHist[voxelI][i][j][k]);
                     }
                 }
             }
@@ -451,7 +456,7 @@ Matrix ToolFeatExt::eigMat2yarpMat(const Eigen::MatrixXf eigMat){
     // Transforms matrices from Eigen format to YARP format
     int nrows = eigMat.rows();
     int ncols = eigMat.cols();
-    Matrix yarpMat =yarp::math::zeros(nrows,ncols);
+    Matrix yarpMat = zeros(nrows,ncols);
     for (int row = 0; row<nrows; ++row){
         for (int col = 0; col<ncols; ++col){
             yarpMat(row,col) = eigMat(row,col);
@@ -495,44 +500,66 @@ bool ToolFeatExt::getFeats()
     }
 }
 
-bool ToolFeatExt::getSamples(const int n, const float deg)
+bool ToolFeatExt::getSamples(const int n, const double deg)
 {
-    loadCloud();            // Load the cloud in its canonical position
-    float maxVar = 10;      //Define the maximum variation, on degrees, wrt the given orientation angle
+    if (!cloudLoaded){
+        if (!loadCloud())
+        {
+            fprintf(stdout,"Couldn't load cloud");
+            return -1;
+        }
+    }
 
-    yarp::math::Rand randG; // YARP random generator
+    float maxVar = 5;      //Define the maximum variation, on degrees, wrt the given orientation angle
+
+    Rand randG; // YARP random generator
     Vector degVarVec = randG.vector(n); // Generate a vector of slgiht variations to the main orientation angle
     for (int s=0;s<n;++s)
     {
-        if(!setCanonicalPose(deg + degVarVec[s]*maxVar-maxVar/2))   // Transform model to close but different position
+        if(!setCanonicalPose(deg + degVarVec[s]*maxVar*2-maxVar))   // Transform model to a close but different position
         {
-            printf("Error transforming frame to canonical position . \n");
+            fprintf(stdout,"Error transforming frame to canonical position . \n");
         }
 
         if (!computeFeats()) {
-            printf("Error computing features. \n");
+            fprintf(stdout,"Error computing features. \n");
         }
     }
-    printf("Features extracted from tool pose samples. \n");
+    fprintf(stdout,"Features extracted from tool pose samples. \n");\
+    return true;
 }
 
 /**********************************************************/
 bool ToolFeatExt::setPose(const Matrix& toolPose)
 {   // Rotates the tool model according tot the given rotation matrix to extract pose dependent features.
-    return transformFrame(toolPose);
+    int ok =  transformFrame(toolPose);
+    if (ok>=0) {
+        fprintf(stdout,"Cloud rotated correctly \n");
+        return true;
+    } else {
+        fprintf(stdout,"Cloud could not be rotated correctly. \n");
+        return false;
+    }
 }
 
 /**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const float deg)
+bool ToolFeatExt::setCanonicalPose(const double deg)
 {   // Rotates the tool model to canonical orientations left/front/right.
     float rad = (deg/180) *M_PI; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
     oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
 
-    Matrix toolPose = iCub::ctrl::axis2dcm(oy);   // from axis/angle to rotation matrix notation
+    Matrix toolPose = axis2dcm(oy); // from axis/angle to rotation matrix notation
 
-    return transformFrame(toolPose);
+    int ok =  transformFrame(toolPose);
+    if (ok>=0) {
+        fprintf(stdout,"Cloud rotated correctly \n");
+        return true;
+    } else {
+        fprintf(stdout,"Cloud could not be rotated correctly. \n");
+        return false;
+    }
 }
 
 /**********************************************************/
@@ -555,13 +582,12 @@ bool ToolFeatExt::setName(const string& cloudname)
     fname = cloudname;
     //cloudLoaded = false;
 
-    //if (!cloudLoaded){
-        if (!loadCloud())
-        {
-            printf("Couldn't load cloud.\n");
-            return false;
-        }
-    //}
+    if (!loadCloud())
+    {
+        fprintf(stdout,"Couldn't load cloud.\n");
+        return false;
+    }
+
     return true;
 }
 
@@ -608,7 +634,7 @@ bool ToolFeatExt::quit()
 
 /************************* RF overwrites ********************************/
 /************************************************************************/
-bool ToolFeatExt::configure(yarp::os::ResourceFinder &rf)
+bool ToolFeatExt::configure(ResourceFinder &rf)
 {
     // add and initialize the port to send out the features via thrift.
     string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
@@ -650,7 +676,7 @@ bool ToolFeatExt::configure(yarp::os::ResourceFinder &rf)
     fname = "cloud_merged.ply";
     cloud_orig = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
     cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
-    rotMat = yarp::math::eye(4,4);
+    rotMat = eye(4,4);
 
     cout << endl << "Configuring done."<<endl;
 
@@ -687,7 +713,7 @@ bool ToolFeatExt::close()
 }
 
 /**************************** THRIFT CONTROL*********************************/
-bool ToolFeatExt::attach(yarp::os::RpcServer &source)
+bool ToolFeatExt::attach(RpcServer &source)
 {
     return this->yarp().attachAsServer(source);
 }

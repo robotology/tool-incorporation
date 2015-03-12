@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.6.9)
 project(toolModeler)
 
 find_package(YARP REQUIRED)
-find_package(ICUB REQUIRED)
+#find_package(ICUB REQUIRED)
 find_package(ICUBcontrib REQUIRED)
 #find_package(PCL 1.7)
 
 list(APPEND CMAKE_MODULE_PATH ${YARP_MODULE_PATH})
-list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
+#list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})
 
 include(YarpInstallationHelpers)
