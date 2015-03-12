@@ -1019,6 +1019,8 @@ public:
 
         attach(rpcPort);
 
+        printf("Opening controllers...\n");
+
 	    //Cartesian controllers
         Property optionG("(device gazecontrollerclient)");
         optionG.put("remote","/iKinGazeCtrl");
@@ -1087,6 +1089,7 @@ public:
             	iGaze->setEyesTrajTime(0.5);
         }
 
+        printf("Initializing variables... \n");
 
         closing = false;
         initAlignment = false;
