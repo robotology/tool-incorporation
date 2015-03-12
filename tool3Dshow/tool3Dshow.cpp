@@ -14,7 +14,7 @@
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include <iCub/ctrl/math.h>
+//#include <iCub/ctrl/math.h>
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
 //#include <pcl/filters/statistical_outlier_removal.h>
 //#include <pcl/filters/voxel_grid.h>
