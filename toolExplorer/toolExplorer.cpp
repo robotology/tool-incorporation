@@ -1001,7 +1001,7 @@ public:
         ret = ret && meshInPort.open(("/"+name+"/mesh:i").c_str());                  // port to receive pointclouds from
         ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
         if (!ret){
-            printf("Problems opening ports\n");
+            printf("\nProblems opening ports\n");
             return false;
         }
 
@@ -1013,13 +1013,13 @@ public:
         retRPC = retRPC && rpcFeatExtPort.open(("/"+name+"/featExt:rpc").c_str());           // port to command the pointcloud feature extraction module
         retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
         if (!retRPC){
-            printf("Problems opening RPC ports\n");
+            printf("\nProblems opening RPC ports\n");
 	        return false;
 	    }
 
         attach(rpcPort);
 
-        printf("Opening controllers...\n");
+        printf("\n Opening controllers...\n");
 
 	    //Cartesian controllers
         Property optionG("(device gazecontrollerclient)");
@@ -1089,7 +1089,7 @@ public:
             	iGaze->setEyesTrajTime(0.5);
         }
 
-        printf("Initializing variables... \n");
+        printf("\nInitializing variables... \n");
 
         closing = false;
         initAlignment = false;
