@@ -22,7 +22,6 @@ using namespace std;
 using namespace yarp::os;
 using namespace yarp::sig;
 using namespace yarp::math;
-//using namespace iCub::ctrl;
 
 /**********************************************************
                     PRIVATE METHODS
@@ -31,6 +30,7 @@ using namespace yarp::math;
 /************************************************************************/
 bool ToolFeatExt::loadCloud()
 {
+    cout << endl <<" +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
     cout << "Loading cloud from file" << path.c_str() << fname.c_str() << endl;
 
     // (Re-) initialize cloud transformations
@@ -115,6 +115,8 @@ bool ToolFeatExt::transformFrame(const Matrix &toolPose)
 /************************************************************************/
 int ToolFeatExt::computeFeats()
     {
+    cout << endl <<" +++++++++++++++++++++++++++++ FEATURE EXTRACTION ++++++++++++++++++++++++++++++++++++ " << endl;
+
     if (!cloudLoaded){
         if (!loadCloud())
         {
@@ -122,11 +124,14 @@ int ToolFeatExt::computeFeats()
             return -1;
         }
     }
+    cout << "Extracting features from: " << fname.c_str() << endl;
 
     if (!cloudTransformed){
         transformFrame();
     }
-
+    
+    cout << "Computing Features to maximum depth = " << maxDepth <<  "." << endl;
+    
     /* ===========================================================================*/
     // Get fixed bounding box to avoid octree automatically figure it out (what might change with resolution)
     pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
@@ -136,6 +141,13 @@ int ToolFeatExt::computeFeats()
     pcl::PointXYZ min_point_AABB;
     pcl::PointXYZ max_point_AABB;
     feature_extractor.getAABB (min_point_AABB, max_point_AABB);
+    double BBlengthX = fabs(max_point_AABB.x - min_point_AABB.x);
+    double BBlengthY = fabs(max_point_AABB.y - min_point_AABB.y);
+    double BBlengthZ = fabs(max_point_AABB.z - min_point_AABB.z);
+
+    double maxSize = max(max(BBlengthX,BBlengthY), BBlengthZ);
+    cout << "Lenght of the larger size is = " << maxSize <<  "." << endl;
+
 
     /* =========================================================================== */
     // Divide the bounding box in subregions using octree, and compute the normal histogram (EGI) in each of those subregions at different levels.
@@ -144,7 +156,7 @@ int ToolFeatExt::computeFeats()
     // Create instances of necessary classes
 
     // octree
-    float minVoxSize = 0.01; // Min voxel size (max resolution) 1 cm
+    float minVoxSize = (maxSize+0.01)/2; // Min voxel size (max resolution) 1 cm
     pcl::octree::OctreePointCloudSearch<pcl::PointXYZ> octree(minVoxSize);
 
     // Normal estimation class, and pass the input dataset to it
@@ -181,7 +193,7 @@ int ToolFeatExt::computeFeats()
     ne.setInputCloud (cloud);
 
     // Use all neighbors in a sphere of radius of size of the voxel length
-    ne.setRadiusSearch (minVoxSize/2);
+    ne.setRadiusSearch (0.05);//(minVoxSize/2);
 
     // Compute the normals
     ne.compute (*cloud_normals);
@@ -242,7 +254,7 @@ int ToolFeatExt::computeFeats()
         std::vector< double> featVecHist;                                 // Vector containing a seriazed version of the 3D histogram
 
         if(verbose){
-            cout << "BB divided into " << voxPerSide << " voxels per side of size "<< minVoxSize << "," << numLeaves << " occupied." << endl;
+            cout << "BB divided into " << voxPerSide << " voxels per side of size "<< minVoxSize << ", " << numLeaves << " occupied." << endl;
             cout << "Looping through the  " << numLeaves << " occupied voxels." << endl;
         }
 
@@ -447,7 +459,7 @@ int ToolFeatExt::computeFeats()
     // XXX put featureVectorAllVox in a bottle and send it out.
     feat3DoutPort.write(featureVectorAllVox);
 
-    return 0;
+    return true;
 }
 
 
