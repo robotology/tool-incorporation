@@ -27,6 +27,9 @@ using namespace yarp::math;
                     PRIVATE METHODS
 /**********************************************************/
 
+// XXX implement findToolPose: registers a singel view and alineates it with the cnonical model of a particular tool
+// XXX test the loop version of tool3D show by doing a small function that loads a cloud and sends it via port.
+
 /************************************************************************/
 bool ToolFeatExt::loadCloud()
 {
@@ -76,6 +79,7 @@ bool ToolFeatExt::loadCloud()
         return false;
     }
     cloudLoaded = true;
+    sendCloud(cloud_orig);
     return true;
 }
 
@@ -108,6 +112,7 @@ bool ToolFeatExt::transformFrame(const Matrix &toolPose)
     pcl::transformPointCloud(*cloud_orig , *cloud, TM);
 
     if (verbose){	printf("Transformation done \n");	}
+    sendCloud(cloud);
 
     return true;
 }
@@ -202,7 +207,7 @@ int ToolFeatExt::computeFeats()
     // Initialize histogram variables
     //float pi = 3.14159;
 
-    float rangeMin = -1;    // XXX make this automatic.
+    float rangeMin = -1;
     float rangeMax = 1;     //          ´´
     float rangeValid = rangeMax - rangeMin;
     float sizeBin = rangeValid/binsPerDim;
@@ -453,10 +458,10 @@ int ToolFeatExt::computeFeats()
     if(verbose){
         // print out end feature vector of vectors
         cout << "Feature vector contains: " << endl << featureVectorAllVox.toString()<< endl;
-        cout << endl << "======================Feature Extraction Done========================== " << endl;
+        cout << endl << "====================== Feature Extraction Done ========================== " << endl;
     }
 
-    // XXX put featureVectorAllVox in a bottle and send it out.
+    // Put featureVectorAllVox in a bottle and send it out.
     feat3DoutPort.write(featureVectorAllVox);
 
     return true;
@@ -464,6 +469,31 @@ int ToolFeatExt::computeFeats()
 
 
 /***************** Helper Functions *************************************/
+
+bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in)
+{
+    if (!cloudLoaded){
+        if (!loadCloud())
+        {
+            printf("Couldn't load cloud");
+            return false;
+        }
+    }
+    iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+    cloud2mesh(cloud_in, meshBottle);
+    meshOutPort.write();
+    return true;
+}
+
+void ToolFeatExt::cloud2mesh(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in, iCub::data3D::SurfaceMeshWithBoundingBox& meshB)
+{   // Converts pointcloud to surfaceMesh bottle.
+    meshB.mesh.points.clear();
+    for (unsigned int i=0; i<cloud_in->width; i++)
+    {
+        meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud_in->at(i).x,cloud->at(i).y, cloud_in->at(i).z));
+    }
+}
+
 Matrix ToolFeatExt::eigMat2yarpMat(const Eigen::MatrixXf eigMat){
     // Transforms matrices from Eigen format to YARP format
     int nrows = eigMat.rows();
@@ -665,6 +695,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     //open ports
     bool ret = true;
     ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
+    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
     if (!ret){
         printf("Problems opening ports\n");
         return false;

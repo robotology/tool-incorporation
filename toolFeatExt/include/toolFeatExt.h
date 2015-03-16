@@ -34,6 +34,9 @@
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
 
+#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+#include <iCub/data3D/RGBA.h>
+
 //#include <iCub/ctrl/math.h>
 
 //PCL libs
@@ -68,6 +71,7 @@ protected:
     yarp::os::RpcServer rpcInPort;  // port to handle incoming commands
 
     yarp::os::Port      feat3DoutPort; // Port where the features of the tool are send out (as a thrift Tool3DwithOrient struct)
+    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> meshOutPort; // Port to send out the cloud as a mesh to be further processed or displayed
     std::string path;            // path to folder with .ply or .pcd files
     std::string fname;           // name of the .ply or .pcd cloud file
 
@@ -92,6 +96,8 @@ protected:
     int  computeFeats();
 
     /* helper functions */
+    bool sendCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in);
+    void cloud2mesh(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in, iCub::data3D::SurfaceMeshWithBoundingBox& meshB);
     yarp::sig::Matrix   eigMat2yarpMat(const Eigen::MatrixXf eigMat);
     Eigen::MatrixXf     yarpMat2eigMat(const yarp::sig::Matrix yarpMat);
 
