@@ -162,9 +162,7 @@ protected:
         // segment object and get the pointcloud using objectReconstrucor module save it in file or array        
         bool ok = getPointCloud();
         if (ok) {            
-            iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
-            cloud2mesh(cloud_in, meshBottle);
-            meshOutPort.write();
+            showPointCloud(cloud_in);
             savePointsPly(cloud_in,cloudName);
 		    responseCode = Vocab::encode("ack");
             reply.addVocab(responseCode);
@@ -375,7 +373,7 @@ protected:
             positionsY[iY] = minRotY + iY*angleStep;
 
 
-        iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+
         // Register the first pointcloud to initialize
         bool initDone = false;
         cloud_merged->clear();
@@ -385,10 +383,9 @@ protected:
             turnHand(0, 0);
 
             // Register and display the cloud
-            if (robot == " icub"){
+            if (robot == " icub"){ // XX this if is just for testing on the simulator
                 getPointCloud();
-                cloud2mesh(cloud_in, meshBottle);
-                meshOutPort.write();
+                showPointCloud(cloud_in);
             }
 
             printf("Is the registered cloud clean? (y/n)? \n");
@@ -421,8 +418,7 @@ protected:
             // Register and display the cloud
             if (robot == "icub"){
                 getPointCloud();
-                cloud2mesh(cloud_in, meshBottle);
-                meshOutPort.write();
+                showPointCloud(cloud_in);
             }
 
             // If it is ok, do the merge and display again.
@@ -435,11 +431,13 @@ protected:
                 savePointsPly(cloud_in, cloudName);
 
                 // If the cloud is clean, merge the last recorded cloud_in with the existing cloud_merged and save on cloud_temp
-                mergePointClouds();
+                Eigen::Matrix4f alignMatrix;
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned;
+                alignPointClouds(cloud_in, cloud_merged, cloud_aligned, alignMatrix);
+                *cloud_temp+=*cloud_aligned;                            // write aligned registration first to a temporal merged
 
                 // Display the merged cloud
-                cloud2mesh(cloud_temp, meshBottle);
-                meshOutPort.write();
+                showPointCloud(cloud_temp);
 
                 // If merge is good, update model
                 printf("Is the merged cloud clean? (y/n)? \n >> ");
@@ -474,10 +472,27 @@ protected:
 
         // Visualize merged pointcloud
         printf("Model finished, visualizing \n");
-        cloud2mesh(cloud_merged, meshBottle);
-        meshOutPort.write();
-
+        showPointCloud(cloud_merged);
         return true;
+    }
+
+    /************************************************************************/
+    bool findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Matrix toolPose)
+    {
+         // XXX  Define where the modelCloud is found or loaded from.
+
+         // Get a registration
+         getPointCloud();    // Registration get and normalized to hand-reference frame. saved as 'cloud_in'
+
+         // Align it to the canonical model
+         Eigen::Matrix4f alignMatrix;
+         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned;
+         alignPointClouds(cloud_in, modelCloud, cloud_aligned, alignMatrix);
+
+         // return the alineation matrix as toolPose YARP Matrix
+         toolPose = eigMat2yarpMat(alignMatrix);
+
+         return true;
     }
 
     /************************************************************************/
@@ -670,12 +685,12 @@ protected:
     }
 
     /************************************************************************/
-    bool mergePointClouds()
+    bool alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat)
     {
-        cloud_temp->clear();
-        *cloud_temp = *cloud_merged;        // work on the previously obtaiened merged cloud
+        // cloud_temp->clear();
+        // *cloud_temp = *cloud_merged;        // work on the previously obtaiened merged cloud
 
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB>);
+        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB>);
 
         if (initAlignment) // Use FPFH features for initial alignment
         {
@@ -685,8 +700,8 @@ protected:
 
 
             // Feature computation
-            computeLocalFeatures(cloud_in, features);
-            computeLocalFeatures(cloud_merged, features_target);
+            computeLocalFeatures(cloud_from, features);
+            computeLocalFeatures(cloud_to, features_target);
 
             // Perform initial alignment
             pcl::SampleConsensusInitialAlignment<pcl::PointXYZRGB, pcl::PointXYZRGB, pcl::FPFHSignature33> sac_ia;
@@ -694,13 +709,14 @@ protected:
             sac_ia.setMaxCorrespondenceDistance (0.01f*0.01f);
             sac_ia.setMaximumIterations (500);
 
-            sac_ia.setInputTarget(cloud_merged);
+            sac_ia.setInputTarget(cloud_to);
             sac_ia.setTargetFeatures (features_target);
 
-            sac_ia.setInputSource(cloud_in);
+            sac_ia.setInputSource(cloud_from);
             sac_ia.setSourceFeatures (features);
 
             sac_ia.align(*cloud_aligned);
+            transfMat = sac_ia.getFinalTransformation();
             cout << "FPFH has converged:" << sac_ia.hasConverged() << " score: " << sac_ia.getFitnessScore() << endl;
 
         } else {          //  Apply good old ICP registration
@@ -716,14 +732,12 @@ protected:
             icp.setTransformationEpsilon (1e-6);
 
             //ICP algorithm
-            icp.setInputSource(cloud_in);
-            icp.setInputTarget(cloud_merged);
+            icp.setInputSource(cloud_from);
+            icp.setInputTarget(cloud_to);
             icp.align(*cloud_aligned);
+            transfMat = icp.getFinalTransformation();
             cout << "ICP has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << endl;
-
-        }
-
-        *cloud_temp+=*cloud_aligned;             // write registration first to a temporal merged
+        }        
     }
 
     void computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
@@ -772,6 +786,9 @@ protected:
     /************************************************************************/
     bool showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud) //XXX Change so the bottle is sent as Mesh on port to tool3Dshow. This will make tool3D show to display it.
     {
+        iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
+        cloud2mesh(cloud, meshBottle);
+        meshOutPort.write();
 
         return true;
     }
@@ -940,6 +957,19 @@ protected:
     }
 
 
+    Matrix eigMat2yarpMat(const Eigen::MatrixXf eigMat){
+        // Transforms matrices from Eigen format to YARP format
+        int nrows = eigMat.rows();
+        int ncols = eigMat.cols();
+        Matrix yarpMat = zeros(nrows,ncols);
+        for (int row = 0; row<nrows; ++row){
+            for (int col = 0; col<ncols; ++col){
+                yarpMat(row,col) = eigMat(row,col);
+            }
+        }
+        return yarpMat;
+    }
+
     /************************************************************************/
     void savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savename, const bool addNum = true)
     {
@@ -981,12 +1011,19 @@ public:
     bool configure(ResourceFinder &rf)
     {
         string name = rf.check("name",Value("toolExplorer")).asString().c_str();
-        robot = rf.check("robot",Value("icub")).asString().c_str();
-        if (strcmp(robot.c_str(),"icub")==0)
-            cloudsPath = rf.find("clouds_path").asString();
-        else
-            cloudsPath = rf.find("clouds_path_sim").asString();
+        robot = rf.check("robot",Value("icub")).asString().c_str();        
+        string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
+        rf.findFile(cloudpath_file.c_str());
 
+        ResourceFinder cloudsRF;
+        cloudsRF.setContext("toolModeler");
+        cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
+        cloudsRF.configure(0,NULL);
+
+        if (strcmp(robot.c_str(),"icub")==0)
+            cloudsPath = cloudsRF.find("clouds_path").asString();
+        else
+            cloudsPath = cloudsRF.find("clouds_path_sim").asString();
         printf("Path: %s",cloudsPath.c_str());
 
         cloudName = rf.check("modelName", Value("cloud")).asString();

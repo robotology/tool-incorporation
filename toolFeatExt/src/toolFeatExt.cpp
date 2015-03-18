@@ -27,9 +27,6 @@ using namespace yarp::math;
                     PRIVATE METHODS
 /**********************************************************/
 
-// XXX implement findToolPose: registers a singel view and alineates it with the cnonical model of a particular tool
-// XXX test the loop version of tool3D show by doing a small function that loads a cloud and sends it via port.
-
 /************************************************************************/
 bool ToolFeatExt::loadCloud()
 {
@@ -139,12 +136,12 @@ int ToolFeatExt::computeFeats()
     
     /* ===========================================================================*/
     // Get fixed bounding box to avoid octree automatically figure it out (what might change with resolution)
-    pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
+    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
     feature_extractor.setInputCloud (cloud);
     feature_extractor.compute ();
 
-    pcl::PointXYZ min_point_AABB;
-    pcl::PointXYZ max_point_AABB;
+    pcl::PointXYZRGB min_point_AABB;
+    pcl::PointXYZRGB max_point_AABB;
     feature_extractor.getAABB (min_point_AABB, max_point_AABB);
     double BBlengthX = fabs(max_point_AABB.x - min_point_AABB.x);
     double BBlengthY = fabs(max_point_AABB.y - min_point_AABB.y);
@@ -162,21 +159,21 @@ int ToolFeatExt::computeFeats()
 
     // octree
     float minVoxSize = (maxSize+0.01)/2; // Min voxel size (max resolution) 1 cm
-    pcl::octree::OctreePointCloudSearch<pcl::PointXYZ> octree(minVoxSize);
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(minVoxSize);
 
     // Normal estimation class, and pass the input dataset to it
-    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
 
     // Create an empty kdtree representation, and pass it to the normal estimation object.
     // Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
     ne.setSearchMethod (tree);
 
     // Cloud of Normals from whole pointcloud
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal> ());
 
     // voxelCloud and voxelCloudNormals to contain the poitns on each voxel
-    pcl::PointCloud<pcl::PointXYZ>::Ptr voxelCloud(new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr voxelCloud(new pcl::PointCloud<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::Normal>::Ptr voxelCloudNormals(new pcl::PointCloud<pcl::Normal> ());
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -267,8 +264,8 @@ int ToolFeatExt::computeFeats()
         int octreePoints = 0;
         int voxelI = 0;
         int nanCount = 0;
-        pcl::octree::OctreePointCloudSearch<pcl::PointXYZ>::LeafNodeIterator tree_it;
-        pcl::octree::OctreePointCloudSearch<pcl::PointXYZ>::LeafNodeIterator tree_it_end = octree.leaf_end();
+        pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB>::LeafNodeIterator tree_it;
+        pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB>::LeafNodeIterator tree_it_end = octree.leaf_end();
 
         // Iterate through lower level leafs (voxels).
         for (tree_it = octree.leaf_begin(depth); tree_it!=tree_it_end; ++tree_it)
@@ -286,7 +283,7 @@ int ToolFeatExt::computeFeats()
             octree.getVoxelBounds(tree_it, voxel_min, voxel_max);
 
             //... and center
-            pcl::PointXYZ voxelCenter;
+            pcl::PointXYZRGB voxelCenter;
             voxelCenter.x = (voxel_min.x() + voxel_max.x()) / 2.0f;
             voxelCenter.y = (voxel_min.y() + voxel_max.y()) / 2.0f;
             voxelCenter.z = (voxel_min.z() + voxel_max.z()) / 2.0f;
@@ -470,29 +467,39 @@ int ToolFeatExt::computeFeats()
 
 /***************** Helper Functions *************************************/
 
-bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in)
+bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in)
 {
-    if (!cloudLoaded){
-        if (!loadCloud())
-        {
-            printf("Couldn't load cloud");
-            return false;
-        }
+    iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();    
+    meshBottle.mesh.points.clear();
+    meshBottle.mesh.rgbColour.clear();
+    meshBottle.mesh.meshName = fname;
+    for (unsigned int i=0; i<cloud_in->width; i++)
+    {
+        meshBottle.mesh.points.push_back(iCub::data3D::PointXYZ(cloud_in->at(i).x,cloud_in->at(i).y, cloud_in->at(i).z));
+        meshBottle.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud_in->at(i).rgba));
     }
-    iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
-    cloud2mesh(cloud_in, meshBottle);
+    iCub::data3D::BoundingBox BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud_in);
+    meshBottle.boundingBox = BB.getBoundingBox();
+    cout << "Sending cloud of size " << cloud_in->size() << endl;
+    //cloud2mesh(cloud_in, meshBottle);
     meshOutPort.write();
     return true;
 }
 
-void ToolFeatExt::cloud2mesh(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in, iCub::data3D::SurfaceMeshWithBoundingBox& meshB)
+/*
+void ToolFeatExt::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, iCub::data3D::SurfaceMeshWithBoundingBox& meshB)
 {   // Converts pointcloud to surfaceMesh bottle.
     meshB.mesh.points.clear();
+    meshB.mesh.rgbColour.clear();
+    uint32_t rgb = 0;
     for (unsigned int i=0; i<cloud_in->width; i++)
     {
-        meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud_in->at(i).x,cloud->at(i).y, cloud_in->at(i).z));
+        meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud_in->at(i).x,cloud_in->at(i).y, cloud_in->at(i).z));
+        meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud_in->at(i).rgba));
     }
+    cout << endl;
 }
+*/
 
 Matrix ToolFeatExt::eigMat2yarpMat(const Eigen::MatrixXf eigMat){
     // Transforms matrices from Eigen format to YARP format
@@ -681,13 +688,21 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     // add and initialize the port to send out the features via thrift.
     string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
-    verbose = rf.check("verbose",Value(true)).asBool();
+    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
+    rf.findFile(cloudpath_file.c_str());
+
+    ResourceFinder cloudsRF;
+    cloudsRF.setContext("toolModeler");
+    cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
+    cloudsRF.configure(0,NULL);
+
     if (strcmp(robot.c_str(),"icub")==0)
-        path = rf.find("clouds_path").asString();
+        path = cloudsRF.find("clouds_path").asString();
     else
-        path = rf.find("clouds_path_sim").asString();
+        path = cloudsRF.find("clouds_path_sim").asString();
     printf("Path: %s",path.c_str());
 
+    verbose = rf.check("verbose",Value(true)).asBool();
     maxDepth = rf.check("maxDepth",Value(2)).asInt();
     binsPerDim = rf.check("depth",Value(2)).asInt();
 
@@ -717,8 +732,8 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     cloudLoaded = false;
     cloudTransformed = false;
     fname = "cloud_merged.ply";
-    cloud_orig = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
-    cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>);
+    cloud_orig = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+    cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
     rotMat = eye(4,4);
 
     cout << endl << "Configuring done."<<endl;

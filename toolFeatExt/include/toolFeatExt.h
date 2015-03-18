@@ -35,9 +35,9 @@
 #include <yarp/math/Math.h>
 
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+#include <iCub/data3D/minBoundBox.h>
 #include <iCub/data3D/RGBA.h>
 
-//#include <iCub/ctrl/math.h>
 
 //PCL libs
 #include <pcl/point_cloud.h>
@@ -78,8 +78,8 @@ protected:
 // add the port to send out the features via thrift.
 
     /* class variables */
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_orig; // Point cloud
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;      // Point cloud of the transformed model
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig; // Point cloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;      // Point cloud of the transformed model
     yarp::sig::Matrix                   rotMat;     // Rotation Matrix specifying grasp pose
 
     bool verbose;
@@ -96,8 +96,8 @@ protected:
     int  computeFeats();
 
     /* helper functions */
-    bool sendCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in);
-    void cloud2mesh(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in, iCub::data3D::SurfaceMeshWithBoundingBox& meshB);
+    bool sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in);
+    //void cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, iCub::data3D::SurfaceMeshWithBoundingBox& meshB);
     yarp::sig::Matrix   eigMat2yarpMat(const Eigen::MatrixXf eigMat);
     Eigen::MatrixXf     yarpMat2eigMat(const yarp::sig::Matrix yarpMat);
 
