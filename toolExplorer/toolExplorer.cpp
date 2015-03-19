@@ -384,11 +384,9 @@ protected:
             turnHand(0, 0);
 
             // Register and display the cloud
-            if (robot == " icub"){ // XX this if is just for testing on the simulator
-                getPointCloud();
-                showPointCloud(cloud_in);
-            }
-
+            getPointCloud();
+            showPointCloud(cloud_in);
+            
             printf("Is the registered cloud clean? (y/n)? \n");
             string answerInit;
             cin >> answerInit;
@@ -417,11 +415,9 @@ protected:
             turnHand(positionsX[Xind], positionsY[Yind]);
 
             // Register and display the cloud
-            if (robot == "icub"){
-                getPointCloud();
-                showPointCloud(cloud_in);
-            }
-
+            getPointCloud();
+            showPointCloud(cloud_in);
+            
             // If it is ok, do the merge and display again.
             printf("Is the registered cloud clean? (y/n)? \n >> ");
             string answerReg;
@@ -1133,7 +1129,7 @@ public:
         printf("\nInitializing variables... \n");
 
         closing = false;
-        initAlignment = false;
+        initAlignment = true;
         numCloudsSaved = 0;
 
         cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud

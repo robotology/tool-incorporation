@@ -171,7 +171,7 @@ bool ShowModule::quit()
         // read the mesh
         iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(false);	//keeps on reading until it receives a cloud bottle
         if (cloudMesh!=NULL){
-            cout<< "Received... " << cloudMesh->toString() << endl;
+            cout<< "Received Cloud... " << endl;
             pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
             printf("Cloud read from port \n");
             mesh2cloud(*cloudMesh,cloud);
