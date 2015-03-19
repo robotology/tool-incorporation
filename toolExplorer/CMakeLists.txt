@@ -13,6 +13,7 @@ include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 include_directories(${PCL_INCLUDE_DIRS}) 
 include_directories(${objects3D_INCLUDE_DIRS})
+include_directories(${minimumBoundingBox_INCLUDE_DIRS})
 
 list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 link_directories(${PCL_LIBRARY_DIRS})
@@ -22,7 +23,7 @@ add_definitions(${PCL_DEFINITIONS})
 set(source toolExplorer.cpp)
 
 add_executable(${PROJECTNAME} ${source})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} objects3D icubmod)
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} objects3D minimumBoundingBox icubmod)
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

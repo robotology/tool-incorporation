@@ -30,6 +30,7 @@
 #include <yarp/os/BufferedPort.h>
 
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+#include <iCub/data3D/minBoundBox.h>
 #include <iCub/data3D/RGBA.h>
 
 #include <pcl/point_cloud.h>
@@ -949,11 +950,14 @@ protected:
 
         meshB.mesh.points.clear();
         meshB.mesh.rgbColour.clear();
+        meshB.mesh.meshName = cloudName;
         for (unsigned int i=0; i<cloud->width; i++)
         {
             meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud->at(i).x,cloud->at(i).y, cloud->at(i).z));
             meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud->at(i).rgba));
         }
+        iCub::data3D::BoundingBox BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
+        meshB.boundingBox = BB.getBoundingBox();
     }
 
 
