@@ -22,7 +22,7 @@
 using namespace std;
 using namespace yarp::os;
 
-
+// XXX Add auto-connect to /mesh:o to avoid having to call it all the time.
 
 /************************************************************************/
 //                          PUBLIC METHODS

@@ -274,6 +274,38 @@ protected:
 		    return false;
 		}
 
+    }else if (receivedCmd == "mergeFromFiles"){
+        string cloud_from_name = command.get(1).asString();
+        string cloud_to_name = command.get(2).asString();
+
+        cout << "Attempting to load " << (cloudsPath + cloud_from_name).c_str() << "... "<< endl;
+        cout << "Attempting to load " << (cloudsPath + cloud_to_name).c_str() << "... "<< endl;
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        if (pcl::io::loadPLYFile (cloudsPath + cloud_from_name, *cloud_from) < 0)  {
+              std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;}
+        else{
+            cout << "cloud of size "<< cloud_from->points.size() << " points loaded from .ply." << endl;}
+        if (pcl::io::loadPLYFile (cloudsPath + cloud_to_name, *cloud_to) < 0)  {
+              std::cout << "Error loading point cloud " << cloud_to_name.c_str() << endl << endl;}
+        else{
+            cout << "cloud of size "<< cloud_to->points.size() << " points loaded from .ply." << endl;}
+
+        // Merge the clouds
+        Eigen::Matrix4f alignMatrix;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        alignPointClouds(cloud_from, cloud_to, cloud_aligned, alignMatrix);
+        *cloud_to+=*cloud_aligned;                            // write aligned registration first to a temporal merged
+
+        cout << "Alignment Matrix is "<< endl << alignMatrix << endl;
+        // Display the merged cloud
+        showPointCloud(cloud_to);
+
+        responseCode = Vocab::encode("ack");
+        reply.addVocab(responseCode);
+
+        return true;
 
 	}else if (receivedCmd == "help"){
 		reply.addVocab(Vocab::encode("many"));
@@ -292,6 +324,9 @@ protected:
         reply.addString("eye (left/right) - Sets the active eye (default left).");              
 		reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
+
+        reply.addString("test XXX mergeFromFiles (sting) (string) - merges two poinctlouds loaded from the given .ply files.");
+
 		reply.addVocab(responseCode);
 		return true;
 
@@ -692,49 +727,70 @@ protected:
         if (initAlignment) // Use FPFH features for initial alignment
         {
             printf("Applying FPFH alignment... \n");
+            if (verbose){printf("Defining features... \n");}
             pcl::PointCloud<pcl::FPFHSignature33>::Ptr features (new pcl::PointCloud<pcl::FPFHSignature33>);
             pcl::PointCloud<pcl::FPFHSignature33>::Ptr features_target (new pcl::PointCloud<pcl::FPFHSignature33>);
 
-
             // Feature computation
+            if (verbose){printf("Computing features... \n");}
             computeLocalFeatures(cloud_from, features);
             computeLocalFeatures(cloud_to, features_target);
 
             // Perform initial alignment
+            if (verbose){printf("Setting Initial alignment parameters \n");}
             pcl::SampleConsensusInitialAlignment<pcl::PointXYZRGB, pcl::PointXYZRGB, pcl::FPFHSignature33> sac_ia;
             sac_ia.setMinSampleDistance (0.05f);
             sac_ia.setMaxCorrespondenceDistance (0.01f*0.01f);
             sac_ia.setMaximumIterations (500);
 
+            if (verbose){printf("Adding source cloud\n");}
             sac_ia.setInputTarget(cloud_to);
             sac_ia.setTargetFeatures (features_target);
 
+            if (verbose){printf("Adding target cloud\n");}
             sac_ia.setInputSource(cloud_from);
             sac_ia.setSourceFeatures (features);
 
+            if (verbose){printf("Aligning clouds\n");}
             sac_ia.align(*cloud_aligned);
-            transfMat = sac_ia.getFinalTransformation();
+
             cout << "FPFH has converged:" << sac_ia.hasConverged() << " score: " << sac_ia.getFitnessScore() << endl;
+
+            if (verbose){printf("Getting alineation matrix\n");}
+            transfMat = sac_ia.getFinalTransformation();
+
 
         } else {          //  Apply good old ICP registration
 
             printf("Applying ICP alignment... \n");
             // The Iterative Closest Point algorithm
+            if (verbose){printf("Setting ICP parameters \n");}
             pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
             int iterations = 50;
             float distance = 0.003;   // 3 mm accepted as max distance between models
-            icp.setMaximumIterations(iterations);
-            icp.setMaxCorrespondenceDistance (distance);
-            icp.setRANSACOutlierRejectionThreshold (distance);  // Apply RANSAC too
-            icp.setTransformationEpsilon (1e-6);
+            //icp.setMaximumIterations(iterations);
+            //icp.setMaxCorrespondenceDistance (distance);
+            //icp.setRANSACOutlierRejectionThreshold (distance);  // Apply RANSAC too
+            //icp.setTransformationEpsilon (1e-6);
 
             //ICP algorithm
+            if (verbose){printf("Adding source cloud \n");}
             icp.setInputSource(cloud_from);
+            if (verbose){printf("Adding target cloud \n");}
             icp.setInputTarget(cloud_to);
+            if (verbose){printf("Aligning clouds\n");}
             icp.align(*cloud_aligned);
-            transfMat = icp.getFinalTransformation();
+            //pcl::PointCloud<pcl::PointXYZRGB> cloud_test;
+            //icp.align(cloud_test);
+
             cout << "ICP has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << endl;
-        }        
+
+            if (verbose){printf("Getting alineation matrix\n");}
+            cout << icp.getFinalTransformation() << endl;
+            if (verbose){printf("Clouds aligned! \n");}
+            transfMat = icp.getFinalTransformation();
+        }
+        return true;
     }
 
     void computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
@@ -744,6 +800,7 @@ protected:
 
         computeSurfaceNormals(cloud, normals);
 
+        printf("Computing Local Features\n");
         pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh_est;
         fpfh_est.setInputCloud(cloud);
         fpfh_est.setInputNormals(normals);
@@ -755,7 +812,7 @@ protected:
 
     void computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
     {
-
+        printf("Computing Surface Normals\n");
         pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
         pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
 
@@ -785,8 +842,8 @@ protected:
     {
         iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
         cloud2mesh(cloud, meshBottle);
+        if (verbose){printf("Sending out cloud");}
         meshOutPort.write();
-
         return true;
     }
 
@@ -937,23 +994,28 @@ protected:
 
             cloud->push_back(pointrgb);
         }
-        if (verbose){	printf("Mesh fromatted as Point Cloud \n");	}
+        if (verbose){	printf("Mesh formatted as Point Cloud \n");	}
     }
 
 
     void cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB)
     {   // Converts pointcloud to surfaceMesh bottle.
 
+        if (verbose){printf("Clearing mesh \n");}
         meshB.mesh.points.clear();
         meshB.mesh.rgbColour.clear();
+        if (verbose){printf("Adding name and points..\n");}
         meshB.mesh.meshName = cloudName;
         for (unsigned int i=0; i<cloud->width; i++)
         {
             meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud->at(i).x,cloud->at(i).y, cloud->at(i).z));
             meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud->at(i).rgba));
         }
+        if (verbose){printf("Adding bounding box \n");}
         iCub::data3D::BoundingBox BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
         meshB.boundingBox = BB.getBoundingBox();
+
+        return;
     }
 
 
@@ -1029,7 +1091,7 @@ public:
         cloudName = rf.check("modelName", Value("cloud")).asString();
         hand = rf.check("hand", Value("right")).asString();
 	    eye = rf.check("camera", Value("left")).asString();
-	    verbose = rf.check("verbose", Value(false)).asBool();
+        verbose = rf.check("verbose", Value(true)).asBool();
         normalizePose = rf.check("normalizePose", Value(true)).asBool();
 
 	    //ports
@@ -1129,7 +1191,7 @@ public:
         printf("\nInitializing variables... \n");
 
         closing = false;
-        initAlignment = true;
+        initAlignment = false;
         numCloudsSaved = 0;
 
         cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
