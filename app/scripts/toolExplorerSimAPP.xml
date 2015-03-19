@@ -101,24 +101,24 @@
     </connection>
     <connection>
         <from>/toolExplorer/objrec:rpc</from>
-        <to>/objectReconstr/rpc</to>
+        <to>/object-reconstruction/rpc</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 413) (y 368)) ((x 548) (y 497)) ((x 299) (y 239))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icubSim/cam/right</from>
-        <to>/objectReconstr/right:i</to>
+        <to>/object-reconstruction/right:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x 218) (y 236.5)) ((x 157) (y 257)) ((x 300) (y 215))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icubSim/cam/left</from>
-        <to>/objectReconstr/left:i</to>
+        <to>/object-reconstruction/left:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x 214.5) (y 144.5)) ((x 150) (y 98)) ((x 300) (y 190))  )</geometry>
     </connection>
     <connection>
-        <from>/objectReconstr/segmentation</from>
+        <from>/object-reconstruction/segmentation</from>
         <to>/GBSeg/conf</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 549.5) (y 189)) ((x 552) (y 226)) ((x 568) (y 152))  )</geometry>
@@ -130,7 +130,7 @@
         <geometry>(Pos ((x 683) (y 555)) ((x 548) (y 547)) ((x 839) (y 563))  )</geometry>
     </connection>
     <connection>
-        <from>/objectReconstr/mesh:o</from>
+        <from>/object-reconstruction/mesh:o</from>
         <to>/toolExplorer/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 452) (y 368.5)) ((x 557) (y 202)) ((x 368) (y 535))  )</geometry>
