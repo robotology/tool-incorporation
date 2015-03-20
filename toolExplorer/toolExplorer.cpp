@@ -442,10 +442,8 @@ protected:
         bool explorationDone = false;        
         while (!explorationDone)
         {
-            //if (randExp){
-                Xind = round(randG.scalar()*posN_X);
-                Yind = round(randG.scalar()*posN_Y);
-            //}
+            Xind = round(randG.scalar()*posN_X);
+            Yind = round(randG.scalar()*posN_Y);
 
             turnHand(positionsX[Xind], positionsY[Yind]);
 
@@ -464,7 +462,7 @@ protected:
 
                 // If the cloud is clean, merge the last recorded cloud_in with the existing cloud_merged and save on cloud_temp
                 Eigen::Matrix4f alignMatrix;
-                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned;
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
                 alignPointClouds(cloud_in, cloud_merged, cloud_aligned, alignMatrix);
                 *cloud_temp+=*cloud_aligned;                            // write aligned registration first to a temporal merged
 
@@ -518,7 +516,7 @@ protected:
 
          // Align it to the canonical model
          Eigen::Matrix4f alignMatrix;
-         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned;
+         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
          alignPointClouds(cloud_in, modelCloud, cloud_aligned, alignMatrix);
 
          // return the alineation matrix as toolPose YARP Matrix

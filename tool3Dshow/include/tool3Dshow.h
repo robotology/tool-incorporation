@@ -57,7 +57,6 @@ protected:
     std::string fname; //name of the .ply file to show
     bool closing;
 
-
     /* functions*/
     void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     //int showFileCloud();
