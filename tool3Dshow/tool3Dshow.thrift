@@ -12,6 +12,10 @@ service tool3Dshow_IDLServer
     // @return true/false on success/failure of setting verbose
     //bool setName(1: string name);
 
+    // addClouds - Switches between plotting clouds together or not
+    // @return true/false on success/failure of setting verbose
+    bool addclouds();
+
     // showFileCloud - Opens the visualizer and displays a PointCloud from a file
     // @return true/false on showing the poitncloud
     bool showFileCloud(1: string cloudname);

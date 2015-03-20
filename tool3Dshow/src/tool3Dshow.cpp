@@ -22,60 +22,9 @@
 using namespace std;
 using namespace yarp::os;
 
-// XXX Add auto-connect to /mesh:o to avoid having to restart it all the time.
-
-
 /*************************************************************************/
 //                  PRIVATE METHODS
 /************************************************************************/
-void ShowModule::Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
-    {
-    string id = "Cloud";
-
-    // Set camera position and orientation
-    viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-    viewer->addCoordinateSystem (0.05);
-    //viewer->initCameraParameters();
-    //viewer->setSize(1000, 1000); // Visualiser window size
-
-    bool colorCloud = false;
-    // check if the loaded file contains color information or not
-    for  (int p = 1; p < cloud->points.size(); ++p)
-    {
-        uint32_t rgb = *reinterpret_cast<int*>(&cloud->points[p].rgb);
-        if (rgb != 0)
-            colorCloud = true;
-    }
-
-    // Add cloud color if it has not
-    if (!colorCloud)    {
-        // Define R,G,B colors for the point cloud
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> cloud_color_handler(cloud, 255, 255, 255); //white
-        viewer->addPointCloud (cloud, cloud_color_handler, id);
-    }else{
-        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> cloud_color_handler (cloud);
-        viewer->addPointCloud (cloud, cloud_color_handler, id);
-    }
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, id);
-
-    // Display the visualiser
-    while (!viewer->wasStopped ())
-    {
-        if (closing)
-        {
-            viewer->close();
-            break;
-        }
-        viewer->spinOnce ();
-        //viewer->spinOnce (100);
-        //boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-    }
-    printf ("Closing visualizer: \n");
-    viewer->close();
-    viewer->removePointCloud(id);
-    closing = true;
-
-}
 
 /************************************************************************/
 void ShowModule::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -109,6 +58,13 @@ void ShowModule::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& clou
 
 //                          THRIFT RPC CALLS
 /************************************************************************/
+bool ShowModule::addclouds()
+{
+    visThrd->switchAddClouds();
+    return true;
+}
+
+
 bool ShowModule::showFileCloud(const string& cloudname)
 	{
 
@@ -150,10 +106,7 @@ bool ShowModule::showFileCloud(const string& cloudname)
     printf ("Cloud loaded successfully from file: %s\n",cloudname.c_str());
     fname = cloudname;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
-    viewer->setBackgroundColor (0, 0, 0);
-    printf("Visualizing point clouds...\n");
-    Visualize(viewer, cloud_in);
+    visThrd->updateCloud(cloud_in);
 
     return true;
 }
@@ -176,49 +129,13 @@ bool ShowModule::quit()
     closing = true;
     return true;
 }
-    /**********************************************************/
-/*
-    bool ToolFeatExt::setName(const string& cloudname)
-    {   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
-        fname = cloudname;
-        //cloudLoaded = false;
-
-        if (!loadCloud())
-        {
-            fprintf(stdout,"Couldn't load cloud.\n");
-            return false;
-        }
-
-        return true;
-    }
-
-    */
-
-    /**********************************************************/
-/*
-    bool Tool3Dshow::setVerbose(const string& verb)
-    {
-        if (verb == "ON"){
-            verbose = true;
-            fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-            return true;
-        } else if (verb == "OFF"){
-            verbose = false;
-            fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-            return true;
-        }
-        fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-        return false;
-    }
-*/
-
-
 
     /************************************************************************/
     //                      RF MOUDLE Commands
     /************************************************************************/
     bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     {
+    //Ports
     string name=rf.check("name",Value("tool3Dshow")).asString().c_str();
     string robot = rf.find("robot").asString();
     if (strcmp(robot.c_str(),"icub")==0)
@@ -226,7 +143,7 @@ bool ShowModule::quit()
     else
         path = rf.find("clouds_path_sim").asString();
 
-	printf("Path: %s",path.c_str());		
+
 	handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
 
@@ -238,12 +155,25 @@ bool ShowModule::quit()
     //Init variables
     fname = "cloud_merged.ply";
 
+    //Threads
+    visThrd = new VisThread(50, "Cloud");
+    if (!visThrd->start())
+    {
+        delete visThrd;
+        visThrd = 0;
+        cout << "\nERROR!!! visThread wasn't instantiated!!\n";
+        return false;
+    }
+    cout << "PCL visualizer Thread istantiated...\n";
+
     // Autoconnect to mesh:o port to avoid having to connect on every restart
     Network::connect("/toolExplorer/mesh:o", cloudsInPort.getName()); // From toolExplorer
     Network::connect("/toolFeatExt/mesh:o", cloudsInPort.getName()); // From toolExplorer
     Network::connect("/objectReconstr/mesh:o", cloudsInPort.getName()); // From toolExplorer
 
 	cout << endl << "Configuring done."<<endl;
+
+    printf("Base path: %s \n \n",path.c_str());
 
     return true;
     }
@@ -263,9 +193,11 @@ bool ShowModule::quit()
             printf("Cloud read from port \n");
             mesh2cloud(*cloudMesh,cloud);
 
-            boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
-            printf("Visualizing point clouds...\n");
-            Visualize(viewer, cloud);
+            visThrd->updateCloud(cloud);
+
+            //boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
+            //printf("Visualizing point clouds...\n");
+            //Visualize(viewer, cloud);
         }
         return !closing;
     }
@@ -285,6 +217,14 @@ bool ShowModule::quit()
         cout<<"Calling close function\n";
         cloudsInPort.close();
         handlerPort.close();
+
+        if (visThrd)
+        {
+            visThrd->stop();
+            delete visThrd;
+            visThrd =  0;
+        }
+
         return true;
     }
 
@@ -292,7 +232,6 @@ bool ShowModule::quit()
     {
         return this->yarp().attachAsServer(source);
     }
-
 
 
     /************************************************************************/

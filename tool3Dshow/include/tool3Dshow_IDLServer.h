@@ -16,6 +16,7 @@ class tool3Dshow_IDLServer;
 class tool3Dshow_IDLServer : public yarp::os::Wire {
 public:
   tool3Dshow_IDLServer();
+  virtual bool addclouds();
   virtual bool showFileCloud(const std::string& cloudname);
   virtual std::string help_commands();
   virtual bool quit();

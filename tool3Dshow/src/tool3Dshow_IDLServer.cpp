@@ -6,6 +6,14 @@
 
 
 
+class tool3Dshow_IDLServer_addclouds : public yarp::os::Portable {
+public:
+  bool _return;
+  void init();
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class tool3Dshow_IDLServer_showFileCloud : public yarp::os::Portable {
 public:
   std::string cloudname;
@@ -30,6 +38,27 @@ public:
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
+
+bool tool3Dshow_IDLServer_addclouds::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(1)) return false;
+  if (!writer.writeTag("addclouds",1,1)) return false;
+  return true;
+}
+
+bool tool3Dshow_IDLServer_addclouds::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void tool3Dshow_IDLServer_addclouds::init() {
+  _return = false;
+}
 
 bool tool3Dshow_IDLServer_showFileCloud::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
@@ -99,6 +128,16 @@ void tool3Dshow_IDLServer_quit::init() {
 tool3Dshow_IDLServer::tool3Dshow_IDLServer() {
   yarp().setOwner(*this);
 }
+bool tool3Dshow_IDLServer::addclouds() {
+  bool _return = false;
+  tool3Dshow_IDLServer_addclouds helper;
+  helper.init();
+  if (!yarp().canWrite()) {
+    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::addclouds()");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
 bool tool3Dshow_IDLServer::showFileCloud(const std::string& cloudname) {
   bool _return = false;
   tool3Dshow_IDLServer_showFileCloud helper;
@@ -139,6 +178,17 @@ bool tool3Dshow_IDLServer::read(yarp::os::ConnectionReader& connection) {
   if (direct) tag = reader.readTag();
   while (!reader.isError()) {
     // TODO: use quick lookup, this is just a test
+    if (tag == "addclouds") {
+      bool _return;
+      _return = addclouds();
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
     if (tag == "showFileCloud") {
       std::string cloudname;
       if (!reader.readString(cloudname)) {
@@ -211,12 +261,16 @@ std::vector<std::string> tool3Dshow_IDLServer::help(const std::string& functionN
   std::vector<std::string> helpString;
   if(showAll) {
     helpString.push_back("*** Available commands:");
+    helpString.push_back("addclouds");
     helpString.push_back("showFileCloud");
     helpString.push_back("help_commands");
     helpString.push_back("quit");
     helpString.push_back("help");
   }
   else {
+    if (functionName=="addclouds") {
+      helpString.push_back("bool addclouds() ");
+    }
     if (functionName=="showFileCloud") {
       helpString.push_back("bool showFileCloud(const std::string& cloudname) ");
     }

@@ -27,6 +27,7 @@
 #include <yarp/os/Network.h>
 #include <yarp/os/Module.h>
 #include <yarp/os/Vocab.h>
+#include <yarp/os/RateThread.h>
 
 #include <pcl/io/io.h>
 #include <pcl/io/ply_io.h>
@@ -38,6 +39,7 @@
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
 
 #include <tool3Dshow_IDLServer.h>
+#include "visThread.h"
 
 /**********************************************************
     PUBLIC METHODS
@@ -49,17 +51,13 @@ class ShowModule : public yarp::os::RFModule, public tool3Dshow_IDLServer
 protected:
     /* module parameters */
     yarp::os::RpcServer handlerPort;  // port to handle incoming commands
-
+    VisThread *visThrd;
 
     yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort; // Buffered port to receive clouds.
 
     std::string path; //path to folder with .ply files
     std::string fname; //name of the .ply file to show
     bool closing;
-
-    /* functions*/
-    void Visualize(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-    //int showFileCloud();
 
     /* helper functions */
     void mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
@@ -68,8 +66,9 @@ protected:
 public:
 
     // RPC Accesible methods
+    bool addclouds();
     bool showFileCloud(const std::string &cloudname);
-    bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);    
+    //bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);
     std::string help_commands();
 
     // module control //
