@@ -205,7 +205,7 @@ int ToolFeatExt::computeFeats()
     //float pi = 3.14159;
 
     float rangeMin = -1;
-    float rangeMax = 1;     //          ´´
+    float rangeMax = 1;
     float rangeValid = rangeMax - rangeMin;
     float sizeBin = rangeValid/binsPerDim;
 

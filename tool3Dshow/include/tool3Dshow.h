@@ -66,8 +66,11 @@ protected:
 public:
 
     // RPC Accesible methods
-    bool addclouds();
+    bool accumClouds(bool accum);
+    bool clearVis();
     bool showFileCloud(const std::string &cloudname);
+    bool addNormals(double radSearch);
+    bool addBoundingBox(bool minBB);
     //bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);
     std::string help_commands();
 

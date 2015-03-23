@@ -16,8 +16,11 @@ class tool3Dshow_IDLServer;
 class tool3Dshow_IDLServer : public yarp::os::Wire {
 public:
   tool3Dshow_IDLServer();
-  virtual bool addclouds();
-  virtual bool showFileCloud(const std::string& cloudname);
+  virtual bool clearVis();
+  virtual bool accumClouds(const bool accum = 0);
+  virtual bool showFileCloud(const std::string& cloudname = "cloud_merged.ply");
+  virtual bool addNormals(const double radSearch = 0.03);
+  virtual bool addBoundingBox(const bool minBB = 0);
   virtual std::string help_commands();
   virtual bool quit();
   virtual bool read(yarp::os::ConnectionReader& connection);

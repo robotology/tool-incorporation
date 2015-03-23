@@ -58,9 +58,15 @@ void ShowModule::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& clou
 
 //                          THRIFT RPC CALLS
 /************************************************************************/
-bool ShowModule::addclouds()
+bool ShowModule::accumClouds(bool accum)
 {
-    visThrd->switchAddClouds();
+    visThrd->accumulateClouds(accum);
+    return true;
+}
+
+bool ShowModule::clearVis()
+{
+    visThrd->clearVisualizer();
     return true;
 }
 
@@ -111,11 +117,26 @@ bool ShowModule::showFileCloud(const string& cloudname)
     return true;
 }
 
+bool ShowModule::addNormals(double radSearch)
+{
+    visThrd->addNormals(radSearch);
+    return true;
+}
+
+
+bool ShowModule::addBoundingBox(bool minBB)
+{
+    visThrd->addBoundingBox(minBB);
+    return true;
+}
+
 string ShowModule::help_commands()
 {
         string reply;
         reply += " Available commands are: ----";
-        reply += " ShowFileCloud (filename) - Opens visualizer and displays the pointcloud on the given file.----";
+        reply += " showFileCloud (str filename) - Opens visualizer and displays the pointcloud on the given file.----";
+        reply += " addNormals (double radSearch) - adds Normals to the displayed cloud radSearch is used to find neighboring points.----";
+        reply += " addBoundingBox (bool minBB) - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one.----";
         reply += " help_commands - produces this help.----";
         reply += " quit - closes the module.----";
 
