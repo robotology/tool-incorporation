@@ -115,12 +115,13 @@ protected:
         // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
         bool ok = explore();
         if (ok){
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Exploration successfully finished.");
             return true;
         } else {
             fprintf(stdout,"Couldnt obtain 3D model successfully. \n");
-            reply.addString("[nack] Couldnt obtain 3D model successfully.\n");
+            reply.addString("[nack] Couldnt obtain 3D model successfully.");
             return false;
         }
 
@@ -128,12 +129,13 @@ protected:
         // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
         bool ok = exploreInteractive();
         if (ok){
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Interactive exploration successfully finished.");
             return true;
         } else {
             fprintf(stdout,"There was an error during the interactive exploration. \n");
-            reply.addString("[nack] There was an error during the interactive exploration. \n");
+            reply.addString("[nack] There was an error during the interactive exploration. ");
             return false;
         }
 
@@ -150,12 +152,13 @@ protected:
 
         bool ok = turnHand(rotDegX, rotDegY);
         if (ok){
-		    responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Hand successfully turned.");
             return true;
         } else {
             fprintf(stdout,"Couldnt go to the desired position. \n");
-            reply.addString("[nack] Couldnt go to the desired position. \n" );
+            reply.addString("[nack] Couldnt go to the desired position." );
   		    return false;
 		}
 
@@ -165,12 +168,13 @@ protected:
         if (ok) {            
             showPointCloud(cloud_in);
             savePointsPly(cloud_in,cloudName);
-		    responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] 3D registration successfully completed.");
             return true;
         } else {
 		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
-            reply.addString("[nack] Couldnt reconstruct pointcloud. \n");
+            reply.addString("[nack] Couldnt reconstruct pointcloud. ");
 		    return false;
         }
 
@@ -180,12 +184,13 @@ protected:
         // saving the complete pointcloud is done by the merging module
         bool ok = mergeAllPointClouds();
         if (ok){
-		    responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+		    //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Clouds from files successfully merged.");
             return true;
         }else {
 		    fprintf(stdout,"Couldnt merge pointclouds. \n");
-            reply.addString("[nack] Couldnt merge pointclouds. \n");
+            reply.addString("[nack] Couldnt merge pointclouds. ");
             return false;
 		}
 
@@ -194,12 +199,14 @@ protected:
         // activates the normalization of the pointcloud to the hand reference frame.
         bool ok = setNormalization(command.get(1).asString());
         if (ok){
-            responseCode = Vocab::encode("ack");        
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Normalization state successfully set to ");
+            reply.addString(command.get(1).asString());
             return true;}
         else {
             fprintf(stdout,"Normalization has to be set to ON or OFF. \n");
-            reply.addString("[nack] Normalization has to be set to ON or OFF. \n");
+            reply.addString("[nack] Normalization has to be set to ON or OFF. ");
             return false;
         }
 
@@ -208,12 +215,14 @@ protected:
         // activates the normalization of the pointcloud to the hand reference frame.
         bool ok = setInitialAlignment(command.get(1).asString());
         if (ok){
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Use of Point Features for initial alignment successfully set to ");
+            reply.addString(command.get(1).asString());
             return true;}
         else {
             fprintf(stdout,"FPFH based Initial Alignment has to be set to ON or OFF. \n");
-            reply.addString("[nack] FPFH based Initial Alignment has to be set to ON or OFF. \n");
+            reply.addString("[nack] FPFH based Initial Alignment has to be set to ON or OFF. ");
             return false;
         }
 
@@ -228,49 +237,57 @@ protected:
         }
         bool ok = changeModelName(modelname);
         if (ok){
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Model name successfully changed to ");
+            reply.addString(command.get(1).asString());
             return true;
         }else {
             fprintf(stdout,"Couldnt change the name. \n");
-            reply.addString("[nack] Couldnt change the name. \n");
+            reply.addString("[nack] Couldnt change the name. ");
             return false;
         }
 
 	}else if (receivedCmd == "hand"){
 		bool ok = setHand(command.get(1).asString());
         if (ok){
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Active hand successfully set to ");
+            reply.addString(command.get(1).asString());
             return true;
         } else {
 		    fprintf(stdout,"Hand can only be set to 'right' or 'left'. \n");
-            reply.addString("[nack] Hand can only be set to 'right' or 'left'. \n");
+            reply.addString("[nack] Hand can only be set to 'right' or 'left'.");
             return false;
 		}
 
 	}else if (receivedCmd == "eye"){
 		bool ok = setEye(command.get(1).asString());
         if (ok){
-		    responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Active eye successfully set to ");
+            reply.addString(command.get(1).asString());
             return true;
         }else {
 		    fprintf(stdout,"Eye can only be set to 'right' or 'left'. \n");
-            reply.addString("[nack] Eye can only be set to 'right' or 'left'. \n");
+            reply.addString("[nack] Eye can only be set to 'right' or 'left'. ");
 		    return false;		    
 		}
 
 	}else if (receivedCmd == "verbose"){
 		bool ok = setVerbose(command.get(1).asString());
         if (ok){
-            responseCode = Vocab::encode("ack");
-            reply.addVocab(responseCode);
+            //responseCode = Vocab::encode("ack");
+            //reply.addVocab(responseCode);
+            reply.addString(" [ack] Verbose successfully set to ");
+            reply.addString(command.get(1).asString());
             return true;
         }
 		else {
 		    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-            reply.addString("[nack] Verbose can only be set to ON or OFF. \n");
+            reply.addString("[nack] Verbose can only be set to ON or OFF.");
 		    return false;
 		}
 
@@ -296,15 +313,12 @@ protected:
         Eigen::Matrix4f alignMatrix;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
         alignPointClouds(cloud_from, cloud_to, cloud_aligned, alignMatrix);
-        *cloud_to+=*cloud_aligned;                            // write aligned registration first to a temporal merged
-
+        *cloud_to+=*cloud_aligned;                            // write aligned registration first to a temporal merged hand
         cout << "Alignment Matrix is "<< endl << alignMatrix << endl;
         // Display the merged cloud
         showPointCloud(cloud_to);
 
-        responseCode = Vocab::encode("ack");
-        reply.addVocab(responseCode);
-
+        reply.addString(" [ack] Clouds successfully merged ");
         return true;
 
 	}else if (receivedCmd == "help"){
@@ -428,6 +442,7 @@ protected:
             if ((answerInit == "y")||(answerInit == "Y"))
             {
                 *cloud_merged = *cloud_in;  //Initialize cloud merged
+                *cloud_temp = *cloud_in;    //Initialize auxiliary cloud on which temporal merges will be shown before confirmation
                 savePointsPly(cloud_merged, mergedName,false);
                 initDone = true;
                 printf("Base cloud initialized \n");
@@ -464,7 +479,7 @@ protected:
                 Eigen::Matrix4f alignMatrix;
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
                 alignPointClouds(cloud_in, cloud_merged, cloud_aligned, alignMatrix);
-                *cloud_temp+=*cloud_aligned;                            // write aligned registration first to a temporal merged
+                *cloud_temp += *cloud_aligned;                            // write aligned registration first to a temporal merged
 
                 // Display the merged cloud
                 showPointCloud(cloud_temp);
@@ -485,14 +500,15 @@ protected:
                     cin >> answerModel;
                     if ((answerModel == "y")||(answerModel == "Y"))
                     {                        
+                        printf(" Model not finished, continuing with exploration \n");
+                    } else {
                         savePointsPly(cloud_merged, mergedName, false);
                         printf(" Final model saved as %s, finishing exploration \n", mergedName.c_str());
                         explorationDone = true;
-                    } else {
-                        printf(" Model not finished, continuing with exploration \n");
                     }
                 } else {
                     printf("\n Ignoring merge, continue with exploration \n");
+                    *cloud_temp = *cloud_merged;
                 }
             } else {
                 printf("\n Unproper registration, try again \n");
@@ -501,8 +517,7 @@ protected:
         }
 
         // Visualize merged pointcloud
-        printf("Model finished, visualizing \n");
-        showPointCloud(cloud_merged);
+        printf("Exploration finished, returning control. \n");
         return true;
     }
 
@@ -717,9 +732,6 @@ protected:
     /************************************************************************/
     bool alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat)
     {
-        // cloud_temp->clear();
-        // *cloud_temp = *cloud_merged;        // work on the previously obtaiened merged cloud
-
         //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB>);
 
         if (initAlignment) // Use FPFH features for initial alignment
@@ -836,11 +848,11 @@ protected:
     
 
     /************************************************************************/
-    bool showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud) //XXX Change so the bottle is sent as Mesh on port to tool3Dshow. This will make tool3D show to display it.
+    bool showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud) 
     {
         iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
         cloud2mesh(cloud, meshBottle);
-        if (verbose){printf("Sending out cloud");}
+        if (verbose){printf("Sending out cloud. \n");}
         meshOutPort.write();
         return true;
     }
@@ -999,20 +1011,21 @@ protected:
     void cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB)
     {   // Converts pointcloud to surfaceMesh bottle.
 
-        if (verbose){printf("Clearing mesh \n");}
+        //if (verbose){printf("Clearing mesh \n");}
+        if (verbose){printf("Transforming cloud to mesh to be sent out... ");}
         meshB.mesh.points.clear();
         meshB.mesh.rgbColour.clear();
-        if (verbose){printf("Adding name and points..\n");}
+        //if (verbose){printf("Adding name and points..\n");}
         meshB.mesh.meshName = cloudName;
         for (unsigned int i=0; i<cloud->width; i++)
         {
             meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud->at(i).x,cloud->at(i).y, cloud->at(i).z));
             meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud->at(i).rgba));
         }
-        if (verbose){printf("Adding bounding box \n");}
+        //if (verbose){printf("Adding bounding box \n");}
         iCub::data3D::BoundingBox BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
         meshB.boundingBox = BB.getBoundingBox();
-
+        if (verbose){printf("Mesh obtained from cloud. \n");}
         return;
     }
 
