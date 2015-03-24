@@ -186,12 +186,6 @@ bool ShowModule::quit()
         return false;
     }
     cout << "PCL visualizer Thread istantiated...\n";
-
-    // Autoconnect to mesh:o port to avoid having to connect on every restart
-    Network::connect("/toolExplorer/mesh:o", cloudsInPort.getName()); // From toolExplorer
-    Network::connect("/toolFeatExt/mesh:o", cloudsInPort.getName()); // From toolExplorer
-    Network::connect("/objectReconstr/mesh:o", cloudsInPort.getName()); // From toolExplorer
-
 	cout << endl << "Configuring done."<<endl;
 
     printf("Base path: %s \n \n",path.c_str());
