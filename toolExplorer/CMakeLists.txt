@@ -1,4 +1,4 @@
-# Copyright: (C) 2012 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
+# Copyright: (C) 2015 iCub Facility - Istituto Italiano di Tecnologia
 # Authors: Tanis Mar
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
@@ -9,7 +9,15 @@ PROJECT(${PROJECTNAME})
 find_package(PCL 1.7 REQUIRED)
 find_package(ICUB REQUIRED)
 
+file(GLOB source src/*.cpp)
+file(GLOB header include/*.h)
+
+
+source_group("Source Files" FILES ${source})
+source_group("Header Files" FILES ${header})
+
 include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 include_directories(${PCL_INCLUDE_DIRS}) 
 include_directories(${objects3D_INCLUDE_DIRS})
@@ -20,9 +28,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by default, but it's not, so add it just in case.
 add_definitions(${PCL_DEFINITIONS})
 
-set(source toolExplorer.cpp)
-
-add_executable(${PROJECTNAME} ${source})
+add_executable(${PROJECTNAME} ${source} ${header})
 target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} objects3D minimumBoundingBox icubmod)
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
