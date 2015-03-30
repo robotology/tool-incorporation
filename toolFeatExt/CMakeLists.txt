@@ -1,4 +1,4 @@
-# Copyright: (C) 2014 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
+# Copyright: (C) 2015 iCub Facility - Istituto Italiano di Tecnologia
 # Authors: Tanis Mar
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
