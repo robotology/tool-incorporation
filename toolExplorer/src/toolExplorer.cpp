@@ -140,9 +140,11 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     if (robot == "icubSim"){
             iGaze->setNeckTrajTime(1.5);
             iGaze->setEyesTrajTime(0.5);
+            iGaze->blockEyes(0.0);
     }else{
             iGaze->setNeckTrajTime(1.5);
             iGaze->setEyesTrajTime(0.5);
+            iGaze->blockEyes(0.0);
     }
 
     printf("\nInitializing variables... \n");
