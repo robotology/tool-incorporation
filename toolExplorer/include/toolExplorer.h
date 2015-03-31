@@ -114,6 +114,7 @@ protected:
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
     bool                mergeAllPointClouds();
     bool                showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+    bool                showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle);
     bool                showPointCloudFromFile(const std::string& fname);
     bool                extractFeatures();
     

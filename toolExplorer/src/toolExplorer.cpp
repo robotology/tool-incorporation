@@ -43,7 +43,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
         cloudsPath = cloudsRF.find("clouds_path").asString();
     else
         cloudsPath = cloudsRF.find("clouds_path_sim").asString();
-    printf("Path: %s",cloudsPath.c_str());
+
 
     cloudName = rf.check("modelName", Value("cloud")).asString();
     hand = rf.check("hand", Value("right")).asString();
@@ -158,6 +158,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
     cout << endl << "Configuring done." << endl;
+    printf("Base path: %s",cloudsPath.c_str());
 
     return true;
 }
@@ -743,7 +744,7 @@ bool ToolExplorer::getPointCloud()
     cloud_in->clear();   // clear receiving cloud
 
     // read coordinates from yarpview
-    if (verbose){printf("Getting tip coordinates \n");}
+    if (verbose){printf("Please click on seed point from the Segmentation viewer. \n");}
     Bottle *toolTipIn = seedInPort.read(true);	//waits until it receives coordinates
     int u = toolTipIn->get(0).asInt();
     int v = toolTipIn->get(1).asInt();
@@ -764,6 +765,7 @@ bool ToolExplorer::getPointCloud()
     // read the cloud from the objectReconst output port
     iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = meshInPort.read(true);	//waits until it receives coordinates
     if (cloudMesh!=NULL){
+        //showPointMesh(*cloudMesh);
         if (verbose){	printf("Cloud read from port \n");	}
         mesh2cloud(*cloudMesh,cloud_in);
     } else{
@@ -795,8 +797,7 @@ bool ToolExplorer::getPointCloud()
         printf("Cloud normalized to hand reference frame \n");
     }
 
-    if (verbose){	printf("3D reconstruction obtained.\n");}
-
+    if (verbose){ cout << " Cloud of size " << cloud_in->points.size() << " obtained from 3D reconstruction" << endl;}
     return true;
 }
 
@@ -819,10 +820,10 @@ bool ToolExplorer::transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
     H2R(0,3)= H2Rpos[0];
     H2R(1,3)= H2Rpos[1];
     H2R(2,3)= H2Rpos[2];
-    printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());
+    if (verbose){ printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());}
 
     Matrix R2H = SE3inv(H2R);    //inverse the affine transformation matrix from robot to hand
-    printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());
+    if (verbose){printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());}
 
     // Put Transformation matrix into Eigen Format
     Eigen::Matrix4f TM = Eigen::Matrix4f::Identity();
@@ -830,7 +831,7 @@ bool ToolExplorer::transformFrame(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
     TM(1,0) = R2H(1,0);     TM(1,1) = R2H(1,1);     TM(1,2) = R2H(1,2);     TM(1,3) = R2H(1,3);
     TM(2,0) = R2H(2,0);     TM(2,1) = R2H(2,1);     TM(2,2) = R2H(2,2);     TM(2,3) = R2H(2,3);
     TM(3,0) = R2H(3,0);     TM(3,1) = R2H(3,1);     TM(3,2) = R2H(3,2);     TM(3,3) = R2H(3,3);
-    cout << TM.matrix() << endl;
+    //cout << TM.matrix() << endl;
 
     // Executing the transformation
     pcl::transformPointCloud(*cloud_orig, *cloud_trans, TM);
@@ -962,6 +963,14 @@ bool ToolExplorer::showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
     iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
     cloud2mesh(cloud, meshBottle);
     if (verbose){printf("Sending out cloud. \n");}
+    meshOutPort.write();
+    return true;
+}
+
+bool ToolExplorer::showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox& meshBottle)
+{
+    meshBottle = meshOutPort.prepare();
+    if (verbose){printf("Sending out mesh. \n");}
     meshOutPort.write();
     return true;
 }
@@ -1113,7 +1122,7 @@ void ToolExplorer::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& me
 
         cloud->push_back(pointrgb);
     }
-    if (verbose){	printf("Mesh formatted as Point Cloud \n");	}
+    if (verbose){cout << "Mesh formatted as Point Cloud of size " << cloud->points.size() << endl;}
 }
 
 
@@ -1129,9 +1138,10 @@ void ToolExplorer::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud->at(i).x,cloud->at(i).y, cloud->at(i).z));
         meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud->at(i).rgba));
     }
+    //if (verbose){printf("\n Computing minimum BB.\n");}
     iCub::data3D::BoundingBox BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
     meshB.boundingBox = BB.getBoundingBox();
-    if (verbose){printf("Mesh obtained from cloud. \n");}
+    if (verbose){printf("\n Mesh obtained from cloud. \n");}
     return;
 }
 
@@ -1207,9 +1217,9 @@ int main(int argc, char *argv[])
 
     ToolExplorer toolExplorer;
 
-    cout<<"Configure module..."<<endl;
+    cout<< endl <<"Configure module..."<<endl;
     toolExplorer.configure(rf);
-    cout<<"Start module..."<<endl;
+    cout<< endl << "Start module..."<<endl;
     toolExplorer.runModule();
 
     cout<<"Main returning..."<<endl;

@@ -158,7 +158,8 @@ bool ShowModule::quit()
     {
     //Ports
     string name=rf.check("name",Value("tool3Dshow")).asString().c_str();
-    string robot = rf.find("robot").asString();
+    string robot = rf.check("robot",Value("icub")).asString().c_str();
+    cout << "robot: "<< robot.c_str() << endl;
     if (strcmp(robot.c_str(),"icub")==0)
         path = rf.find("clouds_path").asString();
     else

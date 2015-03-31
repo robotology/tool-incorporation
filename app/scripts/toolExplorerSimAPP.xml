@@ -18,7 +18,7 @@
     -->
     <module>
         <name>object-reconstruction</name>
-        <parameters>--name object-reconstruction --context toolModeler</parameters>
+        <parameters>--context toolModeler --computeBB true</parameters>
         <node>localhost</node>
         <prefix></prefix>
         <geometry>(Pos (x 299) (y 171.9))</geometry>

@@ -11,7 +11,10 @@ bool VisThread::threadInit()
 {
     cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
     viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer> (new pcl::visualization::PCLVisualizer("Point Cloud Viewer")); //viewer
-    
+    viewer->setSize(1000,650);
+    viewer->setPosition(0,350);
+
+
     //initialize here variables
     printf("\nStarting visualizer Thread\n");
 
