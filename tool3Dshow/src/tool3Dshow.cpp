@@ -109,7 +109,7 @@ bool ShowModule::showFileCloud(const string& cloudname)
         perror ("can't open directory");
         return false;
     }
-    printf ("Cloud loaded successfully from file: %s\n",cloudname.c_str());
+    cout << "Cloud of size " << cloud_in->points.size() << " loaded successfully from file: " << cloudname.c_str() << endl;
     fname = cloudname;
 
     visThrd->updateCloud(cloud_in);
