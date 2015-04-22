@@ -1,7 +1,0 @@
-In order to obtain a point cloud from a Sketch up model, the following steps have to be followed:
-1.- Build the model on Sketchup and orient it properly. 
-2.- Use Zbyl's exporter to export it to .obj (to nvert to pcd) and .x (for the simulator)
-3.- Use pcl function pcl_mesh_sampling to transform .obj to .pcd in the following way:
-    - pcl_mesh_sampling XXX.obj XXX.pcd -leaf_size 0.003
-4.- Visualize the object to check that the object is oriented along the -Y axis, with effector pointing along +X axis.
-   - If it is not, orient it properly using the tutorial function matrix_transform with the appropriate 
