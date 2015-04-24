@@ -72,21 +72,6 @@ bool ShowModule::addBoundingBox(bool minBB)
     return true;
 }
 
-string ShowModule::help_commands()
-{
-        string reply;
-        reply += " Available commands are: ----";
-        reply += " clearVis - Clears the visualizer.----";
-        reply += " showFileCloud (str filename) - Opens visualizer and displays the pointcloud on the given file.----";
-        reply += " addNormals (double radSearch) - adds Normals to the displayed cloud radSearch is used to find neighboring points.----";
-        reply += " addBoundingBox (bool minBB) - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one.----";
-        reply += " help_commands - produces this help.----";
-        reply += " quit - closes the module.----";
-
-        return reply;
-}
-
-
 bool ShowModule::quit()
 {
     std::cout << "Quitting!" << std::endl;

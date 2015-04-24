@@ -42,10 +42,17 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     cloudsRF.configure(0,NULL);
 
     if (strcmp(robot.c_str(),"icub")==0)
-        cloudsPath = cloudsRF.find("clouds_path").asString();
+        cloudsPathFrom = cloudsRF.find("clouds_path").asString();
     else
-        cloudsPath = cloudsRF.find("clouds_path_sim").asString();
+        cloudsPathFrom = cloudsRF.find("clouds_path_sim").asString();
 
+    string defSaveDir = "/saveModels";
+    string cloudsSaveDir = rf.check("save")?rf.find("save").asString().c_str():defSaveDir;
+    if (cloudsSaveDir[0]!='/')
+        cloudsSaveDir="/"+cloudsSaveDir;
+    cloudsPathTo="."+cloudsSaveDir;
+
+    yarp::os::mkdir_p(cloudsPathTo.c_str());
 
     cloudName = rf.check("modelName", Value("cloud")).asString();
     hand = rf.check("hand", Value("right")).asString();
@@ -160,7 +167,8 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
     cout << endl << "Configuring done." << endl;
-    printf("Base path: %s",cloudsPath.c_str());
+    printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
+    printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
 
     return true;
 }
@@ -288,7 +296,7 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = getPointCloud();
         if (ok) {            
             showPointCloud(cloud_in);
-            CloudUtils::savePointsPly(cloud_in, cloudsPath, cloudName, numCloudsSaved); numCloudsSaved++;
+            CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved); numCloudsSaved++;
             reply.addString(" [ack] 3D registration successfully completed.");
             return true;
         } else {
@@ -307,7 +315,7 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        CloudUtils::loadCloud(cloudsPath, modelname,cloud_out);
+        CloudUtils::loadCloud(cloudsPathFrom, modelname,cloud_out);
         bool ok = findToolPose(cloud_out,toolPose);
 
         if (ok){
@@ -383,19 +391,27 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
         string cloud_from_name = command.get(1).asString();
         string cloud_to_name = command.get(2).asString();
 
-        cout << "Attempting to load " << (cloudsPath + cloud_from_name).c_str() << "... "<< endl;
-        cout << "Attempting to load " << (cloudsPath + cloud_to_name).c_str() << "... "<< endl;
+        cout << "Attempting to load " << (cloudsPathFrom + cloud_from_name).c_str() << "... "<< endl;
+        cout << "Attempting to load " << (cloudsPathFrom + cloud_to_name).c_str() << "... "<< endl;
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from (new pcl::PointCloud<pcl::PointXYZRGB> ());
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        if (pcl::io::loadPLYFile (cloudsPath + cloud_from_name, *cloud_from) < 0)  {
-              std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;}
-        else{
-            cout << "cloud of size "<< cloud_from->points.size() << " points loaded from .ply." << endl;}
-        if (pcl::io::loadPLYFile (cloudsPath + cloud_to_name, *cloud_to) < 0)  {
-              std::cout << "Error loading point cloud " << cloud_to_name.c_str() << endl << endl;}
-        else{
-            cout << "cloud of size "<< cloud_to->points.size() << " points loaded from .ply." << endl;}
+
+        // load cloud to be aligned
+        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_from_name, cloud_from))  {
+            cout << "cloud of size "<< cloud_from->points.size() << " points lodaed from "<< cloud_from_name.c_str() << endl;
+        } else{
+            std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;
+            return false;
+        }
+
+        // load base cloud to align to
+        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_to_name, cloud_to))  {
+            cout << "cloud of size "<< cloud_to->points.size() << " points loaded from" <<cloud_from_name.c_str() << endl;
+        } else{
+            std::cout << "Error loading point cloud " << cloud_to_name.c_str() << endl << endl;
+            return false;
+        }
 
         // Merge the clouds
         Eigen::Matrix4f alignMatrix;
@@ -405,6 +421,8 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
         cout << "Alignment Matrix is "<< endl << alignMatrix << endl;
         // Display the merged cloud
         showPointCloud(cloud_to);
+
+        CloudUtils::savePointsPly(cloud_to, cloudsPathTo,cloudName,numCloudsSaved);numCloudsSaved++;
 
         reply.addString(" [ack] Clouds successfully merged ");
         return true;
@@ -461,7 +479,7 @@ bool ToolExplorer::exploreAutomatic()
         //lookAround();
         getPointCloud();
         printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-        CloudUtils::savePointsPly(cloud_in,cloudsPath, cloudName, numCloudsSaved);numCloudsSaved++;
+        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);numCloudsSaved++;
         Time::delay(0.5);
     }
     for (int degY = 0; degY<=60; degY += 15)
@@ -469,7 +487,7 @@ bool ToolExplorer::exploreAutomatic()
         turnHand(-60,degY);
         //lookAround();
         getPointCloud();
-        CloudUtils::savePointsPly(cloud_in,cloudsPath, cloudName, numCloudsSaved);numCloudsSaved++;
+        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);numCloudsSaved++;
         printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
         Time::delay(0.5);
     }
@@ -533,7 +551,7 @@ bool ToolExplorer::exploreInteractive()
         {
             *cloud_merged = *cloud_in;  //Initialize cloud merged
             *cloud_temp = *cloud_in;    //Initialize auxiliary cloud on which temporal merges will be shown before confirmation
-            CloudUtils::savePointsPly(cloud_merged, cloudsPath, mergedName);
+            CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName);
             initDone = true;
             printf("Base cloud initialized \n");
         }else {
@@ -563,7 +581,7 @@ bool ToolExplorer::exploreInteractive()
         if ((answerReg == "y")||(answerReg == "Y"))
         {
             printf("\n Saving partial registration for later use \n ");
-            CloudUtils::savePointsPly(cloud_in, cloudsPath, cloudName, numCloudsSaved); numCloudsSaved++;
+            CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved); numCloudsSaved++;
 
             // If the cloud is clean, merge the last recorded cloud_in with the existing cloud_merged and save on cloud_temp
             Eigen::Matrix4f alignMatrix;
@@ -597,7 +615,7 @@ bool ToolExplorer::exploreInteractive()
                 {
                     printf(" Model not finished, continuing with exploration \n");
                 } else {
-                    CloudUtils::savePointsPly(cloud_merged, cloudsPath, mergedName);
+                    CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName);
                     printf(" Final model saved as %s, finishing exploration \n", mergedName.c_str());
                     explorationDone = true;
                 }

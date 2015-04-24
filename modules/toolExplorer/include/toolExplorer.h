@@ -88,7 +88,8 @@ protected:
     std::string                         hand;
     std::string                         eye;
     std::string                         robot;    
-    std::string                         cloudsPath;
+    std::string                         cloudsPathFrom;
+    std::string                         cloudsPathTo;
     std::string                         cloudName;
     bool                                verbose;
     bool                                normalizePose;

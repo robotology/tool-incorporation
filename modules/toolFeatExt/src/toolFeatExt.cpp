@@ -539,7 +539,7 @@ bool ToolFeatExt::depth(const int depthN)
 }
 
 /**********************************************************/
-bool ToolFeatExt::setName(const string& name)
+bool ToolFeatExt::loadModel(const string& name)
 {   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
     cloudname = name;
 
@@ -569,23 +569,6 @@ bool ToolFeatExt::setVerbose(const string& verb)
 }
 
 /**********************************************************/
-
-bool ToolFeatExt::help_commands()
-{
-    cout << "Available commands are:" << endl;
-    cout << "getFeat - computes 3D oriented -normalized voxel wise EGI - tool featues." << endl;
-    cout << "getSamples (int) (float) - generate 'int' number of poses of the tool oriented to 'float' degrees (-90 to 90)." <<endl;
-    cout << "setName (string) - Changes the name of the .ply file to display. Default 'cloud_merged.ply'" << endl;    
-    cout << "setPose (Matrix) Rotates the tool model according tot the given rotation matrix to extract pose dependent features" << endl;
-    cout << "setCanonicalPose (float) Rotates the tool model to canonical position oriented 'float'degrees (left = -90 deg)/front = 0 deg / right = 90 deg)." << endl;
-    cout << "bins (int) - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. (Default bins = 2)" << endl;
-    cout << "depth (int)- sets the number of iterative times that the bounding box will be subdivided into octants. Total number of voxels = sum(8^(1:depth)). (Default depth = 2, 72 vox)" << endl;
-    cout << "setVerbose ON/OFF - Sets active the printouts of the program, for debugging or visualization."<< endl;
-    cout << "help - produces this help." << endl;
-    cout << "quit - closes the module." << endl;
-    return true;
-}
-
 bool ToolFeatExt::quit()
 {
     closing = true;

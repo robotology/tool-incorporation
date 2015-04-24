@@ -87,7 +87,7 @@ void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 
     plyfile.close();
 
-    fprintf(stdout, "Writing finished\n");
+    cout << "Cloud saved in file: " << filenameNumb.c_str() << endl;
 }
 
 void CloudUtils::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)

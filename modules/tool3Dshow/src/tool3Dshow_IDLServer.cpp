@@ -50,14 +50,6 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3Dshow_IDLServer_help_commands : public yarp::os::Portable {
-public:
-  std::string _return;
-  void init();
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
-};
-
 class tool3Dshow_IDLServer_quit : public yarp::os::Portable {
 public:
   bool _return;
@@ -179,27 +171,6 @@ void tool3Dshow_IDLServer_addBoundingBox::init(const bool minBB) {
   this->minBB = minBB;
 }
 
-bool tool3Dshow_IDLServer_help_commands::write(yarp::os::ConnectionWriter& connection) {
-  yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
-  if (!writer.writeTag("help_commands",1,2)) return false;
-  return true;
-}
-
-bool tool3Dshow_IDLServer_help_commands::read(yarp::os::ConnectionReader& connection) {
-  yarp::os::idl::WireReader reader(connection);
-  if (!reader.readListReturn()) return false;
-  if (!reader.readString(_return)) {
-    reader.fail();
-    return false;
-  }
-  return true;
-}
-
-void tool3Dshow_IDLServer_help_commands::init() {
-  _return = "";
-}
-
 bool tool3Dshow_IDLServer_quit::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
@@ -274,16 +245,6 @@ bool tool3Dshow_IDLServer::addBoundingBox(const bool minBB) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-std::string tool3Dshow_IDLServer::help_commands() {
-  std::string _return = "";
-  tool3Dshow_IDLServer_help_commands helper;
-  helper.init();
-  if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","std::string tool3Dshow_IDLServer::help_commands()");
-  }
-  bool ok = yarp().write(helper,helper);
-  return ok?helper._return:_return;
-}
 bool tool3Dshow_IDLServer::quit() {
   bool _return = false;
   tool3Dshow_IDLServer_quit helper;
@@ -333,7 +294,7 @@ bool tool3Dshow_IDLServer::read(yarp::os::ConnectionReader& connection) {
     if (tag == "showFileCloud") {
       std::string cloudname;
       if (!reader.readString(cloudname)) {
-        cloudname = "cloud_merged.ply";
+        cloudname = "cloud.ply";
       }
       bool _return;
       _return = showFileCloud(cloudname);
@@ -371,17 +332,6 @@ bool tool3Dshow_IDLServer::read(yarp::os::ConnectionReader& connection) {
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
         if (!writer.writeBool(_return)) return false;
-      }
-      reader.accept();
-      return true;
-    }
-    if (tag == "help_commands") {
-      std::string _return;
-      _return = help_commands();
-      yarp::os::idl::WireWriter writer(reader);
-      if (!writer.isNull()) {
-        if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeString(_return)) return false;
       }
       reader.accept();
       return true;
@@ -436,31 +386,43 @@ std::vector<std::string> tool3Dshow_IDLServer::help(const std::string& functionN
     helpString.push_back("showFileCloud");
     helpString.push_back("addNormals");
     helpString.push_back("addBoundingBox");
-    helpString.push_back("help_commands");
     helpString.push_back("quit");
     helpString.push_back("help");
   }
   else {
     if (functionName=="clearVis") {
       helpString.push_back("bool clearVis() ");
+      helpString.push_back("@brief clearVis - Clears all clouds and effects from the visualizer. ");
+      helpString.push_back("@return true/false on success/failure of extracting features ");
     }
     if (functionName=="accumClouds") {
       helpString.push_back("bool accumClouds(const bool accum = 0) ");
+      helpString.push_back("@brief accumClouds - Selects between plotting clouds together or not ");
+      helpString.push_back("@param accum - (bool) true to plot clouds together and false to clear the visualizer for every new cloud (default =false) ");
+      helpString.push_back("@return true/false on success/failure of setting verbose ");
     }
     if (functionName=="showFileCloud") {
-      helpString.push_back("bool showFileCloud(const std::string& cloudname = \"cloud_merged.ply\") ");
+      helpString.push_back("bool showFileCloud(const std::string& cloudname = \"cloud.ply\") ");
+      helpString.push_back("@brief showFileCloud - Opens the visualizer and displays a PointCloud from a file ");
+      helpString.push_back("@param cloudname - (string) name of the .ply or .pcd file containg the desired cloud to be shown (default \"cloud.ply\") ");
+      helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addNormals") {
       helpString.push_back("bool addNormals(const double radSearch = 0.03) ");
+      helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
+      helpString.push_back("@param radSearch - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
+      helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addBoundingBox") {
       helpString.push_back("bool addBoundingBox(const bool minBB = 0) ");
-    }
-    if (functionName=="help_commands") {
-      helpString.push_back("std::string help_commands() ");
+      helpString.push_back("@brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one. ");
+      helpString.push_back("@param minBB - (bool) true to compute the minimum bounding box, false to compute the axis-aligned bounding box (default = false). ");
+      helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="quit") {
       helpString.push_back("bool quit() ");
+      helpString.push_back("@brief quit - quits the module ");
+      helpString.push_back("@return true/false on success/failure of extracting features ");
     }
     if (functionName=="help") {
       helpString.push_back("std::vector<std::string> help(const std::string& functionName=\"--all\")");

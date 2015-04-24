@@ -108,9 +108,8 @@ public:
 
     bool bins(const int binsN = 2);
     bool depth(const int depthN = 2);
-    bool setName(const std::string& name = "cloud.ply");
+    bool loadModel(const std::string& name = "cloud.ply");
     bool setVerbose(const std::string& verb);
-    bool help_commands();
 
     // module control //
     bool						attach(yarp::os::RpcServer &source);

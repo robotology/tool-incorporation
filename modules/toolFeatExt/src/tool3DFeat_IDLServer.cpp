@@ -24,7 +24,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3DFeat_IDLServer_setName : public yarp::os::Portable {
+class tool3DFeat_IDLServer_loadModel : public yarp::os::Portable {
 public:
   std::string cloudname;
   bool _return;
@@ -78,14 +78,6 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3DFeat_IDLServer_help_commands : public yarp::os::Portable {
-public:
-  bool _return;
-  void init();
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
-};
-
 bool tool3DFeat_IDLServer_getFeats::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
@@ -132,15 +124,15 @@ void tool3DFeat_IDLServer_getSamples::init(const int32_t n, const double deg) {
   this->deg = deg;
 }
 
-bool tool3DFeat_IDLServer_setName::write(yarp::os::ConnectionWriter& connection) {
+bool tool3DFeat_IDLServer_loadModel::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
-  if (!writer.writeTag("setName",1,1)) return false;
+  if (!writer.writeTag("loadModel",1,1)) return false;
   if (!writer.writeString(cloudname)) return false;
   return true;
 }
 
-bool tool3DFeat_IDLServer_setName::read(yarp::os::ConnectionReader& connection) {
+bool tool3DFeat_IDLServer_loadModel::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -150,7 +142,7 @@ bool tool3DFeat_IDLServer_setName::read(yarp::os::ConnectionReader& connection) 
   return true;
 }
 
-void tool3DFeat_IDLServer_setName::init(const std::string& cloudname) {
+void tool3DFeat_IDLServer_loadModel::init(const std::string& cloudname) {
   _return = false;
   this->cloudname = cloudname;
 }
@@ -270,27 +262,6 @@ void tool3DFeat_IDLServer_setVerbose::init(const std::string& verb) {
   this->verb = verb;
 }
 
-bool tool3DFeat_IDLServer_help_commands::write(yarp::os::ConnectionWriter& connection) {
-  yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
-  if (!writer.writeTag("help_commands",1,2)) return false;
-  return true;
-}
-
-bool tool3DFeat_IDLServer_help_commands::read(yarp::os::ConnectionReader& connection) {
-  yarp::os::idl::WireReader reader(connection);
-  if (!reader.readListReturn()) return false;
-  if (!reader.readBool(_return)) {
-    reader.fail();
-    return false;
-  }
-  return true;
-}
-
-void tool3DFeat_IDLServer_help_commands::init() {
-  _return = false;
-}
-
 tool3DFeat_IDLServer::tool3DFeat_IDLServer() {
   yarp().setOwner(*this);
 }
@@ -314,12 +285,12 @@ bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::setName(const std::string& cloudname) {
+bool tool3DFeat_IDLServer::loadModel(const std::string& cloudname) {
   bool _return = false;
-  tool3DFeat_IDLServer_setName helper;
+  tool3DFeat_IDLServer_loadModel helper;
   helper.init(cloudname);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setName(const std::string& cloudname)");
+    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::loadModel(const std::string& cloudname)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -374,16 +345,6 @@ bool tool3DFeat_IDLServer::setVerbose(const std::string& verb) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::help_commands() {
-  bool _return = false;
-  tool3DFeat_IDLServer_help_commands helper;
-  helper.init();
-  if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::help_commands()");
-  }
-  bool ok = yarp().write(helper,helper);
-  return ok?helper._return:_return;
-}
 
 bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
@@ -424,13 +385,13 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
-    if (tag == "setName") {
+    if (tag == "loadModel") {
       std::string cloudname;
       if (!reader.readString(cloudname)) {
-        cloudname = "cloud_merged.ply";
+        cloudname = "cloud.ply";
       }
       bool _return;
-      _return = setName(cloudname);
+      _return = loadModel(cloudname);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -516,17 +477,6 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
-    if (tag == "help_commands") {
-      bool _return;
-      _return = help_commands();
-      yarp::os::idl::WireWriter writer(reader);
-      if (!writer.isNull()) {
-        if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeBool(_return)) return false;
-      }
-      reader.accept();
-      return true;
-    }
     if (tag == "help") {
       std::string functionName;
       if (!reader.readString(functionName)) {
@@ -563,42 +513,62 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     helpString.push_back("*** Available commands:");
     helpString.push_back("getFeats");
     helpString.push_back("getSamples");
-    helpString.push_back("setName");
+    helpString.push_back("loadModel");
     helpString.push_back("setPose");
     helpString.push_back("setCanonicalPose");
     helpString.push_back("bins");
     helpString.push_back("depth");
     helpString.push_back("setVerbose");
-    helpString.push_back("help_commands");
     helpString.push_back("help");
   }
   else {
     if (functionName=="getFeats") {
       helpString.push_back("bool getFeats() ");
+      helpString.push_back("@brief getFeats - Performs 3D feature extraction of the tool in the rotated pose. ");
+      helpString.push_back("@return true/false on success/failure of extracting features ");
     }
     if (functionName=="getSamples") {
       helpString.push_back("bool getSamples(const int32_t n = 10, const double deg = 0) ");
+      helpString.push_back("@brief getSamples - Generates n poses of the tool around a base orientation deg. ");
+      helpString.push_back("@param n - (int) desired number of poses (default = 10) . ");
+      helpString.push_back("@param deg - (double) base orientation of the tool pose (default = 0.0). ");
+      helpString.push_back("@return true/false on success/failure of generating n samples. ");
     }
-    if (functionName=="setName") {
-      helpString.push_back("bool setName(const std::string& cloudname = \"cloud_merged.ply\") ");
+    if (functionName=="loadModel") {
+      helpString.push_back("bool loadModel(const std::string& cloudname = \"cloud.ply\") ");
+      helpString.push_back("@brief loadModel - loads a model from a .pcd or .ply file for further processing. ");
+      helpString.push_back("@param cloudname - (string) name of the file to load cloud from (and path from base path if needed) (default = \"cloud.ply\") . ");
+      helpString.push_back("@return true/false on success/failure loading the desired cloud. ");
     }
     if (functionName=="setPose") {
       helpString.push_back("bool setPose(const yarp::sig::Matrix& toolPose) ");
+      helpString.push_back("@brief setPose - Rotates the tool model according to any given rotation matrix ");
+      helpString.push_back("@param rotationMatrix - (yarp::sig::Matrix) rotation matrix to apply to the cloud. ");
+      helpString.push_back("@return true/false on success/failure of rotating model according to  matrix. ");
     }
     if (functionName=="setCanonicalPose") {
       helpString.push_back("bool setCanonicalPose(const double deg = 0) ");
+      helpString.push_back("@brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector. ");
+      helpString.push_back("@param deg - (double) degrees of rotation along the longest axis. ");
+      helpString.push_back("@return true/false on success/failure of rotating model according to orientation. ");
     }
     if (functionName=="bins") {
       helpString.push_back("bool bins(const int32_t nbins = 2) ");
+      helpString.push_back("@brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. ");
+      helpString.push_back("@param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel). ");
+      helpString.push_back("@return true/false on success/failure of setting number of bins. ");
     }
     if (functionName=="depth") {
       helpString.push_back("bool depth(const int32_t maxDepth = 2) ");
+      helpString.push_back("@brief depth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)). ");
+      helpString.push_back("@param maxDepth - (int) desired number of times that the bounding box will be iteratively subdivided into octants (default = 2, i.e. 72 vox). ");
+      helpString.push_back("@return true/false on success/failure of setting maxDepth ");
     }
     if (functionName=="setVerbose") {
       helpString.push_back("bool setVerbose(const std::string& verb) ");
-    }
-    if (functionName=="help_commands") {
-      helpString.push_back("bool help_commands() ");
+      helpString.push_back("@brief setVerbose - sets verbose of the output on or off. ");
+      helpString.push_back("@param verb - (string ON/OFF) desired state of verbose. ");
+      helpString.push_back("@return true/false on success/failure of setting verbose. ");
     }
     if (functionName=="help") {
       helpString.push_back("std::vector<std::string> help(const std::string& functionName=\"--all\")");

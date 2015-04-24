@@ -70,7 +70,6 @@ public:
     bool addNormals(double radSearch);
     bool addBoundingBox(bool minBB);
     //bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);
-    std::string help_commands();
 
     // module control //
     bool						attach(yarp::os::RpcServer &source);

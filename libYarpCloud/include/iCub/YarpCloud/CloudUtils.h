@@ -23,12 +23,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <vector>
-#include <ctime>
 #include <string>
 
 // YARP includes
-//#include <yarp/os/all.h>
-//#include <yarp/dev/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
 
@@ -55,13 +52,52 @@ namespace iCub {
 class iCub::YarpCloud::CloudUtils {
 public: 
 
+    /**
+     * @brief loadCloud Loads a cloud from the given path and .ply or .pcd file to a PCL PointXYZRGB::Ptr type cloud_to.
+     * @param cloudpath Path where the cloud file is found
+     * @param cloudname file name and extension (.ply or .pcd) of the desired cloud to load.
+     * @param cloud_to  Output variable containing the 3D pointcloud
+     * @return Success in finding and loading the cloud from the file.
+     */
     static bool        loadCloud(const std::string &cloudpath, const std::string &cloudname, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to);
+
+    /**
+     * @brief savePointsPly Saves a PointXYZRGB Cloud into a .ply ascii file
+     * @param cloud Boost Ptr to the cloud to be saved
+     * @param savepath Path where the cloud should be saved
+     * @param savename Desired name (without extension) for the .ply file
+     * @param addNum In order to save multiple registrations of the same object, a number can be added after the name. -1 to not add any number.
+     */
     static void        savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename, const int addNum = -1);
 
+    /**
+     * @brief mesh2cloud Converts a YARP SurfaceMeshWithBoundingBox data structure (as defined in objects3D library) into a PCL PointXYZRGB pointcloud
+     * @param cloudB Input reference to the Bottle which contains the SurfaceMeshWithBoundingBox data structure to be converted
+     * @param cloud Output boost pointer to the PCL PointXYZRGB pointcloud to be written
+     */
     static void        mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+
+    /**
+     * @brief cloud2mesh Converts a PCL PointXYZRGB pointcloud into a YARP SurfaceMeshWithBoundingBox data structure (as defined in objects3D library)
+     * @param cloud Input boost pointer to the PCL PointXYZRGB pointcloud to be converted
+     * @param meshB Outupt reference to the SurfaceMeshWithBoundingBox data structure to which the pointcloud will be converted.
+     * @param cloudname Optional name for the mesh.
+     */
     static void        cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const std::string &cloudname = "cloud");
 
+
+    /**
+     * @brief eigMat2yarpMat Converts a matrix from Eigen::MatrixXf format to yarp::sig::Matrix format.
+     * @param eigMat input Eigen::MatrixXf.
+     * @return Outputs yarp::sig::Matrix.
+     */
     static yarp::sig::Matrix   eigMat2yarpMat(const Eigen::MatrixXf eigMat);
+
+    /**
+     * @brief yarpMat2eigMat Converts a matrix from yarp::sig::Matrix format to Eigen::MatrixXf format
+     * @param yarpMat input yarp::sig::Matrix
+     * @return Output Eigen::MatrixXf.
+     */
     static Eigen::MatrixXf     yarpMat2eigMat(const yarp::sig::Matrix yarpMat);
 
         
