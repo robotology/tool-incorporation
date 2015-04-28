@@ -57,12 +57,13 @@ bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl
 
 
 /************************************************************************/
-void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, const int addNum)
+void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int &addNum)
 {
     stringstream s;
     s.str("");
     if (addNum >= 0){
         s << savepath + "/" + savename.c_str() << addNum;
+        addNum++;
     } else {
         s << savepath + "/" + savename.c_str();
     }

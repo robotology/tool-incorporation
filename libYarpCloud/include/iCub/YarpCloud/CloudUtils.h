@@ -68,7 +68,7 @@ public:
      * @param savename Desired name (without extension) for the .ply file
      * @param addNum In order to save multiple registrations of the same object, a number can be added after the name. -1 to not add any number.
      */
-    static void        savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename, const int addNum = -1);
+    static void        savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename,int &addNum);
 
     /**
      * @brief mesh2cloud Converts a YARP SurfaceMeshWithBoundingBox data structure (as defined in objects3D library) into a PCL PointXYZRGB pointcloud

@@ -98,6 +98,7 @@ protected:
     bool                                initAlignment;
     bool                                closing;    
     int                                 numCloudsSaved;
+    int                                 NO_FILENUM;
     yarp::sig::Matrix                   toolPose;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_in;       // Last registered pointcloud

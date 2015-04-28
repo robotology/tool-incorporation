@@ -161,6 +161,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     closing = false;
     initAlignment = false;
     numCloudsSaved = 0;
+    NO_FILENUM = -1;
 
     cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
     cloud_temp = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
@@ -296,7 +297,7 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = getPointCloud();
         if (ok) {            
             showPointCloud(cloud_in);
-            CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved); numCloudsSaved++;
+            CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved);
             reply.addString(" [ack] 3D registration successfully completed.");
             return true;
         } else {
@@ -422,7 +423,7 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
         // Display the merged cloud
         showPointCloud(cloud_to);
 
-        CloudUtils::savePointsPly(cloud_to, cloudsPathTo,cloudName,numCloudsSaved);numCloudsSaved++;
+        CloudUtils::savePointsPly(cloud_to, cloudsPathTo,cloudName,numCloudsSaved);
 
         reply.addString(" [ack] Clouds successfully merged ");
         return true;
@@ -479,7 +480,7 @@ bool ToolExplorer::exploreAutomatic()
         //lookAround();
         getPointCloud();
         printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);numCloudsSaved++;
+        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
         Time::delay(0.5);
     }
     for (int degY = 0; degY<=60; degY += 15)
@@ -487,7 +488,7 @@ bool ToolExplorer::exploreAutomatic()
         turnHand(-60,degY);
         //lookAround();
         getPointCloud();
-        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);numCloudsSaved++;
+        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
         printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
         Time::delay(0.5);
     }
@@ -551,7 +552,7 @@ bool ToolExplorer::exploreInteractive()
         {
             *cloud_merged = *cloud_in;  //Initialize cloud merged
             *cloud_temp = *cloud_in;    //Initialize auxiliary cloud on which temporal merges will be shown before confirmation
-            CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName);
+            CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName,NO_FILENUM );
             initDone = true;
             printf("Base cloud initialized \n");
         }else {
@@ -581,7 +582,7 @@ bool ToolExplorer::exploreInteractive()
         if ((answerReg == "y")||(answerReg == "Y"))
         {
             printf("\n Saving partial registration for later use \n ");
-            CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved); numCloudsSaved++;
+            CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved);
 
             // If the cloud is clean, merge the last recorded cloud_in with the existing cloud_merged and save on cloud_temp
             Eigen::Matrix4f alignMatrix;
@@ -615,7 +616,7 @@ bool ToolExplorer::exploreInteractive()
                 {
                     printf(" Model not finished, continuing with exploration \n");
                 } else {
-                    CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName);
+                    CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName,NO_FILENUM );
                     printf(" Final model saved as %s, finishing exploration \n", mergedName.c_str());
                     explorationDone = true;
                 }
