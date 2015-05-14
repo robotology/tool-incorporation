@@ -270,7 +270,7 @@ bool tool3DFeat_IDLServer::getFeats() {
   tool3DFeat_IDLServer_getFeats helper;
   helper.init();
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::getFeats()");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::getFeats()");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -280,7 +280,7 @@ bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg) {
   tool3DFeat_IDLServer_getSamples helper;
   helper.init(n,deg);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -290,7 +290,7 @@ bool tool3DFeat_IDLServer::loadModel(const std::string& cloudname) {
   tool3DFeat_IDLServer_loadModel helper;
   helper.init(cloudname);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::loadModel(const std::string& cloudname)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::loadModel(const std::string& cloudname)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -300,7 +300,7 @@ bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   tool3DFeat_IDLServer_setPose helper;
   helper.init(toolPose);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -310,7 +310,7 @@ bool tool3DFeat_IDLServer::setCanonicalPose(const double deg) {
   tool3DFeat_IDLServer_setCanonicalPose helper;
   helper.init(deg);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -320,7 +320,7 @@ bool tool3DFeat_IDLServer::bins(const int32_t nbins) {
   tool3DFeat_IDLServer_bins helper;
   helper.init(nbins);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::bins(const int32_t nbins)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::bins(const int32_t nbins)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -330,7 +330,7 @@ bool tool3DFeat_IDLServer::depth(const int32_t maxDepth) {
   tool3DFeat_IDLServer_depth helper;
   helper.init(maxDepth);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::depth(const int32_t maxDepth)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::depth(const int32_t maxDepth)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -340,7 +340,7 @@ bool tool3DFeat_IDLServer::setVerbose(const std::string& verb) {
   tool3DFeat_IDLServer_setVerbose helper;
   helper.init(verb);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3DFeat_IDLServer::setVerbose(const std::string& verb)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setVerbose(const std::string& verb)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;

@@ -25,11 +25,7 @@
 #include <ctime>
 
 // YARP - iCub libs
-#include <yarp/os/RFModule.h>
-#include <yarp/os/Network.h>
-#include <yarp/os/Module.h>
-#include <yarp/os/RpcServer.h>
-#include <yarp/os/Vocab.h>
+#include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>

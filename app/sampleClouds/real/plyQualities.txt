@@ -1,0 +1,42 @@
+greenRake2_norm:
+0: Good, but spikes half missing
+1: Good, but some surface missing
+2: Bumpy, but good overall and great spikes
+3: no handle, great surface
+4: some holes, great spikes
+5: half missing. 
+
+hoeBlue_norm:
+0: only stick
+1: quite good, but big hole on shovel.
+2: only stick
+3: only stick
+4: almost only stick.
+5: Nothing, just a tiny point registered
+6: most shovel missing, and hand in.
+7: only stick
+8: only an edge registered, and a shadow.
+
+rakeBlue_norm:
+0: quite OK, stick and a few spikes.
+1: only stick
+2: two spikes missing, but otherwise great.
+3: shortened spikes, but otherwise great. 
+4: central part of spikes missing
+5: spikes mostly missing
+6: Arm in the cloud
+7: like 3, but worse. 
+8: like 2, but worse.
+9: spikes OK, but surface missing.
+10: half surface missing
+
+redRake_norm:
+0: very bad.
+1: very bad
+2: awful
+3: A few holes, general shape very good
+4: spikes missing, but good shape
+5: good shape with a few holes, and a little bit of hand
+6: bad
+7: awful
+8: few holes, but great shape and spikes.

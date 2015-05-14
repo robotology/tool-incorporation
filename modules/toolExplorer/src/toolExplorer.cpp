@@ -41,18 +41,21 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
     cloudsRF.configure(0,NULL);
 
-    if (strcmp(robot.c_str(),"icub")==0)
-        cloudsPathFrom = cloudsRF.find("clouds_path").asString();
-    else
-        cloudsPathFrom = cloudsRF.find("clouds_path_sim").asString();
+    // Set the path that contains previously saved pointclouds
+    string defPathFrom = "/share/ICUBcontrib/contexts/toolModeler/sampleClouds/";
+    string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
+    string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
 
+    cloudsPathFrom  = icubContribEnvPath + localModelsPath;
+
+    // Set the path where new pointclouds will be saved
     string defSaveDir = "/saveModels";
     string cloudsSaveDir = rf.check("save")?rf.find("save").asString().c_str():defSaveDir;
     if (cloudsSaveDir[0]!='/')
         cloudsSaveDir="/"+cloudsSaveDir;
     cloudsPathTo="."+cloudsSaveDir;
 
-    yarp::os::mkdir_p(cloudsPathTo.c_str());
+    yarp::os::mkdir_p(cloudsPathTo.c_str());            // Create the save folder if it didnt exist
 
     cloudName = rf.check("modelName", Value("cloud")).asString();
     hand = rf.check("hand", Value("right")).asString();
@@ -479,6 +482,7 @@ bool ToolExplorer::exploreAutomatic()
         turnHand(degX,0);
         //lookAround();
         getPointCloud();
+        showPointCloud(cloud_in);
         printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
         CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
         Time::delay(0.5);
@@ -488,6 +492,7 @@ bool ToolExplorer::exploreAutomatic()
         turnHand(-60,degY);
         //lookAround();
         getPointCloud();
+        showPointCloud(cloud_in);
         CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
         printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
         Time::delay(0.5);

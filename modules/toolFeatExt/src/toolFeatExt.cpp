@@ -24,6 +24,231 @@ using namespace yarp::sig;
 using namespace yarp::math;
 using namespace iCub::YarpCloud;
 
+
+/************************* RF overwrites ********************************/
+/************************************************************************/
+bool ToolFeatExt::configure(ResourceFinder &rf)
+{
+    // add and initialize the port to send out the features via thrift.
+    string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
+    string robot = rf.check("robot",Value("icub")).asString().c_str();
+    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
+    rf.findFile(cloudpath_file.c_str());
+
+    ResourceFinder cloudsRF;
+    cloudsRF.setContext("toolModeler");
+    cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
+    cloudsRF.configure(0,NULL);
+
+    // Set the path that contains previously saved pointclouds
+    string defPathFrom = "/share/ICUBcontrib/contexts/toolModeler/sampleClouds/";   // Default path
+    string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
+    string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
+
+    cloudpath = icubContribEnvPath + localModelsPath;
+    printf("Path: %s",cloudpath.c_str());
+
+    verbose = rf.check("verbose",Value(true)).asBool();
+    maxDepth = rf.check("maxDepth",Value(2)).asInt();
+    binsPerDim = rf.check("depth",Value(2)).asInt();
+
+
+    //open ports
+    bool ret = true;
+    ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
+    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
+    if (!ret){
+        printf("Problems opening ports\n");
+        return false;
+    }
+
+    // open rpc ports
+    bool retRPC = true;
+    retRPC =  retRPC && rpcInPort.open("/"+name+"/rpc:i");
+    if (!retRPC){
+        printf("Problems opening ports\n");
+        return false;
+    }
+    attach(rpcInPort);
+
+    /* Module rpc parameters */
+    closing = false;
+
+    /*Init variables*/
+    cloudLoaded = false;
+    cloudTransformed = false;
+    cloudname = "cloud_merged.ply";
+    cloud_orig = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+    cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+    rotMat = eye(4,4);
+
+    cout << endl << "Configuring done."<<endl;
+
+    return true;
+}
+
+
+double ToolFeatExt::getPeriod()
+{
+    return 1; //module periodicity (seconds)
+}
+
+bool ToolFeatExt::updateModule()
+{
+    return !closing;
+}
+
+bool ToolFeatExt::interruptModule()
+{
+    closing = true;
+    rpcInPort.interrupt();
+    feat3DoutPort.interrupt();
+    cout<<"Interrupting your module, for port cleanup"<<endl;
+    return true;
+}
+
+
+bool ToolFeatExt::close()
+{
+    cout<<"Calling close function\n";
+    rpcInPort.close();
+    feat3DoutPort.close();
+    return true;
+}
+
+/**************************** THRIFT CONTROL*********************************/
+bool ToolFeatExt::attach(RpcServer &source)
+{
+    return this->yarp().attachAsServer(source);
+}
+
+/**********************************************************
+                    PUBLIC METHODS
+/**********************************************************/
+
+// RCP Accesible via trhift.
+
+/**********************************************************/
+bool ToolFeatExt::getFeats()
+{   // computes 3D oriented -normalized voxel wise EGI - tool featues.
+    int ok = computeFeats();
+    if (ok>=0) {
+        fprintf(stdout,"3D Features computed correctly. \n");
+        return true;
+    } else {
+        fprintf(stdout,"3D Features not computed correctly. \n");
+        return false;
+    }
+}
+
+/**********************************************************/
+bool ToolFeatExt::getSamples(const int n, const double deg)
+{
+    if (!cloudLoaded){
+        if (!loadToolModel())
+        {
+            fprintf(stdout,"Couldn't load cloud");
+            return -1;
+        }
+    }
+
+    float maxVar = 5;      //Define the maximum variation, on degrees, wrt the given orientation angle
+
+    Rand randG; // YARP random generator
+    Vector degVarVec = randG.vector(n); // Generate a vector of slgiht variations to the main orientation angle
+    for (int s=0;s<n;++s)
+    {
+        if(!setCanonicalPose(deg + degVarVec[s]*maxVar*2-maxVar))   // Transform model to a close but different position
+        {
+            fprintf(stdout,"Error transforming frame to canonical position . \n");
+        }
+
+        if (!computeFeats()) {
+            fprintf(stdout,"Error computing features. \n");
+        }
+    }
+    fprintf(stdout,"Features extracted from tool pose samples. \n");\
+    return true;
+}
+
+/**********************************************************/
+bool ToolFeatExt::setPose(const Matrix& toolPose)
+{   // Rotates the tool model according to the given rotation matrix to extract pose dependent features.
+    int ok =  transform2pose(toolPose);
+    if (ok>=0) {
+        fprintf(stdout,"Cloud rotated correctly \n");
+        return true;
+    } else {
+        fprintf(stdout,"Cloud could not be rotated correctly. \n");
+        return false;
+    }
+}
+
+/**********************************************************/
+bool ToolFeatExt::setCanonicalPose(const double deg)
+{   // Rotates the tool model to canonical orientations left/front/right.
+    float rad = (deg/180) *M_PI; // converse deg into rads
+
+    Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
+    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
+
+    Matrix toolPose = axis2dcm(oy); // from axis/angle to rotation matrix notation
+
+    int ok =  transform2pose(toolPose);
+    if (ok>=0) {
+        fprintf(stdout,"Cloud rotated correctly \n");
+        return true;
+    } else {
+        fprintf(stdout,"Cloud could not be rotated correctly. \n");
+        return false;
+    }
+}
+
+/**********************************************************/
+bool ToolFeatExt::bins(const int binsN)
+{
+    binsPerDim = binsN;
+    return true;
+}
+
+/**********************************************************/
+bool ToolFeatExt::depth(const int depthN)
+{
+    maxDepth = depthN;
+    return true;
+}
+
+/**********************************************************/
+bool ToolFeatExt::loadModel(const string& name)
+{   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
+    cloudname = name;
+    return loadToolModel();
+}
+
+/**********************************************************/
+bool ToolFeatExt::setVerbose(const string& verb)
+{
+    if (verb == "ON"){
+        verbose = true;
+        fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+        return true;
+    } else if (verb == "OFF"){
+        verbose = false;
+        fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+        return true;
+    }
+    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
+    return false;
+}
+
+/**********************************************************/
+bool ToolFeatExt::quit()
+{
+    closing = true;
+    return true;
+}
+
+
 /**********************************************************
                     PRIVATE METHODS
 /**********************************************************/
@@ -39,10 +264,13 @@ bool ToolFeatExt::loadToolModel()
     cloudTransformed = false;
     rotMat = eye(4,4);
 
-    cloudLoaded = CloudUtils::loadCloud(cloudpath, cloudname, cloud_orig);
-
-    sendCloud(cloud_orig);
-    return true;
+    if (CloudUtils::loadCloud(cloudpath, cloudname, cloud_orig))
+    {
+        cloudLoaded = true;
+        sendCloud(cloud_orig);
+        return true;
+    }
+    return false;
 }
 
 /************************************************************************/
@@ -443,236 +671,8 @@ bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
     return true;
 }
 
-/**********************************************************
-                    PUBLIC METHODS
-/**********************************************************/
-
-// RCP Accesible via trhift.
-
-/**********************************************************/
-bool ToolFeatExt::getFeats()
-{   // computes 3D oriented -normalized voxel wise EGI - tool featues.
-    int ok = computeFeats();
-    if (ok>=0) {
-        fprintf(stdout,"3D Features computed correctly. \n");
-        return true;
-    } else {
-        fprintf(stdout,"3D Features not computed correctly. \n");
-        return false;
-    }
-}
-
-bool ToolFeatExt::getSamples(const int n, const double deg)
-{
-    if (!cloudLoaded){
-        if (!loadToolModel())
-        {
-            fprintf(stdout,"Couldn't load cloud");
-            return -1;
-        }
-    }
-
-    float maxVar = 5;      //Define the maximum variation, on degrees, wrt the given orientation angle
-
-    Rand randG; // YARP random generator
-    Vector degVarVec = randG.vector(n); // Generate a vector of slgiht variations to the main orientation angle
-    for (int s=0;s<n;++s)
-    {
-        if(!setCanonicalPose(deg + degVarVec[s]*maxVar*2-maxVar))   // Transform model to a close but different position
-        {
-            fprintf(stdout,"Error transforming frame to canonical position . \n");
-        }
-
-        if (!computeFeats()) {
-            fprintf(stdout,"Error computing features. \n");
-        }
-    }
-    fprintf(stdout,"Features extracted from tool pose samples. \n");\
-    return true;
-}
-
-/**********************************************************/
-bool ToolFeatExt::setPose(const Matrix& toolPose)
-{   // Rotates the tool model according to the given rotation matrix to extract pose dependent features.
-    int ok =  transform2pose(toolPose);
-    if (ok>=0) {
-        fprintf(stdout,"Cloud rotated correctly \n");
-        return true;
-    } else {
-        fprintf(stdout,"Cloud could not be rotated correctly. \n");
-        return false;
-    }
-}
-
-/**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const double deg)
-{   // Rotates the tool model to canonical orientations left/front/right.
-    float rad = (deg/180) *M_PI; // converse deg into rads
-
-    Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
-    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
-
-    Matrix toolPose = axis2dcm(oy); // from axis/angle to rotation matrix notation
-
-    int ok =  transform2pose(toolPose);
-    if (ok>=0) {
-        fprintf(stdout,"Cloud rotated correctly \n");
-        return true;
-    } else {
-        fprintf(stdout,"Cloud could not be rotated correctly. \n");
-        return false;
-    }
-}
-
-/**********************************************************/
-bool ToolFeatExt::bins(const int binsN)
-{
-    binsPerDim = binsN;
-    return true;
-}
-
-/**********************************************************/
-bool ToolFeatExt::depth(const int depthN)
-{
-    maxDepth = depthN;
-    return true;
-}
-
-/**********************************************************/
-bool ToolFeatExt::loadModel(const string& name)
-{   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
-    cloudname = name;
-
-    if (!loadToolModel())
-    {
-        fprintf(stdout,"Couldn't load cloud.\n");
-        return false;
-    }
-
-    return true;
-}
-
-/**********************************************************/
-bool ToolFeatExt::setVerbose(const string& verb)
-{
-    if (verb == "ON"){
-        verbose = true;
-        fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-        return true;
-    } else if (verb == "OFF"){
-        verbose = false;
-        fprintf(stdout,"Verbose is : %s\n", verb.c_str());
-        return true;
-    }
-    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-    return false;
-}
-
-/**********************************************************/
-bool ToolFeatExt::quit()
-{
-    closing = true;
-    return true;
-}
-
-
-/************************* RF overwrites ********************************/
 /************************************************************************/
-bool ToolFeatExt::configure(ResourceFinder &rf)
-{
-    // add and initialize the port to send out the features via thrift.
-    string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
-    string robot = rf.check("robot",Value("icub")).asString().c_str();
-    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
-    rf.findFile(cloudpath_file.c_str());
-
-    ResourceFinder cloudsRF;
-    cloudsRF.setContext("toolModeler");
-    cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
-    cloudsRF.configure(0,NULL);
-
-    if (strcmp(robot.c_str(),"icub")==0)
-        cloudpath = cloudsRF.find("clouds_path").asString();
-    else
-        cloudpath = cloudsRF.find("clouds_path_sim").asString();
-    printf("Path: %s",cloudpath.c_str());
-
-    verbose = rf.check("verbose",Value(true)).asBool();
-    maxDepth = rf.check("maxDepth",Value(2)).asInt();
-    binsPerDim = rf.check("depth",Value(2)).asInt();
-
-
-    //open ports
-    bool ret = true;
-    ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
-    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
-    if (!ret){
-        printf("Problems opening ports\n");
-        return false;
-    }
-
-    // open rpc ports
-    bool retRPC = true;
-    retRPC =  retRPC && rpcInPort.open("/"+name+"/rpc:i");
-    if (!retRPC){
-        printf("Problems opening ports\n");
-        return false;
-    }
-    attach(rpcInPort);
-
-    /* Module rpc parameters */
-    closing = false;
-
-    /*Init variables*/
-    cloudLoaded = false;
-    cloudTransformed = false;
-    cloudname = "cloud_merged.ply";
-    cloud_orig = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
-    cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
-    rotMat = eye(4,4);
-
-    cout << endl << "Configuring done."<<endl;
-
-    return true;
-}
-
-
-double ToolFeatExt::getPeriod()
-{
-    return 1; //module periodicity (seconds)
-}
-
-bool ToolFeatExt::updateModule()
-{
-    return !closing;
-}
-
-bool ToolFeatExt::interruptModule()
-{
-    closing = true;
-    rpcInPort.interrupt();
-    feat3DoutPort.interrupt();
-    cout<<"Interrupting your module, for port cleanup"<<endl;
-    return true;
-}
-
-
-bool ToolFeatExt::close()
-{
-    cout<<"Calling close function\n";
-    rpcInPort.close();
-    feat3DoutPort.close();
-    return true;
-}
-
-/**************************** THRIFT CONTROL*********************************/
-bool ToolFeatExt::attach(RpcServer &source)
-{
-    return this->yarp().attachAsServer(source);
-}
-
-    /************************************************************************/
-    /************************************************************************/
+/************************************************************************/
 int main(int argc, char * argv[])
 {
     Network yarp;

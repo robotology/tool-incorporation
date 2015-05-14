@@ -200,7 +200,7 @@ bool tool3Dshow_IDLServer::clearVis() {
   tool3Dshow_IDLServer_clearVis helper;
   helper.init();
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::clearVis()");
+    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::clearVis()");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -210,7 +210,7 @@ bool tool3Dshow_IDLServer::accumClouds(const bool accum) {
   tool3Dshow_IDLServer_accumClouds helper;
   helper.init(accum);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::accumClouds(const bool accum)");
+    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::accumClouds(const bool accum)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -220,7 +220,7 @@ bool tool3Dshow_IDLServer::showFileCloud(const std::string& cloudname) {
   tool3Dshow_IDLServer_showFileCloud helper;
   helper.init(cloudname);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::showFileCloud(const std::string& cloudname)");
+    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::showFileCloud(const std::string& cloudname)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -230,7 +230,7 @@ bool tool3Dshow_IDLServer::addNormals(const double radSearch) {
   tool3Dshow_IDLServer_addNormals helper;
   helper.init(radSearch);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::addNormals(const double radSearch)");
+    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::addNormals(const double radSearch)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -240,7 +240,7 @@ bool tool3Dshow_IDLServer::addBoundingBox(const bool minBB) {
   tool3Dshow_IDLServer_addBoundingBox helper;
   helper.init(minBB);
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::addBoundingBox(const bool minBB)");
+    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::addBoundingBox(const bool minBB)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -250,7 +250,7 @@ bool tool3Dshow_IDLServer::quit() {
   tool3Dshow_IDLServer_quit helper;
   helper.init();
   if (!yarp().canWrite()) {
-    fprintf(stderr,"Missing server method '%s'?\n","bool tool3Dshow_IDLServer::quit()");
+    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::quit()");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;

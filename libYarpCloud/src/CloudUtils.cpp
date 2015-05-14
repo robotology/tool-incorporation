@@ -24,31 +24,46 @@ bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl
     // Check that the file has a type
     string::size_type idx;
     idx = cloudname.rfind('.');
-    if(idx == std::string::npos) {
-        PCL_ERROR(" %s does not have valid file format.\n", cloudname.c_str());
-        return false;
-    }
-
-    // Check that the file type is valid
-    string ext = cloudname.substr(idx+1);
-    cout << "Found file with extension " << ext << endl;
-
-    if(strcmp(ext.c_str(),"ply")==0)        // Check if it is .ply
+    if(idx != std::string::npos)
     {
-        printf ("Loading .ply file: %s\n", cloudname.c_str());
-        if (pcl::io::loadPLYFile (cloudpath + cloudname, *cloud_to) < 0)	{
-            PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
+        // Check that the file type is valid
+        string ext = cloudname.substr(idx+1);
+        cout << "Extension found: " << ext << endl;
+
+        if(strcmp(ext.c_str(),"ply")==0)        // Check if it is .ply
+        {
+            printf ("Loading .ply file: %s\n", cloudname.c_str());
+            if (pcl::io::loadPLYFile (cloudpath + cloudname, *cloud_to) < 0)	{
+                PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
+                return false;
+            }
+        }else if(strcmp(ext.c_str(),"pcd")==0) // Check if it is .pcd
+        {
+            printf ("Loading .pcd file: %s\n", cloudname.c_str());
+            if (pcl::io::loadPCDFile (cloudpath + cloudname, *cloud_to) < 0)	{
+                PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
+                return false;
+            }
+        }else {
+            PCL_ERROR("Please select a .pcd or .ply file.\n");
             return false;
         }
-    }else if(strcmp(ext.c_str(),"pcd")==0) // Check if it is .pcd
-    {
-        printf ("Loading .pcd file: %s\n", cloudname.c_str());
-        if (pcl::io::loadPCDFile (cloudpath + cloudname, *cloud_to) < 0)	{
-            PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
-            return false;
+    }else{
+        string cloudnameExt;
+        PCL_ERROR(" Name given without format.\n");
+        cout << "-> Trying with .ply" << endl;
+        cloudnameExt = cloudname +  ".ply";
+        if (pcl::io::loadPLYFile (cloudpath + cloudnameExt, *cloud_to) >= 0)	{
+            cout << "Cloud loaded from file "<< cloudnameExt << endl;
+            return true;
         }
-    }else {
-        PCL_ERROR("Please select a .pcd or .ply file.\n");
+        cout << "-> Trying with .pcd" << endl;
+        cloudnameExt = cloudname +  ".pcd";
+        if (pcl::io::loadPCDFile (cloudpath + cloudnameExt, *cloud_to) >= 0)	{
+            cout << "Cloud loaded from file "<< cloudnameExt << endl;
+            return true;
+        }
+        PCL_ERROR("Couldnt find .pcd or .ply cloud.\n");
         return false;
     }
 
