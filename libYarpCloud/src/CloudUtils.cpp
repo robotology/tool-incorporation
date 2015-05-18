@@ -147,6 +147,12 @@ void CloudUtils::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
     return;
 }
 
+void CloudUtils::getBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::BoundingBox BB)
+{
+    BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
+    return;
+}
+
 
 Matrix CloudUtils::eigMat2yarpMat(const Eigen::MatrixXf eigMat)
 {   // Transforms matrices from Eigen format to YARP format

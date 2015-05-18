@@ -54,6 +54,7 @@
 //for the thrift interface
 #include "ToolFeat3DwithOrient.h"
 #include "VoxFeat.h"
+#include "Point3D.h"
 
 #include <tool3DFeat_IDLServer.h>
 
@@ -98,6 +99,7 @@ public:
 
     // RPC Accesible methods
     bool getFeats();
+    Point3D getToolTip();
     bool getSamples(const int n, const double deg);
     bool setPose(const yarp::sig::Matrix& rotMat);
     bool setCanonicalPose(const double deg);

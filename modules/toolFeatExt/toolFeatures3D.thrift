@@ -1,5 +1,12 @@
 #toolFeatures3D.thrift
 
+struct Point3D
+{
+  1: double x;
+  2: double y;
+  3: double z;
+}
+
 struct RotationMatrix 
 {
   1: list<double> mat;
@@ -41,6 +48,12 @@ service tool3DFeat_IDLServer
      * @return true/false on success/failure of extracting features
      */
     bool getFeats();
+
+    /**
+     * @brief getToolTip - Returns the tooltip (as the center of the edge opposite edge of the hand the bounding box)
+     * @return true/false on success/failure of computing the tooltip
+     */
+    Point3D getToolTip();
 
     /**
      * @brief getSamples - Generates n poses of the tool around a base orientation deg.

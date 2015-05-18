@@ -77,7 +77,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     bool retRPC = true;
     retRPC = rpcPort.open(("/"+name+"/rpc:i").c_str());
     retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to send data out for recording
-    retRPC = retRPC && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
+    // retRPC = retRPC && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
     retRPC = retRPC && rpcFeatExtPort.open(("/"+name+"/featExt:rpc").c_str());           // port to command the pointcloud feature extraction module
     retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
     if (!retRPC){
@@ -199,7 +199,7 @@ bool ToolExplorer::interruptModule()
 
     rpcPort.interrupt();
     rpcObjRecPort.interrupt();
-    rpcMergerPort.interrupt();
+    // rpcMergerPort.interrupt();
     rpcVisualizerPort.interrupt();
     rpcFeatExtPort.interrupt();
 
@@ -215,7 +215,7 @@ bool ToolExplorer::close()
 
     rpcPort.close();
     rpcObjRecPort.close();
-    rpcMergerPort.close();
+    // rpcMergerPort.close();
     rpcVisualizerPort.close();
     rpcFeatExtPort.close();
 
@@ -1003,11 +1003,13 @@ bool ToolExplorer::changeModelName(const string& modelname)
     cmdOR.addString(modelname);
     rpcObjRecPort.write(cmdOR,replyOR);
 
+    /*
     Bottle cmdMPC, replyMPC;
     cmdMPC.clear();	replyMPC.clear();
     cmdMPC.addString("name");
     cmdMPC.addString(modelname + "_merged");
     rpcMergerPort.write(cmdMPC,replyMPC);
+    */
 
     Bottle cmdFext, replyFext;
     cmdFext.clear();	replyFext.clear();

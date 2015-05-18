@@ -141,6 +141,35 @@ bool ToolFeatExt::getFeats()
     }
 }
 
+Point3D ToolFeatExt::getToolTip()
+{   // returns the xyz coordinates of the tooltip with respect to the hand coordinate frame, for the loaded model.
+    // It computes the tooltip point first from the canonical model, ie, with tool oriented on -Y and end-effector always oriented along X (toolpose front).
+    // Then the point coordinates are rotated in the same manner as the tool (tilted and end-effector rotated).
+
+    // The tooltip is considered to be the the middle point of the upper edge opposite to the hand (tt: tooltip, H: hand (origin))
+    //           __tt__
+    //          /     /|    |^| -Y-axis             so: tt.x = maxBB.x
+    //         /_____/ |                                tt.y = maxBB.y
+    //         |     | /    /^/ X-axis                  tt.z = (maxBB.z + minBB.z)/2
+    //         |__H__|/     <-- Z-axis
+
+    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
+    feature_extractor.setInputCloud (cloud);
+    feature_extractor.compute ();
+
+    pcl::PointXYZRGB min_point_AABB;
+    pcl::PointXYZRGB max_point_AABB;
+    feature_extractor.getAABB(min_point_AABB, max_point_AABB);
+    Point3D tooltip;
+    tooltip.x = max_point_AABB.x;
+    tooltip.y = max_point_AABB.y;
+    tooltip.z = (max_point_AABB.z + min_point_AABB.z)/2;
+
+
+    return tooltip;
+}
+
+
 /**********************************************************/
 bool ToolFeatExt::getSamples(const int n, const double deg)
 {
@@ -186,7 +215,7 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 
 /**********************************************************/
 bool ToolFeatExt::setCanonicalPose(const double deg)
-{   // Rotates the tool model to canonical orientations left/front/right.
+{   // Rotates the tool model 'deg' degrees around the hand -Y axis
     float rad = (deg/180) *M_PI; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -

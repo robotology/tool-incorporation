@@ -68,7 +68,7 @@ protected:
     // rpc ports
     yarp::os::RpcServer                 rpcPort;
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
-    yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with mergeClouds module
+    // yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with mergeClouds module
     yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
     yarp::os::RpcClient         		rpcFeatExtPort;         //rpc port to communicate with the 3D feature extraction module
 

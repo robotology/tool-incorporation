@@ -85,6 +85,12 @@ public:
      */
     static void        cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const std::string &cloudname = "cloud");
 
+    /**
+     * @brief getBB returns the Bounding Box object of the given cloud
+     * @param cloud Input boost pointer to the PCL PointXYZRGB pointcloud
+     * @param BB Objects3D Bounding Box Object.
+     */
+    static void        getBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::BoundingBox BB);
 
     /**
      * @brief eigMat2yarpMat Converts a matrix from Eigen::MatrixXf format to yarp::sig::Matrix format.
