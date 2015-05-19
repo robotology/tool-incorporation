@@ -149,20 +149,41 @@ Point3D ToolFeatExt::getToolTip()
     // The tooltip is considered to be the the middle point of the upper edge opposite to the hand (tt: tooltip, H: hand (origin))
     //           __tt__
     //          /     /|    |^| -Y-axis             so: tt.x = maxBB.x
-    //         /_____/ |                                tt.y = maxBB.y
+    //         /_____/ |                                tt.y = minBB.y
     //         |     | /    /^/ X-axis                  tt.z = (maxBB.z + minBB.z)/2
     //         |__H__|/     <-- Z-axis
 
+    Point3D tooltip;
+    if (!cloudLoaded){
+        if (!loadToolModel())
+        {
+            fprintf(stdout,"Couldn't load cloud");
+
+            tooltip.x = 0.0;
+            tooltip.y = 0.0;
+            tooltip.z = 0.0;
+
+            return tooltip;
+        }
+    }
+    if (!cloudTransformed){
+        transform2pose();
+    }
+
     pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
-    feature_extractor.setInputCloud (cloud);
-    feature_extractor.compute ();
+    feature_extractor.setInputCloud(cloud);
+    feature_extractor.compute();
 
     pcl::PointXYZRGB min_point_AABB;
     pcl::PointXYZRGB max_point_AABB;
     feature_extractor.getAABB(min_point_AABB, max_point_AABB);
-    Point3D tooltip;
+
+    cout << endl<< "Max AABB x: " << max_point_AABB.x << ". Min AABB x: " << min_point_AABB.x << endl;
+    cout << "Max AABB y: " << max_point_AABB.y << ". Min AABB y: " << min_point_AABB.y << endl;
+    cout << "Max AABB z: " << max_point_AABB.z << ". Min AABB z: " << min_point_AABB.z << endl;
+
     tooltip.x = max_point_AABB.x;
-    tooltip.y = max_point_AABB.y;
+    tooltip.y = min_point_AABB.y;
     tooltip.z = (max_point_AABB.z + min_point_AABB.z)/2;
 
 

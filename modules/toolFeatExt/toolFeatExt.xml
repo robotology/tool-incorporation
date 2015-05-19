@@ -23,8 +23,19 @@
             <port carrier="tcp">/toolFeatExt/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
         </input> 
+    
+        <!-- output data if available -->
+        <output>
+            <type>Bottle</type>
+            <port>/toolFeatExt/mesh:o</port>
+            <description> Outputs the analyzed mesh, for visualization or furthe processing</description>
+        </output>
+        <output>
+            <type>Bottle</type>
+            <port>/toolFeatExt/feats3D:o</port>
+            <description> Outpus the extracted 3D features (subvoxel spheric normal histograms) </description>
+        </output>
     </data>
-
     <dependencies>
         <computer>
         </computer>

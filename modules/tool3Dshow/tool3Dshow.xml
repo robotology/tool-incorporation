@@ -22,7 +22,12 @@
             <type>rpc</type>
             <port carrier="tcp">/tool3Dshow/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
-        </input>  
+        </input>
+        <input>
+            <type>Bottle</type>
+            <port>/tool3Dshow/mesh:i</port>
+            <description> Receives the pointcloud to be displayed as a mesh of points.</description>
+        </input>
     </data>
 
     <dependencies>
