@@ -235,12 +235,12 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 }
 
 /**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const double deg)
+bool ToolFeatExt::setCanonicalPose(const int deg)
 {   // Rotates the tool model 'deg' degrees around the hand -Y axis
-    float rad = (deg/180) *M_PI; // converse deg into rads
+    float rad = deg*M_PI/180.0; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
-    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
+    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;    
 
     Matrix toolPose = axis2dcm(oy); // from axis/angle to rotation matrix notation
 

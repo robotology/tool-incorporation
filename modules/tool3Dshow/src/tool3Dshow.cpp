@@ -88,10 +88,12 @@ bool ShowModule::quit()
     string name=rf.check("name",Value("tool3Dshow")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
     cout << "robot: "<< robot.c_str() << endl;
+
+    // XXX update this so it can get either a path specified by cloudsPath.ini, or as in 'toolExplorer', the installation one where sample clouds go.
     if (strcmp(robot.c_str(),"icub")==0)
         cloudpath = rf.find("clouds_path").asString();
     else
-        cloudpath = rf.find("clouds_path_sim").asString();
+        cloudpath = "/home/icub/icubTanis/toolModeler/data/data50tools/modelData"; // rf.find("clouds_path_sim").asString();
 
 
 	handlerPort.open("/"+name+"/rpc:i");
@@ -185,7 +187,7 @@ int main(int argc, char * argv[])
     ShowModule module;
     ResourceFinder rf;
     rf.setDefaultContext("toolModeler");
-    rf.setDefaultConfigFile("cloudPath.ini");
+    rf.setDefaultConfigFile("cloudsPath.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);
 

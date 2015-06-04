@@ -80,9 +80,10 @@ service tool3DFeat_IDLServer
     /**
      * @brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector.
      * @param deg - (double) degrees of rotation along the longest axis.
+     * @param disp - (int) displacement along the tool axis (grasped closer or further from end-effector).
      * @return true/false on success/failure of rotating model according to orientation.
      */
-    bool setCanonicalPose(1: double deg = 0.0);
+    bool setCanonicalPose(1: i32 deg = 0);
 
     /**
      * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
