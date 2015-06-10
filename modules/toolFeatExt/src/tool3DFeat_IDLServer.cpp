@@ -53,8 +53,9 @@ public:
 class tool3DFeat_IDLServer_setCanonicalPose : public yarp::os::Portable {
 public:
   int32_t deg;
+  double disp;
   bool _return;
-  void init(const int32_t deg);
+  void init(const int32_t deg, const double disp);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -200,9 +201,10 @@ void tool3DFeat_IDLServer_setPose::init(const yarp::sig::Matrix& toolPose) {
 
 bool tool3DFeat_IDLServer_setCanonicalPose::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeListHeader(3)) return false;
   if (!writer.writeTag("setCanonicalPose",1,1)) return false;
   if (!writer.writeI32(deg)) return false;
+  if (!writer.writeDouble(disp)) return false;
   return true;
 }
 
@@ -216,9 +218,10 @@ bool tool3DFeat_IDLServer_setCanonicalPose::read(yarp::os::ConnectionReader& con
   return true;
 }
 
-void tool3DFeat_IDLServer_setCanonicalPose::init(const int32_t deg) {
+void tool3DFeat_IDLServer_setCanonicalPose::init(const int32_t deg, const double disp) {
   _return = false;
   this->deg = deg;
+  this->disp = disp;
 }
 
 bool tool3DFeat_IDLServer_bins::write(yarp::os::ConnectionWriter& connection) {
@@ -343,12 +346,12 @@ bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::setCanonicalPose(const int32_t deg) {
+bool tool3DFeat_IDLServer::setCanonicalPose(const int32_t deg, const double disp) {
   bool _return = false;
   tool3DFeat_IDLServer_setCanonicalPose helper;
-  helper.init(deg);
+  helper.init(deg,disp);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const int32_t deg)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const int32_t deg, const double disp)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -467,11 +470,15 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
     }
     if (tag == "setCanonicalPose") {
       int32_t deg;
+      double disp;
       if (!reader.readI32(deg)) {
         deg = 0;
       }
+      if (!reader.readDouble(disp)) {
+        disp = 0;
+      }
       bool _return;
-      _return = setCanonicalPose(deg);
+      _return = setCanonicalPose(deg,disp);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -602,7 +609,7 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("@return true/false on success/failure of rotating model according to  matrix. ");
     }
     if (functionName=="setCanonicalPose") {
-      helpString.push_back("bool setCanonicalPose(const int32_t deg = 0) ");
+      helpString.push_back("bool setCanonicalPose(const int32_t deg = 0, const double disp = 0) ");
       helpString.push_back("@brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector. ");
       helpString.push_back("@param deg - (double) degrees of rotation along the longest axis. ");
       helpString.push_back("@param disp - (int) displacement along the tool axis (grasped closer or further from end-effector). ");
