@@ -181,8 +181,9 @@ Point3D ToolFeatExt::getToolTip()
     cout << endl<< "Max AABB x: " << max_point_AABB.x << ". Min AABB x: " << min_point_AABB.x << endl;
     cout << "Max AABB y: " << max_point_AABB.y << ". Min AABB y: " << min_point_AABB.y << endl;
     cout << "Max AABB z: " << max_point_AABB.z << ". Min AABB z: " << min_point_AABB.z << endl;
-
-    tooltip.x = max_point_AABB.x;
+    
+    double effLength = fabs(max_point_AABB.x- min_point_AABB.x); //Length of the effector
+    tooltip.x = max_point_AABB.x-effLength/3;               // tooltip not on the extreme, but sligthly in
     tooltip.y = min_point_AABB.y;
     tooltip.z = (max_point_AABB.z + min_point_AABB.z)/2;
 
