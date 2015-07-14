@@ -389,6 +389,7 @@ int ToolFeatExt::computeFeats()
     pcl::PointXYZRGB min_point_AABB;
     pcl::PointXYZRGB max_point_AABB;
     feature_extractor.getAABB (min_point_AABB, max_point_AABB);
+    max_point_AABB.y = 0; // Limit the bounding box to the bottom of the hand, so only the "usable" part of the tool gets represented.
     double BBlengthX = fabs(max_point_AABB.x - min_point_AABB.x);
     double BBlengthY = fabs(max_point_AABB.y - min_point_AABB.y);
     double BBlengthZ = fabs(max_point_AABB.z - min_point_AABB.z);
