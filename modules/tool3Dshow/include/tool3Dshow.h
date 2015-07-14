@@ -38,7 +38,7 @@
 
 // icub Libraries
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
-#include <iCub/YarpCloud/CloudUtils.h>
+#include "iCub/YarpCloud/CloudUtils.h"
 
 #include <tool3Dshow_IDLServer.h>
 #include "visThread.h"

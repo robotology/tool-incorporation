@@ -38,7 +38,7 @@
 #include <iCub/data3D/minBoundBox.h>
 #include <iCub/data3D/RGBA.h>
 
-#include <iCub/YarpCloud/CloudUtils.h>
+#include "iCub/YarpCloud/CloudUtils.h" 
 
 //PCL libs
 #include <pcl/point_cloud.h>

@@ -148,7 +148,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     driverR.view(iCartCtrlR);
 
 
-    iGaze->setSaccadesStatus(false);
+    iGaze->setSaccadesMode(false);
     if (robot == "icubSim"){
             iGaze->setNeckTrajTime(1.5);
             iGaze->setEyesTrajTime(0.5);

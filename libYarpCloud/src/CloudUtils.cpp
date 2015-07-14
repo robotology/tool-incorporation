@@ -1,12 +1,12 @@
 
-#include <iCub/YarpCloud/CloudUtils.h>
+#include "iCub/YarpCloud/CloudUtils.h"
 
 using namespace std;
 using namespace yarp::sig;
 using namespace yarp::math;
 using namespace iCub::YarpCloud; 
 
-
+/************************************************************************/
 bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to)
 {
     cloud_to->clear();
@@ -70,8 +70,8 @@ bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl
     return true;
 }
 
-
 /************************************************************************/
+
 void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int &addNum)
 {
     stringstream s;
@@ -104,8 +104,10 @@ void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     plyfile.close();
 
     cout << "Cloud saved in file: " << filenameNumb.c_str() << endl;
+    return;
 }
 
+/************************************************************************/
 void CloudUtils::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {   // Converts mesh from a bottle into pcl pointcloud.
     for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
@@ -130,7 +132,7 @@ void CloudUtils::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& clou
     printf("Mesh fromatted as Point Cloud \n");
 }
 
-
+/************************************************************************/
 void CloudUtils::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const string &cloudname)
 {   // Converts pointcloud to surfaceMesh bottle.
 
@@ -147,13 +149,17 @@ void CloudUtils::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
     return;
 }
 
+
+/************************************************************************/
+/*
 void CloudUtils::getBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::BoundingBox BB)
 {
     BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
     return;
 }
+*/
 
-
+/************************************************************************/
 Matrix CloudUtils::eigMat2yarpMat(const Eigen::MatrixXf eigMat)
 {   // Transforms matrices from Eigen format to YARP format
     int nrows = eigMat.rows();
@@ -167,8 +173,7 @@ Matrix CloudUtils::eigMat2yarpMat(const Eigen::MatrixXf eigMat)
     return yarpMat;
 }
 
-
-
+/************************************************************************/
 Eigen::MatrixXf CloudUtils::yarpMat2eigMat(const Matrix yarpMat){
     // Transforms matrices from YARP format to Eigen format
     int nrows = yarpMat.rows();
