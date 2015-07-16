@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
+ * Copyright (C) 2015 iCub Facility - Istituto Italiano di Tecnologia
  * Author: Tanis Mar
  * email:  tanis.mar@iit.it
  * Permission is granted to copy, distribute, and/or modify this program

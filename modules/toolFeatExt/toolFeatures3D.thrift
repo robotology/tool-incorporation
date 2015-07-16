@@ -83,7 +83,7 @@ service tool3DFeat_IDLServer
      * @param disp - (int) displacement along the tool axis (grasped closer or further from end-effector).
      * @return true/false on success/failure of rotating model according to orientation.
      */
-    bool setCanonicalPose(1: i32 deg = 0, 2: double disp = 0.0);
+    bool setCanonicalPose(1: double deg = 0, 2: double disp = 0.0, 3: double tilt = 45.0);
 
     /**
      * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.

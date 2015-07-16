@@ -236,7 +236,8 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 }
 
 /**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const int deg, const double disp)
+bool ToolFeatExt::setCanonicalPose(const double deg, const double disp, const double tilt)
+// XXX For the moment, the model is only transformed according to orientation and displacement, ignoring the tilt.
 {   // Rotates the tool model 'deg' degrees around the hand -Y axis
     float rad = deg*M_PI/180.0; // converse deg into rads
 

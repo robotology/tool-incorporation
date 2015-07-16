@@ -102,7 +102,7 @@ public:
     Point3D getToolTip();
     bool getSamples(const int n, const double deg);
     bool setPose(const yarp::sig::Matrix& rotMat);
-    bool setCanonicalPose(const int deg = 0.0, const double disp = 0.0);
+    bool setCanonicalPose(const double deg = 0.0, const double disp = 0.0, const double tilt = 45.0);
 
     bool bins(const int binsN = 2);
     bool depth(const int depthN = 2);

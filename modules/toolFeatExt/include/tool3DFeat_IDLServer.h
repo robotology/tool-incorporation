@@ -53,7 +53,7 @@ public:
    * @param disp - (int) displacement along the tool axis (grasped closer or further from end-effector).
    * @return true/false on success/failure of rotating model according to orientation.
    */
-  virtual bool setCanonicalPose(const int32_t deg = 0, const double disp = 0);
+  virtual bool setCanonicalPose(const double deg = 0, const double disp = 0, const double tilt = 45);
   /**
    * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
    * @param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel).
