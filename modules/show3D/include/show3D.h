@@ -15,8 +15,8 @@
  * Public License for more details
 */
 
-#ifndef __TOOL3DSHOW_H__
-#define __TOOL3DSHOW_H__
+#ifndef __SHOW3D_H__
+#define __SHOW3D_H__
 
 // Includes
 
@@ -40,7 +40,7 @@
 #include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
 #include "iCub/YarpCloud/CloudUtils.h"
 
-#include <tool3Dshow_IDLServer.h>
+#include <show3D_IDLServer.h>
 #include "visThread.h"
 
 /**********************************************************
@@ -48,7 +48,7 @@
 /**********************************************************/
 
 /**********************************************************/
-class ShowModule : public yarp::os::RFModule, public tool3Dshow_IDLServer
+class ShowModule : public yarp::os::RFModule, public show3D_IDLServer
 {
 protected:
     /* module parameters */

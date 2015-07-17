@@ -16,7 +16,7 @@
  * Public License for more details
 */
 
-#include "tool3Dshow.h"
+#include "show3D.h"
 
 using namespace std;
 using namespace yarp::os;
@@ -85,7 +85,7 @@ bool ShowModule::quit()
     bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     {
     //Ports
-    string name=rf.check("name",Value("tool3Dshow")).asString().c_str();
+    string name=rf.check("name",Value("show3D")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
     cout << "robot: "<< robot.c_str() << endl;
 
@@ -93,7 +93,7 @@ bool ShowModule::quit()
     if (strcmp(robot.c_str(),"icub")==0)
         cloudpath = rf.find("clouds_path").asString();
     else
-        cloudpath = "/home/icub/icubTanis/toolModeler/data/data50tools/modelData"; // rf.find("clouds_path_sim").asString();
+        cloudpath = "/home/icub/icubTanis/objects3DModeler/data/data50tools/modelData"; // rf.find("clouds_path_sim").asString();
 
 
 	handlerPort.open("/"+name+"/rpc:i");
@@ -183,10 +183,15 @@ int main(int argc, char * argv[])
 {
     
     Network yarp;
+    if (!yarp.checkNetwork())
+    {
+        printf("YARP server not available!\n");
+        return -1;
+    }
 
     ShowModule module;
     ResourceFinder rf;
-    rf.setDefaultContext("toolModeler");
+    rf.setDefaultContext("objects3DModeler");
     rf.setDefaultConfigFile("cloudsPath.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);

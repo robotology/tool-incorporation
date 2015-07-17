@@ -1,12 +1,12 @@
 // This is an automatically-generated file.
 // It could get re-generated if the ALLOW_IDL_GENERATION flag is on.
 
-#include <tool3Dshow_IDLServer.h>
+#include <show3D_IDLServer.h>
 #include <yarp/os/idl/WireTypes.h>
 
 
 
-class tool3Dshow_IDLServer_clearVis : public yarp::os::Portable {
+class show3D_IDLServer_clearVis : public yarp::os::Portable {
 public:
   bool _return;
   void init();
@@ -14,7 +14,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3Dshow_IDLServer_accumClouds : public yarp::os::Portable {
+class show3D_IDLServer_accumClouds : public yarp::os::Portable {
 public:
   bool accum;
   bool _return;
@@ -23,7 +23,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3Dshow_IDLServer_showFileCloud : public yarp::os::Portable {
+class show3D_IDLServer_showFileCloud : public yarp::os::Portable {
 public:
   std::string cloudname;
   bool _return;
@@ -32,7 +32,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3Dshow_IDLServer_addNormals : public yarp::os::Portable {
+class show3D_IDLServer_addNormals : public yarp::os::Portable {
 public:
   double radSearch;
   bool _return;
@@ -41,7 +41,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3Dshow_IDLServer_addBoundingBox : public yarp::os::Portable {
+class show3D_IDLServer_addBoundingBox : public yarp::os::Portable {
 public:
   bool minBB;
   bool _return;
@@ -50,7 +50,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3Dshow_IDLServer_quit : public yarp::os::Portable {
+class show3D_IDLServer_quit : public yarp::os::Portable {
 public:
   bool _return;
   void init();
@@ -58,14 +58,14 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-bool tool3Dshow_IDLServer_clearVis::write(yarp::os::ConnectionWriter& connection) {
+bool show3D_IDLServer_clearVis::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
   if (!writer.writeTag("clearVis",1,1)) return false;
   return true;
 }
 
-bool tool3Dshow_IDLServer_clearVis::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer_clearVis::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -75,11 +75,11 @@ bool tool3Dshow_IDLServer_clearVis::read(yarp::os::ConnectionReader& connection)
   return true;
 }
 
-void tool3Dshow_IDLServer_clearVis::init() {
+void show3D_IDLServer_clearVis::init() {
   _return = false;
 }
 
-bool tool3Dshow_IDLServer_accumClouds::write(yarp::os::ConnectionWriter& connection) {
+bool show3D_IDLServer_accumClouds::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("accumClouds",1,1)) return false;
@@ -87,7 +87,7 @@ bool tool3Dshow_IDLServer_accumClouds::write(yarp::os::ConnectionWriter& connect
   return true;
 }
 
-bool tool3Dshow_IDLServer_accumClouds::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer_accumClouds::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -97,12 +97,12 @@ bool tool3Dshow_IDLServer_accumClouds::read(yarp::os::ConnectionReader& connecti
   return true;
 }
 
-void tool3Dshow_IDLServer_accumClouds::init(const bool accum) {
+void show3D_IDLServer_accumClouds::init(const bool accum) {
   _return = false;
   this->accum = accum;
 }
 
-bool tool3Dshow_IDLServer_showFileCloud::write(yarp::os::ConnectionWriter& connection) {
+bool show3D_IDLServer_showFileCloud::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("showFileCloud",1,1)) return false;
@@ -110,7 +110,7 @@ bool tool3Dshow_IDLServer_showFileCloud::write(yarp::os::ConnectionWriter& conne
   return true;
 }
 
-bool tool3Dshow_IDLServer_showFileCloud::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer_showFileCloud::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -120,12 +120,12 @@ bool tool3Dshow_IDLServer_showFileCloud::read(yarp::os::ConnectionReader& connec
   return true;
 }
 
-void tool3Dshow_IDLServer_showFileCloud::init(const std::string& cloudname) {
+void show3D_IDLServer_showFileCloud::init(const std::string& cloudname) {
   _return = false;
   this->cloudname = cloudname;
 }
 
-bool tool3Dshow_IDLServer_addNormals::write(yarp::os::ConnectionWriter& connection) {
+bool show3D_IDLServer_addNormals::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("addNormals",1,1)) return false;
@@ -133,7 +133,7 @@ bool tool3Dshow_IDLServer_addNormals::write(yarp::os::ConnectionWriter& connecti
   return true;
 }
 
-bool tool3Dshow_IDLServer_addNormals::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer_addNormals::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -143,12 +143,12 @@ bool tool3Dshow_IDLServer_addNormals::read(yarp::os::ConnectionReader& connectio
   return true;
 }
 
-void tool3Dshow_IDLServer_addNormals::init(const double radSearch) {
+void show3D_IDLServer_addNormals::init(const double radSearch) {
   _return = false;
   this->radSearch = radSearch;
 }
 
-bool tool3Dshow_IDLServer_addBoundingBox::write(yarp::os::ConnectionWriter& connection) {
+bool show3D_IDLServer_addBoundingBox::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("addBoundingBox",1,1)) return false;
@@ -156,7 +156,7 @@ bool tool3Dshow_IDLServer_addBoundingBox::write(yarp::os::ConnectionWriter& conn
   return true;
 }
 
-bool tool3Dshow_IDLServer_addBoundingBox::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer_addBoundingBox::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -166,19 +166,19 @@ bool tool3Dshow_IDLServer_addBoundingBox::read(yarp::os::ConnectionReader& conne
   return true;
 }
 
-void tool3Dshow_IDLServer_addBoundingBox::init(const bool minBB) {
+void show3D_IDLServer_addBoundingBox::init(const bool minBB) {
   _return = false;
   this->minBB = minBB;
 }
 
-bool tool3Dshow_IDLServer_quit::write(yarp::os::ConnectionWriter& connection) {
+bool show3D_IDLServer_quit::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
   if (!writer.writeTag("quit",1,1)) return false;
   return true;
 }
 
-bool tool3Dshow_IDLServer_quit::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer_quit::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -188,75 +188,75 @@ bool tool3Dshow_IDLServer_quit::read(yarp::os::ConnectionReader& connection) {
   return true;
 }
 
-void tool3Dshow_IDLServer_quit::init() {
+void show3D_IDLServer_quit::init() {
   _return = false;
 }
 
-tool3Dshow_IDLServer::tool3Dshow_IDLServer() {
+show3D_IDLServer::show3D_IDLServer() {
   yarp().setOwner(*this);
 }
-bool tool3Dshow_IDLServer::clearVis() {
+bool show3D_IDLServer::clearVis() {
   bool _return = false;
-  tool3Dshow_IDLServer_clearVis helper;
+  show3D_IDLServer_clearVis helper;
   helper.init();
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::clearVis()");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::clearVis()");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3Dshow_IDLServer::accumClouds(const bool accum) {
+bool show3D_IDLServer::accumClouds(const bool accum) {
   bool _return = false;
-  tool3Dshow_IDLServer_accumClouds helper;
+  show3D_IDLServer_accumClouds helper;
   helper.init(accum);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::accumClouds(const bool accum)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::accumClouds(const bool accum)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3Dshow_IDLServer::showFileCloud(const std::string& cloudname) {
+bool show3D_IDLServer::showFileCloud(const std::string& cloudname) {
   bool _return = false;
-  tool3Dshow_IDLServer_showFileCloud helper;
+  show3D_IDLServer_showFileCloud helper;
   helper.init(cloudname);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::showFileCloud(const std::string& cloudname)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::showFileCloud(const std::string& cloudname)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3Dshow_IDLServer::addNormals(const double radSearch) {
+bool show3D_IDLServer::addNormals(const double radSearch) {
   bool _return = false;
-  tool3Dshow_IDLServer_addNormals helper;
+  show3D_IDLServer_addNormals helper;
   helper.init(radSearch);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::addNormals(const double radSearch)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addNormals(const double radSearch)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3Dshow_IDLServer::addBoundingBox(const bool minBB) {
+bool show3D_IDLServer::addBoundingBox(const bool minBB) {
   bool _return = false;
-  tool3Dshow_IDLServer_addBoundingBox helper;
+  show3D_IDLServer_addBoundingBox helper;
   helper.init(minBB);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::addBoundingBox(const bool minBB)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addBoundingBox(const bool minBB)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3Dshow_IDLServer::quit() {
+bool show3D_IDLServer::quit() {
   bool _return = false;
-  tool3Dshow_IDLServer_quit helper;
+  show3D_IDLServer_quit helper;
   helper.init();
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3Dshow_IDLServer::quit()");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::quit()");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
 
-bool tool3Dshow_IDLServer::read(yarp::os::ConnectionReader& connection) {
+bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   reader.expectAccept();
   if (!reader.readListHeader()) { reader.fail(); return false; }
@@ -376,7 +376,7 @@ bool tool3Dshow_IDLServer::read(yarp::os::ConnectionReader& connection) {
   return false;
 }
 
-std::vector<std::string> tool3Dshow_IDLServer::help(const std::string& functionName) {
+std::vector<std::string> show3D_IDLServer::help(const std::string& functionName) {
   bool showAll=(functionName=="--all");
   std::vector<std::string> helpString;
   if(showAll) {

@@ -3,7 +3,7 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 cmake_minimum_required(VERSION 2.8.9)
-project(toolModeler)
+project(objects3DModeler)
 
 find_package(YARP REQUIRED)
 find_package(ICUBcontrib REQUIRED)
@@ -21,23 +21,23 @@ icubcontrib_set_default_prefix()
 
 
 # setting options
-option (BUILD_TOOL_EXPLORER "Build tool Explorer" ON)
-option (BUILD_TOOL_3DSHOW "Build 3D show" ON)
-option (BUILD_TOOL_FEATEXT "Build tool feature extractor" ON)
+option (BUILD_OBJECTS3DEXPLORER "Build objects 3D Explorer" ON)
+option (BUILD_SHOW3D "Build 3D show module" ON)
+option (BUILD_TOOLFEATEXT "Build tool feature extractor" ON)
 
 # build the library 
 add_subdirectory(libYarpCloud)
 
 ## add modules
-if(BUILD_TOOL_EXPLORER)
-    add_subdirectory(modules/toolExplorer)
+if(BUILD_OBJECTS3DEXPLORER)
+    add_subdirectory(modules/objects3DExplorer)
 endif()
 
-if(BUILD_TOOL_3DSHOW)
-    add_subdirectory(modules/tool3Dshow)
+if(BUILD_SHOW3D)
+    add_subdirectory(modules/show3D)
 endif()
 
-if(BUILD_TOOL_FEATEXT)
+if(BUILD_TOOLFEATEXT)
     add_subdirectory(modules/toolFeatExt)
 endif()
 
@@ -45,7 +45,7 @@ endif()
 add_subdirectory(app)
 
 ## Add this instruction IF AND ONLY IF the project uses libraries.
-icubcontrib_finalize_export (toolModeler)  
+icubcontrib_finalize_export (objects3DModeler)  
 ## Uninstall
 icubcontrib_add_uninstall_target()
 

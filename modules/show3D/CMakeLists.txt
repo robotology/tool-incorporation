@@ -3,17 +3,17 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-SET(PROJECTNAME tool3Dshow)
+SET(PROJECTNAME show3D)
 PROJECT(${PROJECTNAME})
 
 include(YarpIDL)
 # Thrift compile definition file to generate source code into the desired directory
 set(generated_libs_dir "${CMAKE_CURRENT_SOURCE_DIR}")
-yarp_idl_to_dir(tool3Dshow.thrift ${generated_libs_dir})
+yarp_idl_to_dir(show3D.thrift ${generated_libs_dir})
 
 file(GLOB source src/*.cpp)
 file(GLOB header include/*.h)
-set(idl tool3Dshow.thrift)
+set(idl show3D.thrift)
 
 source_group("Source Files" FILES ${source})
 source_group("Header Files" FILES ${header})
@@ -30,7 +30,7 @@ link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by def
 include_directories(${objects3D_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})
 
-include(tool3Dshow_thrift.cmake)
+include(show3D_thrift.cmake)
 include_directories(${generated_libs_dir}/include)
 
 add_executable(${PROJECTNAME} ${source} ${header} ${idl})

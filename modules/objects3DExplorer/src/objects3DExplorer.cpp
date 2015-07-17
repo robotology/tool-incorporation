@@ -15,7 +15,7 @@
  * Public License for more details
 */
 
-#include "toolExplorer.h"
+#include "objects3DExplorer.h"
 
 using namespace std;
 using namespace yarp::os;
@@ -29,20 +29,20 @@ using namespace iCub::YarpCloud;
                     PUBLIC METHODS
 /**********************************************************/
 
-bool ToolExplorer::configure(ResourceFinder &rf)
+bool Objects3DExplorer::configure(ResourceFinder &rf)
 {
-    string name = rf.check("name",Value("toolExplorer")).asString().c_str();
+    string name = rf.check("name",Value("objects3DExplorer")).asString().c_str();
     robot = rf.check("robot",Value("icub")).asString().c_str();
     string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
     ResourceFinder cloudsRF;
-    cloudsRF.setContext("toolModeler");
+    cloudsRF.setContext("objects3DModeler");
     cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
     cloudsRF.configure(0,NULL);
 
     // Set the path that contains previously saved pointclouds
-    string defPathFrom = "/share/ICUBcontrib/contexts/toolModeler/sampleClouds/";
+    string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
     string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
     string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
 
@@ -61,13 +61,13 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     hand = rf.check("hand", Value("right")).asString();
     eye = rf.check("camera", Value("left")).asString();
     verbose = rf.check("verbose", Value(true)).asBool();
-    normalizePose = rf.check("normalizePose", Value(true)).asBool();
+    toolExploration = rf.check("toolExploration", Value(true)).asBool();
 
     //ports
     bool ret = true;
     ret = seedInPort.open(("/"+name+"/seed:i").c_str());	                       // input port to receive data from user
-    ret = ret && meshInPort.open(("/"+name+"/mesh:i").c_str());                  // port to receive pointclouds from
-    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
+    ret = ret && meshInPort.open(("/"+name+"/mesh:i").c_str());                    // port to receive pointclouds from
+    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                   // port to receive pointclouds from
     if (!ret){
         printf("\nProblems opening ports\n");
         return false;
@@ -76,8 +76,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
     // RPC ports
     bool retRPC = true;
     retRPC = rpcPort.open(("/"+name+"/rpc:i").c_str());
-    retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to send data out for recording
-    // retRPC = retRPC && rpcMergerPort.open(("/"+name+"/merger:rpc").c_str());             // port to command the pointcloud IPC merger module
+    retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to communicate with object reconstruction module
     retRPC = retRPC && rpcFeatExtPort.open(("/"+name+"/featExt:rpc").c_str());           // port to command the pointcloud feature extraction module
     retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
     if (!retRPC){
@@ -178,7 +177,7 @@ bool ToolExplorer::configure(ResourceFinder &rf)
 }
 
 /************************************************************************/
-bool ToolExplorer::interruptModule()
+bool Objects3DExplorer::interruptModule()
 {
     closing = true;
 
@@ -199,7 +198,6 @@ bool ToolExplorer::interruptModule()
 
     rpcPort.interrupt();
     rpcObjRecPort.interrupt();
-    // rpcMergerPort.interrupt();
     rpcVisualizerPort.interrupt();
     rpcFeatExtPort.interrupt();
 
@@ -207,7 +205,7 @@ bool ToolExplorer::interruptModule()
 }
 
 /************************************************************************/
-bool ToolExplorer::close()
+bool Objects3DExplorer::close()
 {
     seedInPort.close();
     meshInPort.close();
@@ -215,7 +213,6 @@ bool ToolExplorer::close()
 
     rpcPort.close();
     rpcObjRecPort.close();
-    // rpcMergerPort.close();
     rpcVisualizerPort.close();
     rpcFeatExtPort.close();
 
@@ -229,19 +226,19 @@ bool ToolExplorer::close()
 }
 
 /************************************************************************/
-double ToolExplorer::getPeriod()
+double Objects3DExplorer::getPeriod()
 {
     return 0.02;
 }
 
 /************************************************************************/
-bool ToolExplorer::updateModule()
+bool Objects3DExplorer::updateModule()
 {
     return !closing;
 }
 
 /************************************************************************/
-bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
+bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 {
 	/* This method is called when a command string is sent via RPC */
     reply.clear();  // Clear reply bottle
@@ -471,12 +468,35 @@ bool ToolExplorer::respond(const Bottle &command, Bottle &reply)
 /**********************************************************/
 
 /************************************************************************/
-bool ToolExplorer::exploreAutomatic()
+
+// XXX Integrate object3Dexplorer into tool3DModeler, and actually name it object3Dmodeler.
+// For that, modify both explorations with a 'bool tool' parameter, to choose between on hand or on table xploration
+// That implies whether the arm will be moved around, and more importantly, whether the clouds are normalized to the root or the hand frames.
+
+bool Objects3DExplorer::exploreAutomatic()
 {
     // Explore the tool from different angles and save pointclouds
     //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
+    // Register the first pointcloud to initialize
+    bool initDone = false;
+    cloud_merged->clear();
     string  mergedName = cloudName + "_merged";
+    turnHand(0,0);
+    while (!initDone)
+    {
+        // Register and display the cloud
+        getPointCloud();
+        showPointCloud(cloud_in);
+        *cloud_merged = *cloud_in;  //Initialize cloud merged
+        CloudUtils::savePointsPly(cloud_merged,cloudsPathTo, mergedName,NO_FILENUM);
+        initDone = true;
+        printf("Base cloud initialized \n");
+
+    }
+
+    // Perform Automatic Exploration
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
     for (int degX = 60; degX>=-75; degX -= 15)
     {
         turnHand(degX,0);
@@ -485,6 +505,17 @@ bool ToolExplorer::exploreAutomatic()
         showPointCloud(cloud_in);
         printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
         CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
+
+        // Aling last reconstructred cloud and merge it with the existing cloud_merged
+        Eigen::Matrix4f alignMatrix;
+        cloud_aligned->clear();
+        alignPointClouds(cloud_in, cloud_merged, cloud_aligned, alignMatrix);
+        *cloud_merged += *cloud_aligned;
+
+        // Display the merged cloud
+        showPointCloud(cloud_merged);
+        CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName, NO_FILENUM);
+
         Time::delay(0.5);
     }
     for (int degY = 0; degY<=60; degY += 15)
@@ -495,25 +526,26 @@ bool ToolExplorer::exploreAutomatic()
         showPointCloud(cloud_in);
         CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
         printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
+
+        // Aling last reconstructred cloud and merge it with the existing cloud_merged
+        Eigen::Matrix4f alignMatrix;
+        cloud_aligned->clear();
+        alignPointClouds(cloud_in, cloud_merged, cloud_aligned, alignMatrix);
+        *cloud_merged += *cloud_aligned;
+
+        // Display the merged cloud
+        showPointCloud(cloud_merged);
+        CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName, NO_FILENUM);
+
         Time::delay(0.5);
     }
-    printf("Exploration finished, merging clouds \n");
 
-    // Merge together registered partial point clouds
-    printf("Clouds merged, saving full model \n");
-
-    // Visualize merged pointcloud
-    showPointCloudFromFile(cloudName + "_merged.ply");
-    printf("PC displayed \n");
-
-    // Extract 3D features from merged pointcloud.
-    // extractFeatures();
-
+    printf("Exploration finished, returning control. \n");
     return true;
 }
 
 /************************************************************************/
-bool ToolExplorer::exploreInteractive()
+bool Objects3DExplorer::exploreInteractive()
 {   // Explore the tool and incrementally check registration and add merge pointclouds if correct
 
     // set angles for exploration limits
@@ -528,15 +560,12 @@ bool ToolExplorer::exploreInteractive()
     Vector positionsY(posN_Y);       // Vector with the possible angles on Y
     bool visitedPos[posN_X][posN_Y]; // Matrix to check which positions have been visited
 
-
     // Fill in the vectors with the possible values
     for (int iX = 0; iX<=posN_X; iX++ )
         positionsX[iX] = minRotX + iX*angleStep;
 
     for (int iY = 0; iY<=posN_Y; iY++ )
         positionsY[iY] = minRotY + iY*angleStep;
-
-
 
     // Register the first pointcloud to initialize
     bool initDone = false;
@@ -635,13 +664,12 @@ bool ToolExplorer::exploreInteractive()
         printf("Exploration from  rot X= %f, Y= %f done. \n",positionsX[Xind] , positionsY[Yind] );
     }
 
-    // Visualize merged pointcloud
     printf("Exploration finished, returning control. \n");
     return true;
 }
 
 /************************************************************************/
-bool ToolExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Matrix toolPose)
+bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Matrix toolPose)
 {
      // Get a registration
      getPointCloud();    // Registration get and normalized to hand-reference frame. saved as 'cloud_in'
@@ -658,7 +686,7 @@ bool ToolExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr mod
 }
 
 /************************************************************************/
-bool ToolExplorer::turnHand(const int rotDegX, const int rotDegY)
+bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
 {
     if (hand=="left")
         iCartCtrl=iCartCtrlL;
@@ -723,7 +751,7 @@ bool ToolExplorer::turnHand(const int rotDegX, const int rotDegY)
 }
 
 /************************************************************************/
-bool ToolExplorer::lookAround()
+bool Objects3DExplorer::lookAround()
 {
     Vector fp,fp_aux(3,0.0);
     iGaze->getFixationPoint(fp);
@@ -743,7 +771,7 @@ bool ToolExplorer::lookAround()
 }
 
 /************************************************************************/
-bool ToolExplorer::getPointCloud()
+bool Objects3DExplorer::getPointCloud()
 {
     cloud_in->clear();   // clear receiving cloud
 
@@ -794,7 +822,7 @@ bool ToolExplorer::getPointCloud()
     sor.filter (*cloud_in);
 
     // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
-    if (normalizePose) {
+    if (toolExploration) {
         printf("Normalizing cloud to hand reference frame \n");
         //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
         normFrame2Hand(cloud_in, cloud_in);
@@ -806,7 +834,7 @@ bool ToolExplorer::getPointCloud()
 }
 
 /************************************************************************/
-bool ToolExplorer::normFrame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
+bool Objects3DExplorer::normFrame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
 {   // Normalizes the frame of the point cloud from the robot frame (as acquired) to the hand frame.
 
     if (hand=="left")
@@ -847,7 +875,7 @@ bool ToolExplorer::normFrame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
 }
 
 /************************************************************************/
-bool ToolExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat)
+bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat)
 {
     if (initAlignment) // Use FPFH features for initial alignment
     {
@@ -918,7 +946,7 @@ bool ToolExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     return true;
 }
 
-void ToolExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
+void Objects3DExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
 {
     pcl::search::KdTree<pcl::PointXYZRGB> ::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
@@ -935,7 +963,7 @@ void ToolExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>:
 }
 
 
-void ToolExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
+void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
 {
     printf("Computing Surface Normals\n");
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
@@ -949,7 +977,7 @@ void ToolExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB
 
 
 /************************************************************************/
-bool ToolExplorer::showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+bool Objects3DExplorer::showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
     iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
     CloudUtils::cloud2mesh(cloud, meshBottle, cloudName);
@@ -958,7 +986,7 @@ bool ToolExplorer::showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr c
     return true;
 }
 
-bool ToolExplorer::showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox& meshBottle)
+bool Objects3DExplorer::showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox& meshBottle)
 {
     meshBottle = meshOutPort.prepare();
     if (verbose){printf("Sending out mesh. \n");}
@@ -966,7 +994,7 @@ bool ToolExplorer::showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox& meshB
     return true;
 }
 
-bool ToolExplorer::showPointCloudFromFile(const string& fname)
+bool Objects3DExplorer::showPointCloudFromFile(const string& fname)
 {
 
     Bottle cmdVis, replyVis;
@@ -979,7 +1007,7 @@ bool ToolExplorer::showPointCloudFromFile(const string& fname)
 }
 
 /************************************************************************/
-bool ToolExplorer::extractFeatures() // XXX Change so that cloud can be sent directly via thrift.
+bool Objects3DExplorer::extractFeatures() // XXX Change so that cloud can be sent directly via thrift.
 {
     // Sends an RPC command to the toolFeatExt module to extract the 3D features of the merged point cloud/
     Bottle cmdFext, replyFext;
@@ -992,7 +1020,7 @@ bool ToolExplorer::extractFeatures() // XXX Change so that cloud can be sent dir
 }
 
 /************************************************************************/
-bool ToolExplorer::changeModelName(const string& modelname)
+bool Objects3DExplorer::changeModelName(const string& modelname)
 {
     // Changes the name with which the pointclouds will be saved and read
     cloudName = modelname;
@@ -1022,7 +1050,7 @@ return true;
 }
 
 /*************************** -Conf Commands- ******************************/
-bool ToolExplorer::setVerbose(const string& verb)
+bool Objects3DExplorer::setVerbose(const string& verb)
 {
     if (verb == "ON"){
         verbose = true;
@@ -1036,14 +1064,14 @@ bool ToolExplorer::setVerbose(const string& verb)
     return false;
 }
 
-bool ToolExplorer::setNormalization(const string& norm)
+bool Objects3DExplorer::setNormalization(const string& norm)
 {
     if (norm == "ON"){
-        normalizePose = true;
+        toolExploration = true;
         fprintf(stdout,"Normalization is : %s\n", norm.c_str());
         return true;
     } else if (norm == "OFF"){
-        normalizePose = false;
+        toolExploration = false;
         fprintf(stdout,"Normalization is : %s\n", norm.c_str());
         return true;
     }
@@ -1051,7 +1079,7 @@ bool ToolExplorer::setNormalization(const string& norm)
 }
 
 
-bool ToolExplorer::setInitialAlignment(const string& fpfh)
+bool Objects3DExplorer::setInitialAlignment(const string& fpfh)
 {
     if (fpfh == "ON"){
         initAlignment = true;
@@ -1080,17 +1108,17 @@ int main(int argc, char *argv[])
     YARP_REGISTER_DEVICES(icubmod)
 
     ResourceFinder rf;
-    rf.setDefaultContext("toolModeler");
-    rf.setDefaultConfigFile("toolExplorer.ini");
+    rf.setDefaultContext("objects3DModeler");
+    rf.setDefaultConfigFile("objects3DExplorer.ini");
     rf.setVerbose(true);
     rf.configure(argc,argv);
 
-    ToolExplorer toolExplorer;
+    Objects3DExplorer objects3DExplorer;
 
     cout<< endl <<"Configure module..."<<endl;
-    toolExplorer.configure(rf);
+    objects3DExplorer.configure(rf);
     cout<< endl << "Start module..."<<endl;
-    toolExplorer.runModule();
+    objects3DExplorer.runModule();
 
     cout<<"Main returning..."<<endl;
 

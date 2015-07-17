@@ -1,6 +1,6 @@
 <module>
     <!-- module's name should match its executable file's name. -->
-    <name>toolExplorer</name>
+    <name>objects3DExplorer</name>
     <description> Uses depth images to build 3D pointclouds from the object from different perspectives, and merges it to get a complete model.</description>
     <version>1.0</version>
 
@@ -20,38 +20,38 @@
         <!-- input data if available -->
         <input port_type="service">
             <type>rpc</type>
-            <port carrier="tcp">/toolExplorer/rpc:i</port>
+            <port carrier="tcp">/objects3DExplorer/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
         </input>
         <input>
             <type>Bottle</type>
-            <port carrier="tcp">/toolExplorer/seed:i</port>
+            <port carrier="tcp">/objects3DExplorer/seed:i</port>
             <description>Receives seed coordinates to generate blob from GBS module</description>
         </input>        
         <input>
             <type>Bottle</type>
-            <port carrier="tcp">/toolExplorer/clouds:i</port>
+            <port carrier="tcp">/objects3DExplorer/clouds:i</port>
             <description>Receives seed coordinates to generate blob from GBS module</description>
         </input>   
         <!-- output data if available -->        
         <output port_type="service">
             <type>rpc</type>
-            <port>/toolExplorer/merger:rpc</port>
+            <port>/objects3DExplorer/merger:rpc</port>
             <description> Send commands to pointCloudMerger module</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/toolExplorer/objrec:rpc</port>
+            <port>/objects3DExplorer/objrec:rpc</port>
             <description> Send commands to the objectReconstruction module</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/toolExplorer/visualizer:rpc</port>
+            <port>/objects3DExplorer/visualizer:rpc</port>
             <description> Send commands to the visualizer module to display the pointcloud</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/toolExplorer/featExt:rpc</port>
+            <port>/objects3DExplorer/featExt:rpc</port>
             <description> Send commands to the toolFeatExt module to extract 3D geometrical features from the tool</description>
         </output>        
 

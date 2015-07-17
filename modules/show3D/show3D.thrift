@@ -1,12 +1,12 @@
-#tool3Dshow.thrift
+#show3D.thrift
 
 #include "objects3D.h"
 
 /**
-* tool3DShow_IDLServer Interface.
+* show3D_IDLServer Interface.
 */
 
-service tool3Dshow_IDLServer
+service show3D_IDLServer
 {
     // setVerbose (ON/OFF) - sets verbose of the output on or off
     // @return true/false on success/failure of setting verbose

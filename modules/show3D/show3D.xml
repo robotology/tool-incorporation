@@ -1,6 +1,6 @@
 <module>
     <!-- module's name should match its executable file's name. -->
-    <name>tool3Dshow</name>
+    <name>show3D</name>
     <description> Reads and visualizes the merged pointclouds.</description>
     <version>1.0</version>
 
@@ -20,12 +20,12 @@
         <!-- input data if available -->
         <input port_type="service">
             <type>rpc</type>
-            <port carrier="tcp">/tool3Dshow/rpc:i</port>
+            <port carrier="tcp">/show3D/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
         </input>
         <input>
             <type>Bottle</type>
-            <port>/tool3Dshow/mesh:i</port>
+            <port>/show3D/mesh:i</port>
             <description> Receives the pointcloud to be displayed as a mesh of points.</description>
         </input>
     </data>

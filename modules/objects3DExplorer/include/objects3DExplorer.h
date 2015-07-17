@@ -15,8 +15,8 @@
  * Public License for more details
 */
 
-#ifndef __TOOLEXPLORER_H__
-#define __TOOLEXPLORER_H__
+#ifndef __OBJECTS3DEXPLORER_H__
+#define __OBJECTS3DEXPLORER_H__
 
 //Includes
 #include <stdio.h>
@@ -56,7 +56,7 @@
 YARP_DECLARE_DEVICES(icubmod)
 
 /**********************************************************/
-class ToolExplorer : public yarp::os::RFModule
+class Objects3DExplorer : public yarp::os::RFModule
 {
 protected:
     /* variables */ 
@@ -68,7 +68,6 @@ protected:
     // rpc ports
     yarp::os::RpcServer                 rpcPort;
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
-    // yarp::os::RpcClient         		rpcMergerPort;        	//rpc port to communicate with mergeClouds module
     yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
     yarp::os::RpcClient         		rpcFeatExtPort;         //rpc port to communicate with the 3D feature extraction module
 
@@ -92,7 +91,7 @@ protected:
     std::string                         cloudsPathTo;
     std::string                         cloudName;
     bool                                verbose;
-    bool                                normalizePose;
+    bool                                toolExploration;
 
     // module parameters
     bool                                initAlignment;
