@@ -36,8 +36,8 @@
         <!-- output data if available -->        
         <output port_type="service">
             <type>rpc</type>
-            <port>/objects3DExplorer/merger:rpc</port>
-            <description> Send commands to pointCloudMerger module</description>
+            <port>/objects3DExplorer/mesh:o</port>
+            <description> Send out the latest reconstructed mesh, for visualization or further processing</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
