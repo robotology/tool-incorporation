@@ -41,7 +41,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     cloudsRF.configure(0,NULL);
 
     // Set the path that contains previously saved pointclouds
-    string defPathFrom = "/share/ICUBcontrib/contexts/toolModeler/sampleClouds/";   // Default path
+    string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";   // Default path
     string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
     string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
 
@@ -738,7 +738,7 @@ int main(int argc, char * argv[])
 
     ToolFeatExt module;
     ResourceFinder rf;
-    rf.setDefaultContext("toolModeler");
+    rf.setDefaultContext("objects3DModeler");
     rf.setDefaultConfigFile("toolFeatExt.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);
