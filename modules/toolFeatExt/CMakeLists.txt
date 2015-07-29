@@ -28,7 +28,7 @@ include_directories(${minimumBoundingBox_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})
 
 include_directories(${YARP_INCLUDE_DIRS})
-link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) 
+link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) 
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 
 include(toolFeatures3D_thrift.cmake)

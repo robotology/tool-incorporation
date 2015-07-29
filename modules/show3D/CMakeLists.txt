@@ -25,7 +25,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 include_directories(${YARP_INCLUDE_DIRS})
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
-link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by default, but it's not, so add it just in case.
+link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) #This should be added by default, but it's not, so add it just in case.
 
 include_directories(${objects3D_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})

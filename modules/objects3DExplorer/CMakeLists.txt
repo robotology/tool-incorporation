@@ -25,7 +25,7 @@ include_directories(${YarpCloud_INCLUDE_DIRS})
 
 list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 link_directories(${PCL_LIBRARY_DIRS})
-link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by default, but it's not, so add it just in case.
+link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) #This should be added by default, but it's not, so add it just in case.
 add_definitions(${PCL_DEFINITIONS})
 
 add_executable(${PROJECTNAME} ${source} ${header})
