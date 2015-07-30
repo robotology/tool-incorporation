@@ -89,7 +89,7 @@ bool ShowModule::quit()
     string robot = rf.check("robot",Value("icub")).asString().c_str();
     cout << "robot: "<< robot.c_str() << endl;
 
-    // XXX update this so it can get either a path specified by cloudsPath.ini, or as in 'toolExplorer', the installation one where sample clouds go.
+    // XXX update this so it can get either a path specified by cloudsPath.ini, or as in 'objects3DExplorer', the installation one where sample clouds go.
     if (strcmp(robot.c_str(),"icub")==0)
         cloudpath = rf.find("clouds_path").asString();
     else
@@ -99,7 +99,7 @@ bool ShowModule::quit()
 	handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
 
-    cloudsInPort.open("/"+name+"/mesh:i");
+    cloudsInPort.open("/"+name+"/clouds:i");
 
     // Module rpc parameters
     closing = false;
@@ -131,13 +131,12 @@ bool ShowModule::quit()
 
     bool ShowModule::updateModule()
     {
-        // read the mesh
-        iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = cloudsInPort.read(false);	//keeps on reading until it receives a cloud bottle
-        if (cloudMesh!=NULL){
+        // read the cloudcas bottle
+        Bottle *cloudBottle=cloudsInPort.read(false);
+        if (cloudBottle!=NULL){
             cout<< "Received Cloud... " << endl;
             pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-            printf("Cloud read from port \n");
-            CloudUtils::mesh2cloud(*cloudMesh,cloud);
+            CloudUtils::bottle2cloud(*cloudBottle,cloud);
 
             visThrd->updateCloud(cloud);
 

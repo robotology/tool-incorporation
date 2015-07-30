@@ -36,9 +36,9 @@
 #include <pcl/point_types.h>
 
 // iCub includes
-#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
-#include <iCub/data3D/minBoundBox.h>
-#include <iCub/data3D/RGBA.h>
+//#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+//#include <iCub/data3D/minBoundBox.h>
+//#include <iCub/data3D/RGBA.h>
 
 namespace iCub {
     namespace YarpCloud {
@@ -74,7 +74,7 @@ public:
      * @param cloudB Input reference to the Bottle which contains the SurfaceMeshWithBoundingBox data structure to be converted
      * @param cloud Output boost pointer to the PCL PointXYZRGB pointcloud to be written
      */
-    static void        mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+    //static void        mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     /**
      * @brief cloud2mesh Converts a PCL PointXYZRGB pointcloud into a YARP SurfaceMeshWithBoundingBox data structure (as defined in objects3D library)
@@ -82,7 +82,7 @@ public:
      * @param meshB Outupt reference to the SurfaceMeshWithBoundingBox data structure to which the pointcloud will be converted.
      * @param cloudname Optional name for the mesh.
      */
-    static void        cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const std::string &cloudname = "cloud");
+    //static void        cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const std::string &cloudname = "cloud");
 
     /**
      * @brief bottle2cloud Converts a Bottle structured as a list of XYZ points into a PCL PointXYZ pointcloud
@@ -103,7 +103,7 @@ public:
      * @param cloud Input boost pointer to the PCL PointXYZRGB pointcloud
      * @param BB Objects3D Bounding Box Object.
      */
-    static void        getBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::BoundingBox BB);
+    //static void        getBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::BoundingBox BB);
 
     /**
      * @brief eigMat2yarpMat Converts a matrix from Eigen::MatrixXf format to yarp::sig::Matrix format.

@@ -22,21 +22,16 @@
             <type>rpc</type>
             <port carrier="tcp">/objects3DExplorer/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
-        </input>
-        <input>
-            <type>Bottle</type>
-            <port carrier="tcp">/objects3DExplorer/seed:i</port>
-            <description>Receives seed coordinates to generate blob from GBS module</description>
-        </input>        
+        </input>      
         <input>
             <type>Bottle</type>
             <port carrier="tcp">/objects3DExplorer/clouds:i</port>
-            <description>Receives seed coordinates to generate blob from GBS module</description>
+            <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point </description>
         </input>   
         <!-- output data if available -->        
         <output port_type="service">
             <type>rpc</type>
-            <port>/objects3DExplorer/mesh:o</port>
+            <port>/objects3DExplorer/clouds:o</port>
             <description> Send out the latest reconstructed mesh, for visualization or further processing</description>
         </output>
         <output port_type="service">

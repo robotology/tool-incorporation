@@ -25,8 +25,8 @@
         </input>
         <input>
             <type>Bottle</type>
-            <port>/show3D/mesh:i</port>
-            <description> Receives the pointcloud to be displayed as a mesh of points.</description>
+            <port>/show3D/clouds:i</port>
+            <description> Receives the pointcloud to be displayed as a Bottle of points in Lists.</description>
         </input>
     </data>
 

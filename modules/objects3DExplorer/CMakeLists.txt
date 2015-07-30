@@ -19,8 +19,6 @@ include_directories(${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 include_directories(${PCL_INCLUDE_DIRS}) 
-include_directories(${objects3D_INCLUDE_DIRS})
-include_directories(${minimumBoundingBox_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})
 
 list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
@@ -29,7 +27,7 @@ link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) #This shoul
 add_definitions(${PCL_DEFINITIONS})
 
 add_executable(${PROJECTNAME} ${source} ${header})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} objects3D minimumBoundingBox YarpCloud icubmod ${PCL_LIBRARIES})
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} YarpCloud icubmod ${PCL_LIBRARIES})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

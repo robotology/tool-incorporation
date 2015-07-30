@@ -34,9 +34,9 @@
 #include <yarp/os/BufferedPort.h>
 
 //ICUB libs
-#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
-#include <iCub/data3D/minBoundBox.h>
-#include <iCub/data3D/RGBA.h>
+//#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+//#include <iCub/data3D/minBoundBox.h>
+//#include <iCub/data3D/RGBA.h>
 
 #include "iCub/YarpCloud/CloudUtils.h" 
 
@@ -61,9 +61,8 @@ class Objects3DExplorer : public yarp::os::RFModule
 protected:
     /* variables */ 
     // ports
-    yarp::os::BufferedPort<yarp::os::Bottle >                           seedInPort;
-    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox>    meshInPort;
-    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox>    meshOutPort;
+    yarp::os::BufferedPort<yarp::os::Bottle>                           cloudsInPort;
+    yarp::os::BufferedPort<yarp::os::Bottle>                           cloudsOutPort;
 
     // rpc ports
     yarp::os::RpcServer                 rpcPort;
@@ -117,7 +116,6 @@ protected:
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
     bool                showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-    bool                showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle);
     bool                showPointCloudFromFile(const std::string& fname);
     bool                extractFeatures();
     

@@ -8,13 +8,6 @@
         <geometry>(Pos (x 567) (y 108.9))</geometry>
     </module>
     <module>
-        <name>object-reconstruction</name>
-        <parameters>--context objects3DModeler --computeBB true</parameters>
-        <node>localhost</node>
-        <prefix></prefix>
-        <geometry>(Pos (x 299) (y 171.9))</geometry>
-    </module>
-    <module>
         <name>simtoolloader</name>
         <parameters></parameters>
         <node>localhost</node>
@@ -63,14 +56,14 @@
         <geometry>(Pos ((x 684.5) (y 507.5)) ((x 548) (y 522)) ((x 842) (y 493))  )</geometry>
     </connection>
         <connection>
-        <from>/objects3DExplorer/mesh:o</from>
-        <to>/show3D/mesh:i</to>
+        <from>/objects3DExplorer/clouds:o</from>
+        <to>/show3D/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 684.5) (y 507.5)) ((x 548) (y 522)) ((x 842) (y 493))  )</geometry>
     </connection>
     <connection>
-        <from>/toolFeatExt/mesh:o</from>
-        <to>/show3D/mesh:i</to>
+        <from>/toolFeatExt/clouds:o</from>
+        <to>/show3D/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
     </connection>
@@ -100,27 +93,9 @@
     </connection>
     <connection>
         <from>/objects3DExplorer/objrec:rpc</from>
-        <to>/object-reconstruction/rpc</to>
+        <to>/obj3Drec/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 413) (y 368)) ((x 548) (y 497)) ((x 299) (y 239))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icubSim/cam/right</from>
-        <to>/object-reconstruction/right:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 218) (y 236.5)) ((x 157) (y 257)) ((x 300) (y 215))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icubSim/cam/left</from>
-        <to>/object-reconstruction/left:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 214.5) (y 144.5)) ((x 150) (y 98)) ((x 300) (y 190))  )</geometry>
-    </connection>
-    <connection>
-        <from>/object-reconstruction/segmentation</from>
-        <to>/GBSeg/conf</to>
-        <protocol>tcp</protocol>
-        <geometry>(Pos ((x 549.5) (y 189)) ((x 552) (y 226)) ((x 568) (y 152))  )</geometry>
     </connection>
     <connection>
         <from>/objects3DExplorer/featExt:rpc</from>
@@ -129,7 +104,7 @@
         <geometry>(Pos ((x 683) (y 555)) ((x 548) (y 547)) ((x 839) (y 563))  )</geometry>
     </connection>
     <connection>
-        <from>/object-reconstruction/mesh:o</from>
+        <from>/object-reconstruction/pnt:o</from>
         <to>/objects3DExplorer/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 452) (y 368.5)) ((x 557) (y 202)) ((x 368) (y 535))  )</geometry>

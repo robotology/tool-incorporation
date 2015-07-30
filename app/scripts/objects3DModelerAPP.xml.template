@@ -8,13 +8,6 @@
         <geometry>(Pos (x 628) (y 151.9))</geometry>
     </module>
     <module>
-        <name>object-reconstruction</name>
-        <parameters>--context objects3DModeler --computeBB true</parameters>
-        <node>localhost</node>
-        <prefix></prefix>
-        <geometry>(Pos (x 319) (y 169.9))</geometry>
-    </module>
-    <module>
         <name>show3D</name>
         <parameters>--from cloudPath.ini</parameters>
         <node>localhost</node>
@@ -56,14 +49,14 @@
         <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
     </connection>
     <connection>
-        <from>/objects3DExplorer/mesh:o</from>
-        <to>/show3D/mesh:i</to>
+        <from>/objects3DExplorer/clouds:o</from>
+        <to>/show3D/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
     </connection>
     <connection>
-        <from>/toolFeatExt/mesh:o</from>
-        <to>/show3D/mesh:i</to>
+        <from>/toolFeatExt/clouds:o</from>
+        <to>/show3D/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
     </connection>
@@ -75,19 +68,19 @@
     </connection>
     <connection>
         <from>/objects3DExplorer/objrec:rpc</from>
-        <to>/object-reconstruction/rpc</to>
+        <to>/obj3Drec/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 437.5) (y 303)) ((x 577) (y 369)) ((x 319) (y 237))  )</geometry>
     </connection>
     <connection>
-        <from>/object-reconstruction/segmentation</from>
+        <from>/obj3Drec/segmentation</from>
         <to>/GBSeg/conf</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 590) (y 209.5)) ((x 572) (y 224)) ((x 629) (y 195))  )</geometry>
     </connection>
     <connection>
-        <from>/object-reconstruction/mesh:o</from>
-        <to>/objects3DExplorer/mesh:i</to>
+        <from>/obj3Drec/pnt:o</from>
+        <to>/objects3DExplorer/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 476.5) (y 303.5)) ((x 577) (y 200)) ((x 397) (y 407))  )</geometry>
     </connection>
@@ -96,18 +89,6 @@
         <to>/GBSeg/rawImg:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x 398.5) (y 133)) ((x 189) (y 96)) ((x 629) (y 170))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icub/camcalib/left/out</from>
-        <to>/object-reconstruction/left:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 244) (y 142)) ((x 189) (y 96)) ((x 320) (y 188))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icub/camcalib/right/out</from>
-        <to>/object-reconstruction/right:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 249) (y 237)) ((x 199) (y 261)) ((x 320) (y 213))  )</geometry>
     </connection>
     <connection>
         <from>/GBSeg/viewImg:o</from>

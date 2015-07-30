@@ -27,14 +27,13 @@ include_directories(${YARP_INCLUDE_DIRS})
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) #This should be added by default, but it's not, so add it just in case.
 
-include_directories(${objects3D_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})
 
 include(show3D_thrift.cmake)
 include_directories(${generated_libs_dir}/include)
 
 add_executable(${PROJECTNAME} ${source} ${header} ${idl})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} objects3D YarpCloud)
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} YarpCloud)
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

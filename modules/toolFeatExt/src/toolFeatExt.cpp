@@ -56,7 +56,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     //open ports
     bool ret = true;
     ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
-    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                  // port to receive pointclouds from
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                  // port to receive pointclouds from
     if (!ret){
         printf("Problems opening ports\n");
         return false;
@@ -90,11 +90,12 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
 
 double ToolFeatExt::getPeriod()
 {
-    return 1; //module periodicity (seconds)
+    return 0.2; //module periodicity (seconds)
 }
 
 bool ToolFeatExt::updateModule()
 {
+    // XXX add a function here so that everytime that the module receives a cloud it computes its 3D features.
     return !closing;
 }
 
@@ -717,11 +718,11 @@ int ToolFeatExt::computeFeats()
 
 bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in)
 {
-    iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();    
+    Bottle &cloudBottle = cloudsOutPort.prepare();
 
-    CloudUtils::cloud2mesh(cloud_in, meshBottle, cloudname);
+    CloudUtils::cloud2bottle(cloud_in, cloudBottle);
     cout << "Sending cloud of size " << cloud_in->size() << endl;
-    meshOutPort.write();
+    cloudsOutPort.write();
     return true;
 }
 

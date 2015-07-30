@@ -108,6 +108,7 @@ void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 }
 
 /************************************************************************/
+/*
 void CloudUtils::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {   // Converts mesh from a bottle into pcl pointcloud.
     for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
@@ -133,6 +134,7 @@ void CloudUtils::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& clou
 }
 
 /************************************************************************/
+/*
 void CloudUtils::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const string &cloudname)
 {   // Converts pointcloud to surfaceMesh bottle.
 

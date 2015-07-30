@@ -23,8 +23,6 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-include_directories(${objects3D_INCLUDE_DIRS})
-include_directories(${minimumBoundingBox_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})
 
 include_directories(${YARP_INCLUDE_DIRS})
@@ -35,7 +33,7 @@ include(toolFeatures3D_thrift.cmake)
 include_directories(${generated_libs_dir}/include)
 
 add_executable(${PROJECTNAME} ${source} ${header} ${idl})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} objects3D minimumBoundingBox YarpCloud ${PCL_LIBRARIES})
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES}  YarpCloud ${PCL_LIBRARIES})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

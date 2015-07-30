@@ -27,7 +27,7 @@
         <!-- output data if available -->
         <output>
             <type>Bottle</type>
-            <port>/toolFeatExt/mesh:o</port>
+            <port>/toolFeatExt/clouds:o</port>
             <description> Outputs the analyzed mesh, for visualization or furthe processing</description>
         </output>
         <output>

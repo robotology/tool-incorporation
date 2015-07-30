@@ -37,7 +37,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 
 // icub Libraries
-#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+//#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
 #include "iCub/YarpCloud/CloudUtils.h"
 
 #include <show3D_IDLServer.h>
@@ -55,7 +55,7 @@ protected:
     yarp::os::RpcServer handlerPort;  // port to handle incoming commands
     VisThread *visThrd;
 
-    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> cloudsInPort; // Buffered port to receive clouds.
+    yarp::os::BufferedPort<yarp::os::Bottle> cloudsInPort; // Buffered port to receive clouds.
 
     std::string cloudpath; //path to folder with .ply files
     std::string cloudfile; //name of the .ply file to show

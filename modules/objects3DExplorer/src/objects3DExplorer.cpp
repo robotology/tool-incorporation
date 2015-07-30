@@ -65,9 +65,8 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 
     //ports
     bool ret = true;
-    ret = seedInPort.open(("/"+name+"/seed:i").c_str());	                       // input port to receive data from user
-    ret = ret && meshInPort.open(("/"+name+"/mesh:i").c_str());                    // port to receive pointclouds from
-    ret = ret && meshOutPort.open(("/"+name+"/mesh:o").c_str());                   // port to receive pointclouds from
+    ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                    // port to receive pointclouds from
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                   // port to receive pointclouds from
     if (!ret){
         printf("\nProblems opening ports\n");
         return false;
@@ -192,9 +191,8 @@ bool Objects3DExplorer::interruptModule()
         driverHR.view(ivel);
     ivel->stop(4);
 
-    seedInPort.interrupt();
-    meshInPort.interrupt();
-    meshOutPort.interrupt();
+    cloudsInPort.interrupt();
+    cloudsOutPort.interrupt();
 
     rpcPort.interrupt();
     rpcObjRecPort.interrupt();
@@ -207,9 +205,8 @@ bool Objects3DExplorer::interruptModule()
 /************************************************************************/
 bool Objects3DExplorer::close()
 {
-    seedInPort.close();
-    meshInPort.close();
-    meshOutPort.close();
+    cloudsInPort.close();
+    cloudsOutPort.close();
 
     rpcPort.close();
     rpcObjRecPort.close();
@@ -775,31 +772,20 @@ bool Objects3DExplorer::getPointCloud()
 {
     cloud_in->clear();   // clear receiving cloud
 
-    // read coordinates from yarpview
-    if (verbose){printf("Please click on seed point from the Segmentation viewer. \n");}
-    Bottle *toolTipIn = seedInPort.read(true);	//waits until it receives coordinates
-    int u = toolTipIn->get(0).asInt();
-    int v = toolTipIn->get(1).asInt();
-    if (verbose){cout << "Retrieving tool blob from u: "<< u << ", v: "<< v << endl;	}
-
-    // send image blob coordinates as rpc to objectRec to seed the cloud
+    // requests 3D reconstruction to objectReconst module
     Bottle cmdOR, replyOR;
     cmdOR.clear();	replyOR.clear();
-    cmdOR.addInt(u);
-    cmdOR.addInt(v);
+    cmdOR.addString("seg");
     rpcObjRecPort.write(cmdOR,replyOR);
 
-    // requests 3D reconstruction to objectReconst module
-    cmdOR.clear();	replyOR.clear();
-    cmdOR.addString("3Drec");
-    rpcObjRecPort.write(cmdOR,replyOR);
+    // read coordinates from yarpview
+    if (verbose){printf("Please click on seed point from the Disparity image. \n");}
 
     // read the cloud from the objectReconst output port
-    iCub::data3D::SurfaceMeshWithBoundingBox *cloudMesh = meshInPort.read(true);	//waits until it receives coordinates
-    if (cloudMesh!=NULL){
-        //showPointMesh(*cloudMesh);
+    Bottle *cloudBottle = cloudsInPort.read(true);
+    if (cloudBottle!=NULL){
         if (verbose){	printf("Cloud read from port \n");	}
-        CloudUtils::mesh2cloud(*cloudMesh,cloud_in);
+        CloudUtils::bottle2cloud(*cloudBottle,cloud_in);
     } else{
         if (verbose){	printf("Couldnt read returned cloud \n");	}
         return -1;
@@ -979,19 +965,13 @@ void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointX
 /************************************************************************/
 bool Objects3DExplorer::showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
-    iCub::data3D::SurfaceMeshWithBoundingBox &meshBottle = meshOutPort.prepare();
-    CloudUtils::cloud2mesh(cloud, meshBottle, cloudName);
-    if (verbose){printf("Sending out cloud. \n");}
-    meshOutPort.write();
-    return true;
-}
+    Bottle &cloudBottle = cloudsOutPort.prepare();
 
-bool Objects3DExplorer::showPointMesh(iCub::data3D::SurfaceMeshWithBoundingBox& meshBottle)
-{
-    meshBottle = meshOutPort.prepare();
-    if (verbose){printf("Sending out mesh. \n");}
-    meshOutPort.write();
+    CloudUtils::cloud2bottle(cloud, cloudBottle);
+    if (verbose){printf("Sending out cloud. \n");}
+    cloudsOutPort.write();
     return true;
+
 }
 
 bool Objects3DExplorer::showPointCloudFromFile(const string& fname)

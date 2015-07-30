@@ -29,7 +29,7 @@ include_directories(include
                     ${YARP_INCLUDE_DIRS})
 
 add_library(${PROJECTNAME} ${YARPCLOUD_HDRS} ${YARPCLOUD_SRCS})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} minimumBoundingBox objects3D ${PCL_LIBRARIES})
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES})
 #set_target_properties(${PROJECTNAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 icubcontrib_export_library(${PROJECTNAME} INTERNAL_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include

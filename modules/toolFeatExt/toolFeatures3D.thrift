@@ -24,15 +24,15 @@ struct RotationMatrix
 struct ToolFeat3D
 {   
 1: string toolname;
-#2: list< VoxFeat> toolFeats;            # Every tool is reprsented as a vector of voxel histograms.
-2: list< list < double>> toolFeats;      # Every tool is reprsented as a vector of voxel histograms.
+#2: list< VoxFeat> toolFeats;            # Every tool is represented as a vector of voxel-based histograms.
+2: list< list < double>> toolFeats;      # Every tool is represented as a vector of voxel-based histograms.
 }
 
 struct ToolFeat3DwithOrient
 {   
 1: string toolname;
-#2: list< VoxFeat> toolFeats;           # Every tool is reprsented as a vector of voxel histograms.
-2: list< list < double>> toolFeats;      # Every tool is reprsented as a vector of voxel histograms.
+#2: list< VoxFeat> toolFeats;           # Every tool is represented as a vector of voxel-based histograms.
+2: list< list < double>> toolFeats;      # Every tool is represented as a vector of voxel-based histograms.
 3: RotationMatrix orientation;          # Orientation with respect to the canonical position.
 }
 

@@ -30,9 +30,9 @@
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
 
-#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
-#include <iCub/data3D/minBoundBox.h>
-#include <iCub/data3D/RGBA.h>
+//#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
+//#include <iCub/data3D/minBoundBox.h>
+//#include <iCub/data3D/RGBA.h>
 
 #include "iCub/YarpCloud/CloudUtils.h"
 
@@ -68,9 +68,9 @@ class ToolFeatExt : public yarp::os::RFModule, public tool3DFeat_IDLServer
 protected:
     /* module parameters */
     yarp::os::RpcServer rpcInPort;  // port to handle incoming commands
-
     yarp::os::Port      feat3DoutPort; // Port where the features of the tool are send out (as a thrift Tool3DwithOrient struct)
-    yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> meshOutPort; // Port to send out the cloud as a mesh to be further processed or displayed
+    //yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> meshOutPort; // Port to send out the cloud as a mesh to be further processed or displayed
+    yarp::os::BufferedPort<yarp::os::Bottle> cloudsOutPort; // Port to send out the cloud as a boltte to be further processed or displayed
     std::string cloudpath;            // path to folder with .ply or .pcd files
     std::string cloudname;           // name of the .ply or .pcd cloud file
 
