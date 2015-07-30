@@ -149,6 +149,64 @@ void CloudUtils::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, 
     return;
 }
 
+/************************************************************************/
+void CloudUtils::bottle2cloud(const yarp::os::Bottle& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+{   // Converts cloud in a bottle into pcl pointcloud.
+    int bsize=cloudB.size();
+    for(size_t i=0; i<bsize; i++)
+    {
+        yarp::os::Bottle *pointList=cloudB.get(i).asList();
+
+        pcl::PointXYZRGB point;
+        point.x=pointList->get(0).asDouble();
+        point.y=pointList->get(1).asDouble();
+        point.z=pointList->get(2).asDouble();
+
+        if (pointList->size()>3)
+        {
+            point.r = pointList->get(3).asDouble();
+            point.g = pointList->get(4).asDouble();
+            point.b = pointList->get(5).asDouble();
+        }
+        else{
+            point.rgb=0;
+            point.r=0;
+            point.g=0;
+            point.b=0;
+        }
+        cloud->push_back(point);
+    }
+
+    printf("Bottle formatted into Point Cloud \n");
+}
+
+
+/************************************************************************/
+void CloudUtils::cloud2bottle(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::os::Bottle& cloudB)
+{   // Converts pointcloud to surfaceMesh bottle.
+
+    for (unsigned int i=0; i<cloud->width; i++)
+    {
+        yarp::os::Bottle &bpoint = cloudB.addList();
+        pcl::PointXYZRGB p = cloud->at(i);
+        bpoint.addDouble(p.x);
+        bpoint.addDouble(p.y);
+        bpoint.addDouble(p.z);
+        if (p.rgb!=0)
+        {
+            // unpack rgb into r/g/b
+            uint32_t rgb = *reinterpret_cast<int*>(&p.rgb);
+            uint8_t r = (rgb >> 16) & 0x0000ff;
+            bpoint.addInt(p.r);
+            uint8_t g = (rgb >> 8)  & 0x0000ff;
+            bpoint.addInt(p.g);
+            uint8_t b = (rgb)       & 0x0000ff;
+            bpoint.addInt(p.b);
+        }
+    }
+    printf("Point Cloud formatted into Bottle\n");
+    return;
+}
 
 /************************************************************************/
 /*

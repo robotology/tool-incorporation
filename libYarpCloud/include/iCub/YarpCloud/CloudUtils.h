@@ -51,7 +51,6 @@ namespace iCub {
  */
 class iCub::YarpCloud::CloudUtils {
 public: 
-
     /**
      * @brief loadCloud Loads a cloud from the given path and .ply or .pcd file to a PCL PointXYZRGB::Ptr type cloud_to.
      * @param cloudpath Path where the cloud file is found
@@ -84,6 +83,20 @@ public:
      * @param cloudname Optional name for the mesh.
      */
     static void        cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const std::string &cloudname = "cloud");
+
+    /**
+     * @brief bottle2cloud Converts a Bottle structured as a list of XYZ points into a PCL PointXYZ pointcloud
+     * @param cloudB Input reference to the Bottle which contains a list of size 3 (XYZ) for each cloud point.
+     * @param cloud Output boost pointer to the PCL PointXYZRGB pointcloud to be written
+     */
+    static void        bottle2cloud(const yarp::os::Bottle& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+
+    /**
+     * @brief cloud2bottle Converts a PCL PointXYZ(RGB) pointcloud into a YARP Bottle, consisting of a list of size 3 (XYZ) for each point.
+     * @param cloud Input boost pointer to the PCL PointXYZ(RGB) pointcloud to be converted
+     * @param cloudB Outupt reference to the Bottle which contains a list of size 3 (XYZ) for each cloud point to which the pointcloud will be converted.
+     */
+    static void        cloud2bottle(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::os::Bottle& cloudB);
 
     /**
      * @brief getBB returns the Bounding Box object of the given cloud
