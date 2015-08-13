@@ -770,27 +770,28 @@ bool Objects3DExplorer::lookAround()
 /************************************************************************/
 bool Objects3DExplorer::getPointCloud()
 {
-    cloud_in->clear();   // clear receiving cloud
+    cloud_in->points.clear();
+    cloud_in->clear();   // clear receiving cloud    
 
     // requests 3D reconstruction to objectReconst module
     Bottle cmdOR, replyOR;
     cmdOR.clear();	replyOR.clear();
     cmdOR.addString("seg");
     rpcObjRecPort.write(cmdOR,replyOR);
-
+    
     // read coordinates from yarpview
-    if (verbose){printf("Please click on seed point from the Disparity image. \n");}
+    if (verbose){printf("Please click on seed point from the Disparity or Segmentation images. \n");}
 
     // read the cloud from the objectReconst output port
     Bottle *cloudBottle = cloudsInPort.read(true);
     if (cloudBottle!=NULL){
-        if (verbose){	printf("Cloud read from port \n");	}
+        if (verbose){	cout << "Bottle of size " << cloudBottle->size() << " read from port \n"	<<endl;}
         CloudUtils::bottle2cloud(*cloudBottle,cloud_in);
     } else{
         if (verbose){	printf("Couldnt read returned cloud \n");	}
         return -1;
     }
-
+    
     cmdOR.clear();	replyOR.clear();
     cmdOR.addString("clear");
     rpcObjRecPort.write(cmdOR,replyOR);
@@ -969,9 +970,11 @@ void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointX
 /************************************************************************/
 bool Objects3DExplorer::showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
-    Bottle &cloudBottle = cloudsOutPort.prepare();
-
-    CloudUtils::cloud2bottle(cloud, cloudBottle);
+    Bottle &cloudBottleOut = cloudsOutPort.prepare();
+    cloudBottleOut.clear();
+    
+    CloudUtils::cloud2bottle(cloud, cloudBottleOut);    
+       
     if (verbose){printf("Sending out cloud. \n");}
     cloudsOutPort.write();
     return true;

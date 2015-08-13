@@ -101,7 +101,7 @@ protected:
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_in;       // Last registered pointcloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;   // Merged pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_merged;   // Merged pointcloud    
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_merged;   // Validated merged pointcloud    
 
     /* functions*/
     

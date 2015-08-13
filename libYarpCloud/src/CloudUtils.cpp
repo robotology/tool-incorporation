@@ -164,14 +164,14 @@ void CloudUtils::bottle2cloud(const yarp::os::Bottle& cloudB, pcl::PointCloud<pc
         point.y=pointList->get(1).asDouble();
         point.z=pointList->get(2).asDouble();
 
-        cout << "Received point with coordinates: (" << point.x << ", "<< point.y << ", "<< point.z << ")."<< endl;
+        //cout << "Received point with coordinates: (" << point.x << ", "<< point.y << ", "<< point.z << ")."<< endl;
 
         if (pointList->size()>3)
         {            
             point.r = pointList->get(3).asDouble();
             point.g = pointList->get(4).asDouble();
             point.b = pointList->get(5).asDouble();
-            cout << "Point has color: (" << point.r << ", "<< point.g << ", "<< point.b << ")."<< endl;
+            //cout << "Point has color: (" << point.r << ", "<< point.g << ", "<< point.b << ")."<< endl;
         } else{
             point.rgb=0;
             point.r=255;
