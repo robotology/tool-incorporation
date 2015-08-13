@@ -791,6 +791,10 @@ bool Objects3DExplorer::getPointCloud()
         return -1;
     }
 
+    cmdOR.clear();	replyOR.clear();
+    cmdOR.addString("clear");
+    rpcObjRecPort.write(cmdOR,replyOR);
+
     // Apply some filtering to clean the cloud
     // Process the cloud by removing distant points ...
     const float depth_limit = 0.5;
