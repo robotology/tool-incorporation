@@ -104,7 +104,7 @@ bool ShowModule::quit()
     // Module rpc parameters
     closing = false;
 
-    //Init variables
+    // Init variables
     cloudfile = "cloud.ply";
 
     //Threads

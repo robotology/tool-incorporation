@@ -57,6 +57,9 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 
     yarp::os::mkdir_p(cloudsPathTo.c_str());            // Create the save folder if it didnt exist
 
+    printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
+    printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
+
     cloudName = rf.check("modelName", Value("cloud")).asString();
     hand = rf.check("hand", Value("right")).asString();
     eye = rf.check("camera", Value("left")).asString();
@@ -169,8 +172,6 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
     cout << endl << "Configuring done." << endl;
-    printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
-    printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
 
     return true;
 }
@@ -397,7 +398,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         // load cloud to be aligned
         if (CloudUtils::loadCloud(cloudsPathFrom, cloud_from_name, cloud_from))  {
-            cout << "cloud of size "<< cloud_from->points.size() << " points lodaed from "<< cloud_from_name.c_str() << endl;
+            cout << "cloud of size "<< cloud_from->points.size() << " points loaded from "<< cloud_from_name.c_str() << endl;
         } else{
             std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;
             return false;
