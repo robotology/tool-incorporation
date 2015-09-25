@@ -10,6 +10,8 @@ VisThread::VisThread(int period, const string &_cloudname):RateThread(period), i
 bool VisThread::threadInit()
 {
     cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
+    cloud_normals = pcl::PointCloud<pcl::Normal>::Ptr (new pcl::PointCloud<pcl::Normal>); // Normals point cloud
+    cloud_normalColors = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>); // Normal Colors point cloud
     viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer> (new pcl::visualization::PCLVisualizer("Point Cloud Viewer")); //viewer
     viewer->setSize(1000,650);
     viewer->setPosition(0,350);
@@ -25,10 +27,14 @@ bool VisThread::threadInit()
     updatingCloud = false;
     displayBB = false;
     displayNormals = false;
+    displayOMSEGI = false;
+    normalColors = false;
+    normalsComputed = false;
 
     // Processing parameters
     minimumBB = false;
-    radiusSearch = 0.03;
+    radiusSearch = 0.01;
+    resFeats = 0.01;
 
     return true;
 }
@@ -81,8 +87,15 @@ void VisThread::run()
                 // Compute and add normals to display
                 if (displayNormals)
                 {
-                    plotNormals(radiusSearch);
+                    plotNormals(radiusSearch,normalColors);
                     displayNormals = false;
+                }
+                
+                // Compute and add normals to display
+                if (displayOMSEGI)
+                {
+                    plotOMSEGI(resFeats);
+                    displayOMSEGI = false;
                 }
 
                 // Clear display
@@ -153,10 +166,11 @@ void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
 }
 
 // Set flow to allow normals to be computed and added on display update.
-void VisThread::addNormals(double rS)
+void VisThread::addNormals(double rS, bool normCol)
 {
     if (initialized){
         displayNormals = true;
+        normalColors = normCol;
         radiusSearch = rS;
         updateVis();
     }else{
@@ -164,9 +178,29 @@ void VisThread::addNormals(double rS)
     }
 }
 
-// Compute and display normals
-void VisThread::plotNormals(double rS)
+void VisThread::addOMSEGI(double res)
 {
+     if (!normalsComputed){
+        printf(" Need to compute the normals before computing OMS-EGIs" );
+        return;
+     }
+    displayOMSEGI = true;
+    resFeats = res;        
+    updateVis();
+}
+
+// Compute and display normals
+void VisThread::plotNormals(double rS, bool normCol)
+{
+    if (normCol)
+        printf("Plotting normals as RGB colors.\n");
+    else 
+        printf("Plotting Vector normals.\n");
+  
+    // Clear clouds
+    cloud_normals->points.clear();
+    cloud_normalColors->points.clear();
+    
     // Create the normal estimation class, and pass the input dataset to it
     pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
     ne.setInputCloud (cloud);
@@ -177,15 +211,156 @@ void VisThread::plotNormals(double rS)
     ne.setSearchMethod (tree);
 
     // Output datasets
-    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+    //pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
 
     // Use all neighbors in a sphere of radius radiusSearch
     ne.setRadiusSearch (rS);
 
     // Compute the features
     ne.compute (*cloud_normals);
+    
+    if (normCol)    // Plot Normals as colors on the cloud
+    {
+        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_colorNorm(new pcl::PointCloud<pcl::PointXYZRGB> ());
+        for  (int p = 1; p < cloud_normals->points.size(); ++p)      {
+            if ((pcl::isFinite(cloud_normals->points[p]))){
+              
+                // Tansform normal orientation to color
+                float xn = cloud_normals->points[p].normal_x;
+                float yn = cloud_normals->points[p].normal_y;
+                float zn = cloud_normals->points[p].normal_z;
+                
+                // Non-Linear Transformation (cos->rgb)
+                int xn_r = (int) ((xn + 1) * 256/2);
+                int yn_g = (int) ((yn + 1) * 256/2);
+                int zn_b = (int) ((zn + 1) * 256/2);               
+                 
+                // Linear Transformation (deg->rgb)
+                //float xndeg = acos(xn)*((xn > 0) - (xn < 0))*180.0/3.14;
+                //float yndeg = acos(yn)*((yn > 0) - (yn < 0))*180.0/3.14;
+                //float zndeg = acos(zn)*((zn > 0) - (zn < 0))*180.0/3.14;
+                //int xn_r = (int) ((xndeg + 180) * 256/360);
+                //int yn_g = (int) ((yndeg + 180) * 256/360);
+                //int zn_b = (int) ((zndeg + 180) * 256/360);
+                
+                //printf("Normals X:  %f -> R: %i \n Normals Y:  %f -> G: %i \n Normals Z:  %f -> B: %i \n", xn, xn_r, yn, yn_g, zn, zn_b);
+                
+                pcl::PointXYZRGB pointColor;
+                pointColor.x = cloud->points[p].x;
+                pointColor.y = cloud->points[p].y;                
+                pointColor.z = cloud->points[p].z;
+                pointColor.r = xn_r;
+                pointColor.g = yn_g;
+                pointColor.b = zn_b;
+                
+                cloud_normalColors->points.push_back (pointColor);                
+            }
+        }
+        viewer->removePointCloud(id);        
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud_normalColors);
+        viewer->addPointCloud(cloud_normalColors, rgb, id);
+      
+    }else{          // Plot Normals as vectors
+        viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal> (cloud, cloud_normals, 30, rS, "normals");
+    }
+    normalsComputed = true;    
+}
 
-    viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal> (cloud, cloud_normals, 30, rS, "normals");
+// Compute and display octree
+void VisThread::plotOMSEGI(double res)
+{     
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(res);
+    octree.setInputCloud(cloud);
+    octree.addPointsFromInputCloud();
+  
+    // Iterate through lower level leafs (voxels).
+    
+    // voxelCloud and voxelCloudNormals to contain the poitns on each voxel
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr voxelCloud(new pcl::PointCloud<pcl::PointXYZRGB> ());
+    pcl::PointCloud<pcl::Normal>::Ptr voxelCloudNormals(new pcl::PointCloud<pcl::Normal> ());
+    
+    // Extracts all the points at leaf level from the octree
+    int voxelI = 0;    
+    std::stringstream voxID;
+    std::stringstream sphID;
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB>::LeafNodeIterator tree_it;
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB>::LeafNodeIterator tree_it_end = octree.leaf_end();   
+    for (tree_it = octree.leaf_begin(octree.getTreeDepth()); tree_it!=tree_it_end; ++tree_it)
+    {
+        // Clear clouds and vectors from previous voxel.
+        voxelCloud->points.clear();
+        voxelCloudNormals->points.clear();
+      
+        // Find Voxel Bounds ...
+        Eigen::Vector3f voxel_min, voxel_max;
+        octree.getVoxelBounds(tree_it, voxel_min, voxel_max);
+
+        //... and center
+        pcl::PointXYZRGB voxelCenter;
+        voxelCenter.x = (voxel_min.x() + voxel_max.x()) / 2.0f;
+        voxelCenter.y = (voxel_min.y() + voxel_max.y()) / 2.0f;
+        voxelCenter.z = (voxel_min.z() + voxel_max.z()) / 2.0f;
+        
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // Neighbors within voxel search
+        // It assigns the search point to the corresponding leaf node voxel and returns a vector of point indices.
+        // These indices relate to points which fall within the same voxel.
+        std::vector<int> voxelPointsIdx;
+        if (octree.voxelSearch (voxelCenter, voxelPointsIdx))
+        {
+            for (size_t i = 0; i < voxelPointsIdx.size (); ++i)
+            {
+                // Save Points within voxel as cloud
+                voxelCloud->points.push_back(cloud->points[voxelPointsIdx[i]]);
+                voxelCloudNormals->points.push_back(cloud_normals->points[voxelPointsIdx[i]]);
+            } // for point in voxel
+        }
+        //std::cout << "Voxel has " << voxelCloud->points.size() << " points. " << std::endl;
+          
+          
+        //cout << "Getting points from voxel " << voxelI << endl;
+        float xn_Acc = 0;
+        float yn_Acc = 0;
+        float zn_Acc = 0;         
+        int pointsInVoxel = voxelCloud->points.size();  
+        for (size_t i = 0; i < voxelCloudNormals->points.size (); ++i)
+            {
+            float xn, yn, zn;
+            if ((pcl::isFinite(voxelCloudNormals->points[i])))
+            {              
+                xn = voxelCloudNormals->points[i].normal_x;
+                yn = voxelCloudNormals->points[i].normal_y;
+                zn = voxelCloudNormals->points[i].normal_z;            
+                //cout<< "Point " << pointsInVoxel << " has Normals " << xn << ", " << yn << ", "<< zn << ". "<< endl;
+              
+                xn_Acc = xn_Acc + xn;
+                yn_Acc = yn_Acc + yn;
+                zn_Acc = zn_Acc + zn;
+                //cout<< "Point " << pointsInVoxel << " has accum  Normals " << xn_Acc << ", " << yn_Acc << ", "<< zn_Acc << ". "<< endl;
+              }            
+          }
+          float xn_avg = xn_Acc/pointsInVoxel;
+          float yn_avg = yn_Acc/pointsInVoxel;
+          float zn_avg = zn_Acc/pointsInVoxel;          
+          
+          float xn_r = (xn_avg + 1) /2;
+          float yn_g = (yn_avg + 1) /2;
+          float zn_b = (zn_avg + 1) /2;
+           
+          //printf("Normals Accum X: %g Avg X:  %f -> R: %f \n", xn_Acc, xn_avg, xn_r);
+          //printf("Normals Accum Y: %f Avg Y:  %f -> G: %f \n", yn_Acc, yn_avg, yn_g);
+          //printf("Normals Accum Z: %f Avg Z:  %f -> B: %f \n", zn_Acc, zn_avg, zn_b);
+          //printf("for %i points.\n",pointsInVoxel);
+          
+          // Display a cube for each considered voxel
+          voxID << "vox" << voxelI;
+          sphID << "sph" << voxelI;
+          
+          viewer->addCube(voxelCenter.x-res/2, voxelCenter.x+res/2, voxelCenter.y-res/2, voxelCenter.y+res/2, voxelCenter.z-res/2, voxelCenter.z+res/2, xn_r, yn_g, zn_b,voxID.str());       
+          viewer->addSphere(voxelCenter, res/4, xn_r, yn_g, zn_b, sphID.str());
+          voxelI++;
+    }
+    viewer->removePointCloud(id);   
 }
 
 // Set flow to allow bounding box to be computed and added on display update.

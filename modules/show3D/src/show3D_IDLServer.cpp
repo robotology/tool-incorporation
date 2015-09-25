@@ -35,8 +35,18 @@ public:
 class show3D_IDLServer_addNormals : public yarp::os::Portable {
 public:
   double radSearch;
+  bool normCol;
   bool _return;
-  void init(const double radSearch);
+  void init(const double radSearch, const bool normCol);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
+class show3D_IDLServer_addFeats : public yarp::os::Portable {
+public:
+  double res;
+  bool _return;
+  void init(const double res);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -127,9 +137,10 @@ void show3D_IDLServer_showFileCloud::init(const std::string& cloudname) {
 
 bool show3D_IDLServer_addNormals::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeListHeader(3)) return false;
   if (!writer.writeTag("addNormals",1,1)) return false;
   if (!writer.writeDouble(radSearch)) return false;
+  if (!writer.writeBool(normCol)) return false;
   return true;
 }
 
@@ -143,9 +154,33 @@ bool show3D_IDLServer_addNormals::read(yarp::os::ConnectionReader& connection) {
   return true;
 }
 
-void show3D_IDLServer_addNormals::init(const double radSearch) {
+void show3D_IDLServer_addNormals::init(const double radSearch, const bool normCol) {
   _return = false;
   this->radSearch = radSearch;
+  this->normCol = normCol;
+}
+
+bool show3D_IDLServer_addFeats::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("addFeats",1,1)) return false;
+  if (!writer.writeDouble(res)) return false;
+  return true;
+}
+
+bool show3D_IDLServer_addFeats::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void show3D_IDLServer_addFeats::init(const double res) {
+  _return = false;
+  this->res = res;
 }
 
 bool show3D_IDLServer_addBoundingBox::write(yarp::os::ConnectionWriter& connection) {
@@ -225,12 +260,22 @@ bool show3D_IDLServer::showFileCloud(const std::string& cloudname) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool show3D_IDLServer::addNormals(const double radSearch) {
+bool show3D_IDLServer::addNormals(const double radSearch, const bool normCol) {
   bool _return = false;
   show3D_IDLServer_addNormals helper;
-  helper.init(radSearch);
+  helper.init(radSearch,normCol);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool show3D_IDLServer::addNormals(const double radSearch)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addNormals(const double radSearch, const bool normCol)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool show3D_IDLServer::addFeats(const double res) {
+  bool _return = false;
+  show3D_IDLServer_addFeats helper;
+  helper.init(res);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addFeats(const double res)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -308,11 +353,30 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
     }
     if (tag == "addNormals") {
       double radSearch;
+      bool normCol;
       if (!reader.readDouble(radSearch)) {
-        radSearch = 0.03;
+        radSearch = 0.01;
+      }
+      if (!reader.readBool(normCol)) {
+        normCol = 0;
       }
       bool _return;
-      _return = addNormals(radSearch);
+      _return = addNormals(radSearch,normCol);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "addFeats") {
+      double res;
+      if (!reader.readDouble(res)) {
+        res = 0.01;
+      }
+      bool _return;
+      _return = addFeats(res);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -385,6 +449,7 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
     helpString.push_back("accumClouds");
     helpString.push_back("showFileCloud");
     helpString.push_back("addNormals");
+    helpString.push_back("addFeats");
     helpString.push_back("addBoundingBox");
     helpString.push_back("quit");
     helpString.push_back("help");
@@ -408,9 +473,16 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addNormals") {
-      helpString.push_back("bool addNormals(const double radSearch = 0.03) ");
+      helpString.push_back("bool addNormals(const double radSearch = 0.01, const bool normCol = 0) ");
       helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
       helpString.push_back("@param radSearch - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
+      helpString.push_back("@param normalColors - (bool) Expresses whether the normals should be expressed as a vector, or as color gradients on the cloud. ");
+      helpString.push_back("@return true/false on showing the poitncloud ");
+    }
+    if (functionName=="addFeats") {
+      helpString.push_back("bool addFeats(const double res = 0.01) ");
+      helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
+      helpString.push_back("@param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addBoundingBox") {

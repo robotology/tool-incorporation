@@ -22,7 +22,9 @@
 // Includes
 
 #include <iostream>
+#include <math.h> 
 #include <string>
+#include <sstream>
 
 #include <yarp/os/RateThread.h>
 #include <yarp/os/Network.h>
@@ -49,6 +51,8 @@ protected:
 
     // Visualizer global variables
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_normalColors;
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals;
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
     // Flow control flags
@@ -57,11 +61,15 @@ protected:
     bool clearing;
     bool updatingCloud;
     bool displayNormals;
+    bool displayOMSEGI;
+    bool normalColors;
+    bool normalsComputed;
     bool displayBB;
 
     // Processing parameters
     bool minimumBB;
     double radiusSearch;
+    float resFeats;
 
     /**
      * @brief updateVis -  Unlocks the mutex on a cycle so that the visualizer and its contents can be updated
@@ -77,8 +85,15 @@ protected:
     /**
      * @brief plotNormals - Computes and displays Normals
      * @param rS - radiusSearch for consider nerighbors to compute surface normal.
+     * @param normCol - normCol determines if normals are plotted as vectors or as RGB color.
      */
-    void plotNormals(double rS);        // Function called within the update loop.
+    void plotNormals(double rS, bool normCol = false);        // Function called within the update loop.
+    
+     /**
+     * @brief plotOMSEGI - Displays the OMS-EGI features per octree voxel, as colored points where RGB represent the XYZ normal frequencies. 
+     * @param res - resolution of the minimal octree division
+     */
+    void plotOMSEGI(double res);      // Function called within the update loop.
 
 public:
     // CONSTRUCTOR
@@ -91,13 +106,21 @@ public:
     virtual void threadRelease();
 
     /**
-     * @brief addNormals - Sets flow to allow bounding box to be computed and added on display update.
+     * @brief addNormals - Sets flow to allow normals to be computed and displayed on the visualizer.
      * @param rS - radiusSearch for consider nerighbors to compute surface normal.
+     * @param normCol - determines whether the normals will be shown as vectors or colorwise.
      */
-    void addNormals(double rS);         // Function called from main module to set parameters and unlock update
+    void addNormals(double rS, bool normCol = false);         // Function called from main module to set parameters and unlock update
 
     /**
-     * @brief addBoundingBox
+     * @brief addOMSEGI - Sets flow to allow voxel normal histograms to be computed and displayed on the visualizer
+     * @param res - resolution onf the voxels within which the EGIs are computed
+     */
+    void addOMSEGI(double res);         // Function called from main module to set parameters and unlock update
+
+
+    /**
+     * @brief addBoundingBox - Sets flow to allow bounding box to be computed and added on display update.
      * @param minBB - true for oriented (minimum) boinding box. False for axis aligned bounding box
      */
     void addBoundingBox(bool minBB);    // Function called from main module to set parameters and unlock update

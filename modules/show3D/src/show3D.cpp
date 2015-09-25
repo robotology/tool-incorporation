@@ -59,12 +59,17 @@ bool ShowModule::showFileCloud(const string& cloudname)
     return true;
 }
 
-bool ShowModule::addNormals(double radSearch)
+bool ShowModule::addNormals(double radSearch, bool normCol)
 {
-    visThrd->addNormals(radSearch);
+    visThrd->addNormals(radSearch, normCol);
     return true;
 }
 
+bool ShowModule::addFeats(double res)
+{
+    visThrd->addOMSEGI(res);
+    return true;
+}
 
 bool ShowModule::addBoundingBox(bool minBB)
 {
