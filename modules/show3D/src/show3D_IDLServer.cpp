@@ -45,17 +45,18 @@ public:
 class show3D_IDLServer_addFeats : public yarp::os::Portable {
 public:
   double res;
+  bool plotHist;
   bool _return;
-  void init(const double res);
+  void init(const double res, const bool plotHist);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
 class show3D_IDLServer_addBoundingBox : public yarp::os::Portable {
 public:
-  bool minBB;
+  int32_t typeBB;
   bool _return;
-  void init(const bool minBB);
+  void init(const int32_t typeBB);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -162,9 +163,10 @@ void show3D_IDLServer_addNormals::init(const double radSearch, const bool normCo
 
 bool show3D_IDLServer_addFeats::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeListHeader(3)) return false;
   if (!writer.writeTag("addFeats",1,1)) return false;
   if (!writer.writeDouble(res)) return false;
+  if (!writer.writeBool(plotHist)) return false;
   return true;
 }
 
@@ -178,16 +180,17 @@ bool show3D_IDLServer_addFeats::read(yarp::os::ConnectionReader& connection) {
   return true;
 }
 
-void show3D_IDLServer_addFeats::init(const double res) {
+void show3D_IDLServer_addFeats::init(const double res, const bool plotHist) {
   _return = false;
   this->res = res;
+  this->plotHist = plotHist;
 }
 
 bool show3D_IDLServer_addBoundingBox::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("addBoundingBox",1,1)) return false;
-  if (!writer.writeBool(minBB)) return false;
+  if (!writer.writeI32(typeBB)) return false;
   return true;
 }
 
@@ -201,9 +204,9 @@ bool show3D_IDLServer_addBoundingBox::read(yarp::os::ConnectionReader& connectio
   return true;
 }
 
-void show3D_IDLServer_addBoundingBox::init(const bool minBB) {
+void show3D_IDLServer_addBoundingBox::init(const int32_t typeBB) {
   _return = false;
-  this->minBB = minBB;
+  this->typeBB = typeBB;
 }
 
 bool show3D_IDLServer_quit::write(yarp::os::ConnectionWriter& connection) {
@@ -270,22 +273,22 @@ bool show3D_IDLServer::addNormals(const double radSearch, const bool normCol) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool show3D_IDLServer::addFeats(const double res) {
+bool show3D_IDLServer::addFeats(const double res, const bool plotHist) {
   bool _return = false;
   show3D_IDLServer_addFeats helper;
-  helper.init(res);
+  helper.init(res,plotHist);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool show3D_IDLServer::addFeats(const double res)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addFeats(const double res, const bool plotHist)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool show3D_IDLServer::addBoundingBox(const bool minBB) {
+bool show3D_IDLServer::addBoundingBox(const int32_t typeBB) {
   bool _return = false;
   show3D_IDLServer_addBoundingBox helper;
-  helper.init(minBB);
+  helper.init(typeBB);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool show3D_IDLServer::addBoundingBox(const bool minBB)");
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addBoundingBox(const int32_t typeBB)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -372,11 +375,15 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
     }
     if (tag == "addFeats") {
       double res;
+      bool plotHist;
       if (!reader.readDouble(res)) {
         res = 0.01;
       }
+      if (!reader.readBool(plotHist)) {
+        plotHist = 1;
+      }
       bool _return;
-      _return = addFeats(res);
+      _return = addFeats(res,plotHist);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -386,12 +393,12 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
       return true;
     }
     if (tag == "addBoundingBox") {
-      bool minBB;
-      if (!reader.readBool(minBB)) {
-        minBB = 0;
+      int32_t typeBB;
+      if (!reader.readI32(typeBB)) {
+        typeBB = 2;
       }
       bool _return;
-      _return = addBoundingBox(minBB);
+      _return = addBoundingBox(typeBB);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -480,15 +487,15 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addFeats") {
-      helpString.push_back("bool addFeats(const double res = 0.01) ");
+      helpString.push_back("bool addFeats(const double res = 0.01, const bool plotHist = 1) ");
       helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
       helpString.push_back("@param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addBoundingBox") {
-      helpString.push_back("bool addBoundingBox(const bool minBB = 0) ");
+      helpString.push_back("bool addBoundingBox(const int32_t typeBB = 2) ");
       helpString.push_back("@brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one. ");
-      helpString.push_back("@param minBB - (bool) true to compute the minimum bounding box, false to compute the axis-aligned bounding box (default = false). ");
+      helpString.push_back("@param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2), ");
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="quit") {

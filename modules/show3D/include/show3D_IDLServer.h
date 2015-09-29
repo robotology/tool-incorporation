@@ -45,13 +45,13 @@ public:
    * @param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
    * @return true/false on showing the poitncloud
    */
-  virtual bool addFeats(const double res = 0.01);
+  virtual bool addFeats(const double res = 0.01, const bool plotHist = 1);
   /**
    * @brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one.
-   * @param minBB - (bool) true to compute the minimum bounding box, false to compute the axis-aligned bounding box (default = false).
+   * @param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2),
    * @return true/false on showing the poitncloud
    */
-  virtual bool addBoundingBox(const bool minBB = 0);
+  virtual bool addBoundingBox(const int32_t typeBB = 2);
   /**
    * @brief quit - quits the module
    * @return true/false on success/failure of extracting features

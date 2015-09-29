@@ -65,15 +65,15 @@ bool ShowModule::addNormals(double radSearch, bool normCol)
     return true;
 }
 
-bool ShowModule::addFeats(double res)
+bool ShowModule::addFeats(double res, bool plotHist)
 {
-    visThrd->addOMSEGI(res);
+    visThrd->addOMSEGI(res,plotHist);
     return true;
 }
 
-bool ShowModule::addBoundingBox(bool minBB)
+bool ShowModule::addBoundingBox(int typeBB)
 {
-    visThrd->addBoundingBox(minBB);
+    visThrd->addBoundingBox(typeBB);
     return true;
 }
 

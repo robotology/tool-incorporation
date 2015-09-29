@@ -28,11 +28,12 @@ bool VisThread::threadInit()
     displayBB = false;
     displayNormals = false;
     displayOMSEGI = false;
+    displayHist = true;
     normalColors = false;
     normalsComputed = false;
 
     // Processing parameters
-    minimumBB = false;
+    styleBB = 2;
     radiusSearch = 0.01;
     resFeats = 0.01;
 
@@ -80,7 +81,7 @@ void VisThread::run()
                 // Compute and bounding box to display
                 if (displayBB)
                 {
-                    plotBB(minimumBB);
+                    plotBB(styleBB);
                     displayBB = false;
                 }
 
@@ -94,7 +95,7 @@ void VisThread::run()
                 // Compute and add normals to display
                 if (displayOMSEGI)
                 {
-                    plotOMSEGI(resFeats);
+                    plotOMSEGI(resFeats, displayHist);
                     displayOMSEGI = false;
                 }
 
@@ -155,7 +156,8 @@ void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
     if (!initialized)
     {
         // Set camera position and orientation
-        viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+        //viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+        viewer->setBackgroundColor (1,1,1, 0); // Setting background to a white
         viewer->addCoordinateSystem (0.05);
         initialized = true;
     }
@@ -178,13 +180,14 @@ void VisThread::addNormals(double rS, bool normCol)
     }
 }
 
-void VisThread::addOMSEGI(double res)
+void VisThread::addOMSEGI(double res, bool plotHist)
 {
      if (!normalsComputed){
         printf(" Need to compute the normals before computing OMS-EGIs" );
         return;
      }
     displayOMSEGI = true;
+    displayHist = plotHist;
     resFeats = res;        
     updateVis();
 }
@@ -267,10 +270,17 @@ void VisThread::plotNormals(double rS, bool normCol)
 }
 
 // Compute and display octree
-void VisThread::plotOMSEGI(double res)
+void VisThread::plotOMSEGI(double res, bool plotHist)
 {     
+
+    double cBB_min_x, cBB_min_y, cBB_min_z, cBB_max_x, cBB_max_y, cBB_max_z;
     pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(res);
     octree.setInputCloud(cloud);
+    octree.addPointsFromInputCloud();
+
+    octree.getBoundingBox(cBB_min_x, cBB_min_y, cBB_min_z, cBB_max_x, cBB_max_y, cBB_max_z);
+    octree.defineBoundingBox(cBB_min_x, cBB_min_y, cBB_min_z,
+                            cBB_max_x, cBB_max_y, cBB_max_z);
     octree.addPointsFromInputCloud();
   
     // Iterate through lower level leafs (voxels).
@@ -357,39 +367,43 @@ void VisThread::plotOMSEGI(double res)
           sphID << "sph" << voxelI;
           
           viewer->addCube(voxelCenter.x-res/2, voxelCenter.x+res/2, voxelCenter.y-res/2, voxelCenter.y+res/2, voxelCenter.z-res/2, voxelCenter.z+res/2, xn_r, yn_g, zn_b,voxID.str());       
-          viewer->addSphere(voxelCenter, res/4, xn_r, yn_g, zn_b, sphID.str());
+          if (plotHist){
+             viewer->addSphere(voxelCenter, res/4, xn_r, yn_g, zn_b, sphID.str());
+          }
           voxelI++;
     }
     viewer->removePointCloud(id);   
 }
 
 // Set flow to allow bounding box to be computed and added on display update.
-void VisThread::addBoundingBox(bool minBB)
+void VisThread::addBoundingBox(int typeBB)
 {
     if (initialized){
         displayBB = true;
-        minimumBB = minBB;
+        styleBB = typeBB;
 
         updateVis();
 
-        if (minBB)
+        if (typeBB == 0)
             printf("Minimal Bounding Box added to display\n");
-        else
+        else if (typeBB == 1)
             printf("Axis Aligned Bounding Box added to display\n");
+        else if (typeBB == 2)
+            printf("Cubic Axis Aligned Bounding Box added to display\n");
     }else{
         printf("Please load cloud to compute Bounding box from.\n");
     }
 }
 
 // Computes and display Bounding Box
-void VisThread::plotBB(bool minBB)
+void VisThread::plotBB(int typeBB)
 {
     // Create the feature extractor estimation class, and pass the input cloud to it
     pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
     feature_extractor.setInputCloud (cloud);
     feature_extractor.compute ();
 
-    if (minBB)          // Oriented bounding box (OBB)
+    if (typeBB == 0)          // Oriented bounding box (OBB)
     {   // Declare points and rotational matrix
         pcl::PointXYZRGB min_point_OBB;
         pcl::PointXYZRGB max_point_OBB;
@@ -404,7 +418,7 @@ void VisThread::plotBB(bool minBB)
         // Display oriented minimum boinding box
         viewer->addCube (position, quat, max_point_OBB.x - min_point_OBB.x, max_point_OBB.y - min_point_OBB.y, max_point_OBB.z - min_point_OBB.z, "OBB");
 
-    }else{              // Axis-aligned bounding box (AABB)
+    }else if (typeBB == 1){              // Axis-aligned bounding box (AABB)
         // Declare extrema points of AABB
         pcl::PointXYZRGB min_point_AABB;
         pcl::PointXYZRGB max_point_AABB;
@@ -413,7 +427,32 @@ void VisThread::plotBB(bool minBB)
         feature_extractor.getAABB (min_point_AABB, max_point_AABB);
 
         // Display axis aligned minimum boinding box
-        viewer->addCube (min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB");
+        viewer->addCube (min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 0,0,0, "AABB");
+    }else if (typeBB == 2){              // Cubic Axis Aligned Boundinb Box CAABB.
+        pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
+        feature_extractor.setInputCloud (cloud);
+        feature_extractor.compute ();
+
+        pcl::PointXYZRGB min_point_AABB;
+        pcl::PointXYZRGB max_point_AABB;
+        //pcl::PointXYZRGB min_point_CAABB;
+        //pcl::PointXYZRGB max_point_CAABB;
+        double mx,my,mz,MX,MY,MZ;
+        feature_extractor.getAABB (min_point_AABB, max_point_AABB);
+
+        pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(resFeats);
+        octree.setInputCloud(cloud);
+        octree.addPointsFromInputCloud();
+        octree.defineBoundingBox(min_point_AABB.x, min_point_AABB.y, min_point_AABB.z,
+                                 max_point_AABB.x, max_point_AABB.y, max_point_AABB.z);
+        octree.getBoundingBox(mx,my,mz,MX,MY,MZ);
+
+        cout << "AA BB: (" << min_point_AABB.x << "," << min_point_AABB.y << "," << min_point_AABB.z << "), (" << max_point_AABB.x << "," <<max_point_AABB.y << "," << max_point_AABB.z << ")" << endl;
+        cout << "Octree BB: (" << mx << "," << my << "," << mz << "), (" << MX << "," << MY << "," << MZ << ")" << endl;
+
+
+        //viewer->addCube(min_point_CAABB.x, max_point_CAABB.x, min_point_CAABB.y, max_point_CAABB.y, min_point_CAABB.z, max_point_CAABB.z, 1, 1, 1,"CAABB");
+        viewer->addCube(mx,MX,my,MY,mz,MZ, 1, 0, 0,"CAABB");
     }
 }
 

@@ -62,12 +62,13 @@ protected:
     bool updatingCloud;
     bool displayNormals;
     bool displayOMSEGI;
+    bool displayHist;
     bool normalColors;
     bool normalsComputed;
     bool displayBB;
 
     // Processing parameters
-    bool minimumBB;
+    int styleBB;
     double radiusSearch;
     float resFeats;
 
@@ -80,7 +81,7 @@ protected:
      * @brief plotBB - Computes and displays Bounding Box
      * @param minBB - true for oriented (minimum) boinding box. False for axis aligned bounding box
      */
-    void plotBB(bool minBB);            // Function called within the update loop.
+    void plotBB(int typeBB);            // Function called within the update loop.
 
     /**
      * @brief plotNormals - Computes and displays Normals
@@ -93,7 +94,7 @@ protected:
      * @brief plotOMSEGI - Displays the OMS-EGI features per octree voxel, as colored points where RGB represent the XYZ normal frequencies. 
      * @param res - resolution of the minimal octree division
      */
-    void plotOMSEGI(double res);      // Function called within the update loop.
+    void plotOMSEGI(double res = 0.02, bool plotHist = true);      // Function called within the update loop.
 
 public:
     // CONSTRUCTOR
@@ -116,14 +117,14 @@ public:
      * @brief addOMSEGI - Sets flow to allow voxel normal histograms to be computed and displayed on the visualizer
      * @param res - resolution onf the voxels within which the EGIs are computed
      */
-    void addOMSEGI(double res);         // Function called from main module to set parameters and unlock update
+    void addOMSEGI(double res = 0.01, bool plotHist = true);         // Function called from main module to set parameters and unlock update
 
 
     /**
      * @brief addBoundingBox - Sets flow to allow bounding box to be computed and added on display update.
      * @param minBB - true for oriented (minimum) boinding box. False for axis aligned bounding box
      */
-    void addBoundingBox(bool minBB);    // Function called from main module to set parameters and unlock update
+    void addBoundingBox(int typeBB);    // Function called from main module to set parameters and unlock update
 
     /**
      * @brief clearVisualizer - Clears all the figures (except the coordinate system) from the display.

@@ -68,8 +68,8 @@ public:
     bool clearVis();
     bool showFileCloud(const std::string &cloudname);
     bool addNormals(double radSearch, bool normCol);
-    bool addFeats(double res);
-    bool addBoundingBox(bool minBB);
+    bool addFeats(double res, bool plotHist);
+    bool addBoundingBox(int typeBB);
     //bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);
 
     // module control //
