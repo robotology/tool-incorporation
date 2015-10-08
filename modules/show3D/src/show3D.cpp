@@ -46,6 +46,8 @@ bool ShowModule::showFileCloud(const string& cloudname)
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
 
+    cout << "Attempting to load " << (cloudpath + cloudname).c_str() << "... "<< endl;
+
     if (!CloudUtils::loadCloud(cloudpath, cloudname, cloud_in)){
         printf ("Could not load the cloud");
         return false;
@@ -84,24 +86,38 @@ bool ShowModule::quit()
     return true;
 }
 
-    /************************************************************************/
-    //                      RF MOUDLE Commands
-    /************************************************************************/
-    bool ShowModule::configure(yarp::os::ResourceFinder &rf)
-    {
+/************************************************************************/
+//                      RF MOUDLE Commands
+/************************************************************************/
+bool ShowModule::configure(yarp::os::ResourceFinder &rf)
+{
     //Ports
     string name=rf.check("name",Value("show3D")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
-    cout << "robot: "<< robot.c_str() << endl;
+    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
+    rf.findFile(cloudpath_file.c_str());
+
+    ResourceFinder cloudsRF;
+    cloudsRF.setContext("objects3DModeler");
+    cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
+    cloudsRF.configure(0,NULL);
+
+    // Set the path that contains previously saved pointclouds
+    string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+    string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
+    string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
+
+    cloudpath  = icubContribEnvPath + localModelsPath;
+
 
     // XXX update this so it can get either a path specified by cloudsPath.ini, or as in 'objects3DExplorer', the installation one where sample clouds go.
-    if (strcmp(robot.c_str(),"icub")==0)
+    /*if (strcmp(robot.c_str(),"icub")==0)
         cloudpath = rf.find("clouds_path").asString();
     else
         cloudpath = "/home/icub/icubTanis/objects3DModeler/data/data50tools/modelData"; // rf.find("clouds_path_sim").asString();
+    */
 
-
-	handlerPort.open("/"+name+"/rpc:i");
+    handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
 
     cloudsInPort.open("/"+name+"/clouds:i");
@@ -122,63 +138,63 @@ bool ShowModule::quit()
         return false;
     }
     cout << "PCL visualizer Thread istantiated...\n";
-	cout << endl << "Configuring done."<<endl;
+    cout << endl << "Configuring done."<<endl;
 
     printf("Base path: %s \n \n",cloudpath.c_str());
 
     return true;
-    }
+}
 
-    double ShowModule::getPeriod()
+double ShowModule::getPeriod()
+{
+    return 0.5; //module periodicity (seconds)
+}
+
+bool ShowModule::updateModule()
+{
+    // read the cloudcas bottle
+    Bottle *cloudBottle=cloudsInPort.read(false);
+    if (cloudBottle!=NULL){
+        cout<< "Received Cloud... " << endl;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        CloudUtils::bottle2cloud(*cloudBottle,cloud);
+
+        visThrd->updateCloud(cloud);
+
+    }
+    return !closing;
+}
+
+bool ShowModule::interruptModule()
+{
+    closing = true;
+    handlerPort.interrupt();
+    cloudsInPort.interrupt();
+    cout<<"Interrupting your module, for port cleanup"<<endl;
+    return true;
+}
+
+
+bool ShowModule::close()
+{
+    cout<<"Calling close function\n";
+    cloudsInPort.close();
+    handlerPort.close();
+
+    if (visThrd)
     {
-        return 0.5; //module periodicity (seconds)
+        visThrd->stop();
+        delete visThrd;
+        visThrd =  0;
     }
 
-    bool ShowModule::updateModule()
-    {
-        // read the cloudcas bottle
-        Bottle *cloudBottle=cloudsInPort.read(false);
-        if (cloudBottle!=NULL){
-            cout<< "Received Cloud... " << endl;
-            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-            CloudUtils::bottle2cloud(*cloudBottle,cloud);
+    return true;
+}
 
-            visThrd->updateCloud(cloud);
-
-        }
-        return !closing;
-    }
-
-    bool ShowModule::interruptModule()
-    {
-        closing = true;
-        handlerPort.interrupt();
-        cloudsInPort.interrupt();
-        cout<<"Interrupting your module, for port cleanup"<<endl;
-        return true;
-    }
-
-    
-    bool ShowModule::close()
-    {
-        cout<<"Calling close function\n";
-        cloudsInPort.close();
-        handlerPort.close();
-
-        if (visThrd)
-        {
-            visThrd->stop();
-            delete visThrd;
-            visThrd =  0;
-        }
-
-        return true;
-    }
-
-    bool ShowModule::attach(RpcServer &source)
-    {
-        return this->yarp().attachAsServer(source);
-    }
+bool ShowModule::attach(RpcServer &source)
+{
+    return this->yarp().attachAsServer(source);
+}
 
 
 /************************************************************************/

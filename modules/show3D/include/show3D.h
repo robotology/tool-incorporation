@@ -28,6 +28,7 @@
 #include <yarp/os/Module.h>
 #include <yarp/os/Vocab.h>
 #include <yarp/os/RateThread.h>
+#include <yarp/os/all.h>
 
 #include <pcl/io/io.h>
 #include <pcl/io/ply_io.h>

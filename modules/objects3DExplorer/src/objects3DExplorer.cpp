@@ -386,6 +386,25 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 		    return false;
 		}
 
+    }else if (receivedCmd == "loadFromFile"){
+        string cloud_file_name = command.get(1).asString();
+        cout << "Attempting to load " << (cloudsPathFrom + cloud_file_name).c_str() << "... "<< endl;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_file (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+        // load cloud to be displayed
+        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_file_name, cloud_file))  {
+            cout << "cloud of size "<< cloud_file->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
+        } else{
+            std::cout << "Error loading point cloud " << cloud_file_name.c_str() << endl << endl;
+            return false;
+        }
+
+        // Display the merged cloud
+        showPointCloud(cloud_file);
+        reply.addString(" [ack] Cloud successfully displayed");
+        return true;
+
+
     }else if (receivedCmd == "mergeFromFiles"){
         string cloud_from_name = command.get(1).asString();
         string cloud_to_name = command.get(2).asString();
