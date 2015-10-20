@@ -69,7 +69,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     //ports
     bool ret = true;
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                    // port to receive pointclouds from
-    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                   // port to receive pointclouds from
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                   // port to send pointclouds to
     if (!ret){
         printf("\nProblems opening ports\n");
         return false;
@@ -487,7 +487,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 /************************************************************************/
 
 // XXX Integrate object3Dexplorer into tool3DModeler, and actually name it object3Dmodeler.
-// For that, modify both explorations with a 'bool tool' parameter, to choose between on hand or on table xploration
+// For that, modify both explorations with a 'bool tool' parameter, to choose between on hand or on table exploration
 // That implies whether the arm will be moved around, and more importantly, whether the clouds are normalized to the root or the hand frames.
 
 bool Objects3DExplorer::exploreAutomatic()
@@ -506,10 +506,9 @@ bool Objects3DExplorer::exploreAutomatic()
         getPointCloud();
         showPointCloud(cloud_in);
         *cloud_merged = *cloud_in;  //Initialize cloud merged
-        CloudUtils::savePointsPly(cloud_merged,cloudsPathTo, mergedName,NO_FILENUM);
+        CloudUtils::savePointsPly(cloud_merged, cloudsPathTo, mergedName, NO_FILENUM);
         initDone = true;
         printf("Base cloud initialized \n");
-
     }
 
     // Perform Automatic Exploration
@@ -521,7 +520,7 @@ bool Objects3DExplorer::exploreAutomatic()
         getPointCloud();
         showPointCloud(cloud_in);
         printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-        CloudUtils::savePointsPly(cloud_in,cloudsPathTo, cloudName, numCloudsSaved);
+        CloudUtils::savePointsPly(cloud_in, cloudsPathTo, cloudName, numCloudsSaved);
 
         // Aling last reconstructred cloud and merge it with the existing cloud_merged
         Eigen::Matrix4f alignMatrix;

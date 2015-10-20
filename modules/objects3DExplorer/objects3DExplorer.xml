@@ -29,8 +29,8 @@
             <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point </description>
         </input>   
         <!-- output data if available -->        
-        <output port_type="service">
-            <type>rpc</type>
+        <output>
+            <type>Bottle</type>
             <port>/objects3DExplorer/clouds:o</port>
             <description> Send out the latest reconstructed mesh, for visualization or further processing</description>
         </output>

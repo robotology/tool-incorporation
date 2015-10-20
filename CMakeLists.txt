@@ -24,6 +24,7 @@ icubcontrib_set_default_prefix()
 option (BUILD_OBJECTS3DEXPLORER "Build objects 3D Explorer" ON)
 option (BUILD_SHOW3D "Build 3D show module" ON)
 option (BUILD_TOOLFEATEXT "Build tool feature extractor" ON)
+option (BUILD_OBJFUS3D "Build object Fusion 3D" ON)
 
 # build the library 
 add_subdirectory(libYarpCloud)
@@ -39,6 +40,10 @@ endif()
 
 if(BUILD_TOOLFEATEXT)
     add_subdirectory(modules/toolFeatExt)
+endif()
+
+if(BUILD_OBJFUS3D)
+    add_subdirectory(modules/objFus3D)
 endif()
 
 ## then apps

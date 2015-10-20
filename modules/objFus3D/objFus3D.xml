@@ -1,0 +1,82 @@
+<module>
+    <!-- module's name should match its executable file's name. -->
+    <name>objFus3D</name>
+    <description> Performs object 3D reconstuction and fusion from depth images</description>
+    <version>1.0</version>
+
+    <!-- <arguments> can have multiple <param> tags-->
+    <arguments>
+        <param desc="Name of the module" default="objFus3D"> name</param>
+        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="objects3DModeler"> context </param>
+    </arguments>
+
+    <!-- <authors> can have multiple <author> tags. -->
+    <authors>
+	  <author email="tanis.mar@iit.it"> Tanis Mar</author>
+    </authors>
+
+     <!-- <data> can have multiple <input> or <output> tags. -->
+     <data>
+        <!-- input data if available -->
+        <input port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/objFus3D/rpc:i</port>
+            <description>takes RPC commands from Human or stateMachine</description>
+        </input> 
+
+        <input>
+            <type>Bottle</type>
+            <port>/objFus3D/coords:i</port>
+            <description>reads click coordinates </description>
+        </input> 
+        <!-- <input>
+            <type>Bottle</type>
+            <port>/objFus3D/track:i</port>
+            <description>reads coordinates sent by a tracker</description>
+        </input> 
+        -->
+        <input>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/objFus3D/img:i</port>
+            <description> Receives the camera image to propagate or prepare the template.</description>
+        </input>
+        <input>
+            <type>Bottle</type>
+            <port>/objFus3D/clouds:i</port>
+            <description>reads clouds in Bottle format</description>
+        </input>     
+    
+        <!-- output data if available -->
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/objFus3D/obj3Drec:rpc</port>
+            <description> Send commands to obj3D rec to obtain a poincloud from the depth image</description>
+        </output>
+
+        <output>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/objFus3D/crop:o</port>
+            <description>Sends out the desired image crop to initialize a tracker</description>
+        </output> 
+        <output>
+            <type>Bottle</type>
+            <port>/objFus3D/clouds:o</port>
+            <description> Outputs clouds in Bottle format</description>
+        </output>
+
+
+    </data>
+    <dependencies>
+        <computer>
+        </computer>
+    </dependencies>
+
+    <!-- specific libraries or header files which are used for development -->
+    <development>
+        <header></header>
+        <library>YARP</library>
+        <library>PCL 1.7</library>
+    </development>
+
+</module>
+

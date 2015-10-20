@@ -152,7 +152,7 @@ double ShowModule::getPeriod()
 
 bool ShowModule::updateModule()
 {
-    // read the cloudcas bottle
+    // read the cloud as bottle
     Bottle *cloudBottle=cloudsInPort.read(false);
     if (cloudBottle!=NULL){
         cout<< "Received Cloud... " << endl;
