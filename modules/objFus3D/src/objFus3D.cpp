@@ -154,7 +154,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 0.2; //module periodicity (seconds)
+    return 0.5; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
