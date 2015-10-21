@@ -104,6 +104,7 @@ protected:
     bool initAlignment;
     double resolution;
 
+    //bool trackerInit;
     int NO_FILENUM;
     int STATE;
 

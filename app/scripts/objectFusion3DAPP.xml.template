@@ -1,9 +1,9 @@
 <application>
-    <name>objectFusionAPP(1)</name>
+    <name>objectFusionAPP</name>
     <module>
         <name>SFM</name>
         <parameters></parameters>
-        <node></node>
+        <node>console</node>
         <prefix></prefix>
         <geometry>(Pos (x 615) (y 345.9))</geometry>
     </module>
@@ -27,6 +27,13 @@
         <node>console</node>
         <prefix></prefix>
         <geometry>(Pos (x 390) (y 165.9))</geometry>
+    </module>
+    <module>
+        <name>show3D</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 841) (y 368.9))</geometry>
     </module>
     <module>
         <name>templatePFTracker</name>
@@ -76,7 +83,7 @@
         <geometry>(Pos ((x 525) (y 390)) ((x 544) (y 221)) ((x 527) (y 559))  )</geometry>
     </connection>
     <connection>
-        <from>/objFus3D/obj3Drec:rpc</from>
+        <from>/objFus3D/objrec:rpc</from>
         <to>/obj3Drec/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 634) (y 196.5)) ((x 539) (y 195)) ((x 750) (y 198))  )</geometry>
@@ -142,7 +149,7 @@
         <geometry>(Pos ((x 561) (y 415.5)) ((x 752) (y 622)) ((x 391) (y 209))  )</geometry>
     </connection>
     <connection>
-        <from external="true">/imLeft/yarpview/out</from>
+        <from external="true">/imLeft/out</from>
         <to>/objFus3D/coords:i</to>
         <protocol></protocol>
         <geometry>(Pos ((x 304) (y 147)) ((x 217) (y 85)) ((x 391) (y 209))  )</geometry>
@@ -152,6 +159,12 @@
         <to>/SFM/left:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x 396) (y 362.5)) ((x 197) (y 361)) ((x 616) (y 364))  )</geometry>
+    </connection>
+    <connection>
+        <from>/obj3Drec/clouds:o</from>
+        <to>/show3D/clouds:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 698.5) (y 390)) ((x 577) (y 394)) ((x 841) (y 386))  )</geometry>
     </connection>
     <connection>
         <from external="true">/icub/camcalib/right/out</from>

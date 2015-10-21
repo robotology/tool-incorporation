@@ -43,8 +43,11 @@ bool FusionModule::restart()
     visThrd->clearVisualizer();
     // return to initial state
     STATE = 0;
+    // trackerInit = false;
     return true;
 }
+
+
 
 // Save (string)-> save the cloud at current point with given name (or default) and go on merging.
 
@@ -124,7 +127,6 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     ret = ret && imgInPort.open("/"+name+"/img:i");
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                    // port to receive pointclouds from
 
-    ret = ret && cloudsOutPort.open(("/"+name+"/coords:o").c_str());                   // port to send pointclouds to
     ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                   // port to send pointclouds to
     ret = ret && cropOutPort.open(("/"+name+"/crop:o").c_str());                        // port to send croped image for template
     if (!ret){
@@ -152,6 +154,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
     // Init variables
     STATE = 0;
+    // trackerInit = false;
     NO_FILENUM = -1;
 
     cloud_raw = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
@@ -179,7 +182,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 0.5; //module periodicity (seconds)
+    return 2.0; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -187,8 +190,14 @@ bool FusionModule::interruptModule()
     closing = true;
     rpcInPort.interrupt();
     rpcObjRecPort.interrupt();
+
+    coordsInPort.interrupt();
     cloudsInPort.interrupt();
+    imgInPort.interrupt();
+
     cloudsOutPort.interrupt();
+    cropOutPort.interrupt();
+
     cout<<"Interrupting your module, for port cleanup"<<endl;
     return true;
 }
@@ -200,8 +209,12 @@ bool FusionModule::close()
 
     rpcInPort.close();
     rpcObjRecPort.close();
+
     cloudsInPort.close();
+    coordsInPort.close();
+    imgInPort.close();
     cloudsOutPort.close();
+    cropOutPort.close();
 
     if (visThrd)
     {
@@ -221,48 +234,71 @@ bool FusionModule::attach(RpcServer &source)
 /**********************************************************************/
 bool FusionModule::updateModule()
 {
+    if (STATE = 0){
+        if (startTracker()){
+            STATE = 1;
+        }        
+    }
+        
 
     // STATE = init
-    if (STATE == 0)
+    if (STATE == 1)
     {
         // Set template to track object
         // XXX this could also be initialized to a motionCUT BoundingBox center, or from the segmetator module.
+        cout << "Initializing the tracker" << endl;
         startTracker();
+        cout << "Tracker initialized" << endl;
 
         // call obj3Drec with "seg" and the seed to obtain the first cloud
+        cout << "Retriveing pointcloud" << endl;
         getPointCloud(cloud_raw);
+        cout << "Pointcloud Retrieved" << endl;
 
         // perform filtering on the 3D cloud to further reduce noise
+        cout << "Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_merged);       // This cloud will be the initial model.        
+        cout << "Pointcloud Filtered" << endl;
         visThrd->updateCloud(cloud_merged);
-        // cin << "Press any key to continue... " < endl;
+        string key;
+        cout << "Press any key to continue... " << endl;
+        cin >> key;        
 
         // Downsamlpe / smooth cloud
+        cout << "Downsampling pointcloud" << endl;
         downsampleCloud(cloud_merged, cloud_merged, resolution);
+        cout << "Pointcloud Downsampled" << endl;
 
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        // cin << "Press any key to continue... " < endl;
+        cout << "Press any key to continue... " << endl;
+        cin >> key;
 
-        STATE == 1;
+        STATE == 2;
     }
 
     // STATE = FUSION
-    if (STATE == 1)
+    if (STATE == 2)
     {
         if (paused)
             return 1;
 
         // Get new cloud from obj3Drec from tracking coords
+        cout << "Retriveing pointcloud" << endl;
         getPointCloud(cloud_raw);
+        cout << "Pointcloud Retrieved" << endl;
 
         // XXX Eventually, backrpoject 3D image and get all blobs which fall to some extent within the backrpojected blob.
         // XXX Proper 2D tracker-segmentation could be done simultanoeusly to improve both.
         // XXX Moreover, 3D backprojection could be used to further improve estimated blob and predict next
 
         // filter received cloud
-        filterCloud(cloud_raw, cloud_in);
-        //
+        cout << "Filtering pointcloud" << endl;
+        filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model.        
+        cout << "Pointcloud Filtered" << endl;
+        string key;
+        cout << "Press any key to continue... " << endl;
+        cin >> key;
 
         // Align and merge new cloud to model.
         //  - Use multi-scale ICP for merging.
@@ -273,21 +309,31 @@ bool FusionModule::updateModule()
         Eigen::Matrix4f transfMatrix;
 
         // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
-        if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)) // Align
+        cout << "Aligning pointcloud" << endl;
+        if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)){ // Align
+            cout << "Pointcloud not aligned" << endl;
             return true;        // If alignment didnt converge, skip merging
+        }
+        cout << "Pointcloud aligned" << endl;
         *cloud_merged += *cloud_aligned;                                          // Merge
+        cout << "Pointcloud not merged" << endl;
+
+        cout << "Downsampling pointcloud" << endl;
         downsampleCloud(cloud_merged,cloud_merged,resolution);                    // Smooth and downsample.
+        cout << "Downsampling pointcloud" << endl;
 
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        // cin << "Press any key to continue... " < endl;
+        cout << "Press any key to continue... " << endl;
+        cin >> key;
 
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
         pcl::transformPointCloud(*cloud_merged, *cloud_merged, transfMatrix);   // XXX ??? check if transfMatrix is correct, or needs to be the opposite.
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        // cin << "Press any key to continue... " < endl;
+        cout << "Press any key to continue... " << endl;
+        cin >> key;
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -350,6 +396,8 @@ bool FusionModule::startTracker()
         Time::delay(0.1);
     }
 
+    //    trackerInit = true;
+
     return true;
 }
 
@@ -361,7 +409,6 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
 
     // Retrieves and relays the 2D coordinates of the object tracked by the tracker
     cv::Point coords2D;
-    // Bottle &out  = coordsOutPort.prepare();
     if(verbose==1){printf("Getting 2D coords of tracked object!!\n");}
     Bottle *trackCoords = coordsInPort.read(true);
     coords2D.x =  trackCoords->get(0).asInt();
