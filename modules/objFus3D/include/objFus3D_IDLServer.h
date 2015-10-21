@@ -16,42 +16,27 @@ class objFus3D_IDLServer;
 class objFus3D_IDLServer : public yarp::os::Wire {
 public:
   objFus3D_IDLServer();
+  virtual bool save(const std::string& name = "model");
   /**
-   * @brief clearVis - Clears all clouds and effects from the visualizer.
-   * @return true/false on success/failure of extracting features
+   * @brief restart - Clears all clouds and visualizer and restarts a new reconstruction.
+   * @return true/false on success/failure of cleaning and restarting
    */
-  virtual bool clearVis();
+  virtual bool restart();
   /**
-   * @brief accumClouds - Selects between plotting clouds together or not
-   * @param accum - (bool) true to plot clouds together and false to clear the visualizer for every new cloud (default =false)
+   * @brief pause - Pauses recosntruction/merging until it is called again.
+   * @return true/false on success/failure of pausing.
+   */
+  virtual bool pause();
+  /**
+   * @brief verb - switches verbose between ON and OFF
    * @return true/false on success/failure of setting verbose
    */
-  virtual bool accumClouds(const bool accum = 0);
+  virtual bool verb();
   /**
-   * @brief showFileCloud - Opens the visualizer and displays a PointCloud from a file
-   * @param cloudname - (string) name of the .ply or .pcd file containg the desired cloud to be shown (default "cloud.ply")
-   * @return true/false on showing the poitncloud
+   * @brief initAlign - Set initial feature based alignment ON/OFF
+   * @return true/false on success/failure of (de)activating alingment.
    */
-  virtual bool showFileCloud(const std::string& cloudname = "cloud.ply");
-  /**
-   * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
-   * @param radSearch - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
-   * @param normalColors - (bool) Expresses whether the normals should be expressed as a vector, or as color gradients on the cloud.
-   * @return true/false on showing the poitncloud
-   */
-  virtual bool addNormals(const double radSearch = 0.01, const bool normCol = 0);
-  /**
-   * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
-   * @param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
-   * @return true/false on showing the poitncloud
-   */
-  virtual bool addFeats(const double res = 0.01, const bool plotHist = 1);
-  /**
-   * @brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one.
-   * @param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2),
-   * @return true/false on showing the poitncloud
-   */
-  virtual bool addBoundingBox(const int32_t typeBB = 2);
+  virtual bool initAlign();
   /**
    * @brief quit - quits the module
    * @return true/false on success/failure of extracting features

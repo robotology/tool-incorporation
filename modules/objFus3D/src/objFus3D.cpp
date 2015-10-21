@@ -29,35 +29,56 @@ using namespace iCub::YarpCloud;
 
 //                          THRIFT RPC CALLS
 /************************************************************************/
-bool FusionModule::accumClouds(bool accum)
-{
-    visThrd->accumulateClouds(accum);
-    return true;
-}
 
-bool FusionModule::clearVis()
+
+// Restart -> clear everything and go to STATE = 0
+bool FusionModule::restart()
 {
+    // clear all clouds
+    cloud_in->points.clear();          cloud_in->clear();       // Clear cloud in
+    cloud_raw->points.clear();         cloud_raw->clear();      // Clear cloud raw
+    cloud_aligned->points.clear();     cloud_aligned->clear();  // Clear cloud aligned
+    cloud_merged->points.clear();      cloud_merged->clear();   // Clear cloud merged
+    // clear visualizer
     visThrd->clearVisualizer();
+    // return to initial state
+    STATE = 0;
     return true;
 }
 
+// Save (string)-> save the cloud at current point with given name (or default) and go on merging.
 
-
-bool FusionModule::addNormals(double radSearch, bool normCol)
+// pause -> pause reconstruction/merging, but leave everything as it is.
+bool FusionModule::save(const string &name)
 {
-    visThrd->addNormals(radSearch, normCol);
+    saving  =  true;
+    filename  = name;
+
+    cout << "Saving cloud at  " << (cloudpath+filename).c_str() << endl;
     return true;
 }
 
-bool FusionModule::addFeats(double res, bool plotHist)
+// pause -> pause reconstruction/merging, but leave everything as it is.
+bool FusionModule::pause()
 {
-    visThrd->addOMSEGI(res,plotHist);
+    paused = !paused;
+    cout << "Pausing is " << paused << endl;
     return true;
 }
 
-bool FusionModule::addBoundingBox(int typeBB)
+// setVerbose -> sets verbose ON or OFF
+bool FusionModule::verb()
 {
-    visThrd->addBoundingBox(typeBB);
+    verbose = !verbose;
+    cout << "Verbose set to "<< verbose << endl;
+    return true;
+}
+
+// setVerbose -> sets initAlginment ON or OFF
+bool FusionModule::initAlign()
+{
+    initAlignment = !initAlignment;
+    cout << "Initial Alignment set to "<< initAlignment << endl;
     return true;
 }
 
@@ -77,6 +98,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     string name=rf.check("name",Value("objFus3D")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
     verbose = rf.check("verbose", Value(true)).asBool();
+    filename = rf.check("filename",Value("model")).asString().c_str();
     string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
@@ -124,15 +146,18 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
     // Module rpc parameters
     closing = false;
-    initAlignment =true;
-    resolution =rf.check("resolution",Value(0.001)).asDouble();
+    paused = false;
+    initAlignment = true;
+    resolution = rf.check("resolution",Value(0.001)).asDouble();
 
     // Init variables
     STATE = 0;
+    NO_FILENUM = -1;
 
+    cloud_raw = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
     cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-    //cloud_temp = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
     cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+    cloud_aligned = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
 
     //Threads
@@ -205,7 +230,6 @@ bool FusionModule::updateModule()
         startTracker();
 
         // call obj3Drec with "seg" and the seed to obtain the first cloud
-        // XXX Bilateral filter can/should be added to obj3Drec to improve cloud quality while keeping edges.
         getPointCloud(cloud_raw);
 
         // perform filtering on the 3D cloud to further reduce noise
@@ -219,11 +243,16 @@ bool FusionModule::updateModule()
         // Update viewer
         visThrd->updateCloud(cloud_merged);
         // cin << "Press any key to continue... " < endl;
+
+        STATE == 1;
     }
 
     // STATE = FUSION
     if (STATE == 1)
     {
+        if (paused)
+            return 1;
+
         // Get new cloud from obj3Drec from tracking coords
         getPointCloud(cloud_raw);
 
@@ -245,9 +274,9 @@ bool FusionModule::updateModule()
 
         // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
         if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)) // Align
-            return true;        // If alignment didnt work, skip merging
+            return true;        // If alignment didnt converge, skip merging
         *cloud_merged += *cloud_aligned;                                          // Merge
-        downsampleCloud(cloud_merged,cloud_merged,resolution);                  // Smooth and downsample.
+        downsampleCloud(cloud_merged,cloud_merged,resolution);                    // Smooth and downsample.
 
         // Update viewer
         visThrd->updateCloud(cloud_merged);
@@ -255,10 +284,15 @@ bool FusionModule::updateModule()
 
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
-        pcl::transformPointCloud(*cloud_merged, *cloud_merged, transfMatrix);   // ??? check if transfMatrix is correct, or needs to be the opposite.
+        pcl::transformPointCloud(*cloud_merged, *cloud_merged, transfMatrix);   // XXX ??? check if transfMatrix is correct, or needs to be the opposite.
         // Update viewer
         visThrd->updateCloud(cloud_merged);
         // cin << "Press any key to continue... " < endl;
+
+        if (saving){
+            CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
+            saving = false;
+        }
     }
     return !closing;
 }
@@ -322,8 +356,8 @@ bool FusionModule::startTracker()
 /************************************************************************/
 bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_read)
 {    
-    cloud_read->points.clear();
-    cloud_read->clear();   // clear receiving cloud
+    cloud_read->points.clear(); // clear receiving cloud
+    cloud_read->clear();
 
     // Retrieves and relays the 2D coordinates of the object tracked by the tracker
     cv::Point coords2D;
@@ -336,8 +370,14 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
 
     // requests 3D reconstruction to objectReconst module    
     Bottle cmdOR, replyOR;
+
     cmdOR.clear();	replyOR.clear();
-    cmdOR.addString("seg");
+    cmdOR.addString("setFormat");               // Set command to ask obj3Drec not to save files
+    cmdOR.addString("none");
+    rpcObjRecPort.write(cmdOR,replyOR);
+
+    cmdOR.clear();	replyOR.clear();
+    cmdOR.addString("seg");                     // Set command to ask obj3Drec get cloud contour from segmentation algorithm.
     cmdOR.addInt(coords2D.x);
     cmdOR.addInt(coords2D.y);
     rpcObjRecPort.write(cmdOR,replyOR);
@@ -416,12 +456,12 @@ bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     us.setRadiusSearch(res);
     us.compute(sampled_indices);
     pcl::copyPointCloud (*cloud_orig, sampled_indices.points, *cloud_ds);
-    if (verbose){std::cout << "Model total points: " << cloud_orig->size () << "; Downsampled to: " << cloud_ds->size () << std::endl;}
+    if (verbose){cout << "Model total points: " << cloud_orig->size () << "; Downsampled to: " << cloud_ds->size () << endl;}
     return true;
 }
 
 /************************************************************************/
-bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat)
+bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat)
 {
     Eigen::Matrix4f initial_T;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_IA (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -488,7 +528,7 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
         icp.setInputSource(cloud_source);
     }
     icp.setInputTarget(cloud_target);
-    icp.align(*cloud_aligned);
+    icp.align(*cloud_align);
 
     if (!icp.hasConverged())
         return -1;

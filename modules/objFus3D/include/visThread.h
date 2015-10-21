@@ -16,8 +16,8 @@
  * Public License for more details
 */
 
-#ifndef __PCLVISTHRD_H__
-#define __PCLVISTHRD_H__
+#ifndef __OBJFUSVISTHRD_H__
+#define __OBJFUSVISTHRD_H__
 
 // Includes
 
@@ -34,8 +34,6 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/features/moment_of_inertia_estimation.h>
 
 
 class VisThread: public yarp::os::RateThread
@@ -51,50 +49,19 @@ protected:
 
     // Visualizer global variables
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_normalColors;
-    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals;
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
     // Flow control flags
     bool initialized;
-    bool addClouds;
     bool clearing;
     bool updatingCloud;
-    bool displayNormals;
-    bool displayOMSEGI;
-    bool displayHist;
-    bool normalColors;
-    bool normalsComputed;
-    bool displayBB;
 
-    // Processing parameters
-    int styleBB;
-    double radiusSearch;
-    float resFeats;
 
     /**
      * @brief updateVis -  Unlocks the mutex on a cycle so that the visualizer and its contents can be updated
      */
     void updateVis();
 
-    /**
-     * @brief plotBB - Computes and displays Bounding Box
-     * @param minBB - true for oriented (minimum) boinding box. False for axis aligned bounding box
-     */
-    void plotBB(int typeBB);            // Function called within the update loop.
-
-    /**
-     * @brief plotNormals - Computes and displays Normals
-     * @param rS - radiusSearch for consider nerighbors to compute surface normal.
-     * @param normCol - normCol determines if normals are plotted as vectors or as RGB color.
-     */
-    void plotNormals(double rS, bool normCol = false);        // Function called within the update loop.
-    
-     /**
-     * @brief plotOMSEGI - Displays the OMS-EGI features per octree voxel, as colored points where RGB represent the XYZ normal frequencies. 
-     * @param res - resolution of the minimal octree division
-     */
-    void plotOMSEGI(double res = 0.02, bool plotHist = true);      // Function called within the update loop.
 
 public:
     // CONSTRUCTOR
@@ -107,26 +74,6 @@ public:
     virtual void threadRelease();
 
     /**
-     * @brief addNormals - Sets flow to allow normals to be computed and displayed on the visualizer.
-     * @param rS - radiusSearch for consider nerighbors to compute surface normal.
-     * @param normCol - determines whether the normals will be shown as vectors or colorwise.
-     */
-    void addNormals(double rS, bool normCol = false);         // Function called from main module to set parameters and unlock update
-
-    /**
-     * @brief addOMSEGI - Sets flow to allow voxel normal histograms to be computed and displayed on the visualizer
-     * @param res - resolution onf the voxels within which the EGIs are computed
-     */
-    void addOMSEGI(double res = 0.01, bool plotHist = true);         // Function called from main module to set parameters and unlock update
-
-
-    /**
-     * @brief addBoundingBox - Sets flow to allow bounding box to be computed and added on display update.
-     * @param minBB - true for oriented (minimum) boinding box. False for axis aligned bounding box
-     */
-    void addBoundingBox(int typeBB);    // Function called from main module to set parameters and unlock update
-
-    /**
      * @brief clearVisualizer - Clears all the figures (except the coordinate system) from the display.
      */
     void clearVisualizer();
@@ -136,13 +83,6 @@ public:
      * @param cloud_in - Input cloud to be displayed
      */
     void updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in);
-
-    /**
-     * @brief accumulateClouds - Selects between displaying clouds together or not
-     * @param accum - True to accumulate clouds on display. False to display them independently
-     */
-    void accumulateClouds(bool accum);
-
 
 };
 

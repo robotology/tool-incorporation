@@ -75,10 +75,6 @@ class FusionModule : public yarp::os::RFModule, public objFus3D_IDLServer
 {
 protected:
 
-    // config variables
-    bool                                verbose;
-    std::string cloudpath; //path to folder with .ply files
-
     // module parameters
     VisThread *visThrd;
 
@@ -95,12 +91,20 @@ protected:
     yarp::os::RpcServer                 rpcInPort;              // port to handle incoming commands
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
 
+
+    // config variables
+    bool        verbose;
+    std::string cloudpath;      //path to folder with .ply files
+    std::string filename;       //name of file to save recosntructed model.
+
     // Workflow variables
+    bool saving;
     bool closing;
+    bool paused;
     bool initAlignment;
     double resolution;
 
-    //vector<cv::Point> clickList;
+    int NO_FILENUM;
     int STATE;
 
     // Algorithm variables
@@ -109,29 +113,25 @@ protected:
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_raw;      // Merged pointcloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_aligned;  // Cloud in after alignment
 
-
-    // XXX define cloud aligned and transform matrix.
-
     /* functions */
     //bool                read(yarp::os::ConnectionReader &connection);
     bool                startTracker();
     bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_read);
     bool                filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filter);
-    bool                downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res = 0.001);
+    bool                downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res = 0.001);    
 
-    bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat);
+    bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat);
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
 
-
 public:
 
-    // RPC Accesible methods
-    bool accumClouds(bool accum);
-    bool clearVis();
-    bool addNormals(double radSearch, bool normCol);
-    bool addFeats(double res, bool plotHist);
-    bool addBoundingBox(int typeBB);
+    // Thrift commands
+    bool                        restart();
+    bool                        save(const std::string &name);
+    bool                        pause();
+    bool                        verb();
+    bool                        initAlign();
 
     // module control //
     bool						attach(yarp::os::RpcServer &source);
