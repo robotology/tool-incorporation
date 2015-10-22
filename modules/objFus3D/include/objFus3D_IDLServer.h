@@ -16,9 +16,18 @@ class objFus3D_IDLServer;
 class objFus3D_IDLServer : public yarp::os::Wire {
 public:
   objFus3D_IDLServer();
+  /**
+   * save (string name) - saved the current merged cloud into file of given name
+   * @return true/false on success/failure of saving cloud
+   */
   virtual bool save(const std::string& name = "model");
   /**
-   * @brief restart - Clears all clouds and visualizer and restarts a new reconstruction.
+   * @brief track - ask the user to select the bounding box and starts tracker on template
+   * @return true/false on success/failure of starting tracker
+   */
+  virtual bool track();
+  /**
+   * @brief restart - Clears all clouds and visualizer, restarts tracker and restarts a new reconstruction.
    * @return true/false on success/failure of cleaning and restarting
    */
   virtual bool restart();

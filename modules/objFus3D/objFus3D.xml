@@ -29,13 +29,12 @@
             <port>/objFus3D/coords:i</port>
             <description>reads click coordinates </description>
         </input> 
-        <!-- <input>
+        <input>
             <type>Bottle</type>
             <port>/objFus3D/track:i</port>
-            <description>reads coordinates sent by a tracker</description>
+            <description>reads target coordinates from tracker</description>
         </input> 
-        -->
-        <input>
+         <input>
             <type>ImageOfPixelRgb</type>
             <port carrier="udp">/objFus3D/img:i</port>
             <description> Receives the camera image to propagate or prepare the template.</description>
@@ -49,7 +48,7 @@
         <!-- output data if available -->
         <output port_type="service">
             <type>rpc</type>
-            <port>/objFus3D/obj3Drec:rpc</port>
+            <port>/objFus3D/objrec:rpc</port>
             <description> Send commands to obj3D rec to obtain a poincloud from the depth image</description>
         </output>
 
@@ -79,4 +78,5 @@
     </development>
 
 </module>
+
 

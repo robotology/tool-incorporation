@@ -47,6 +47,21 @@ bool FusionModule::restart()
     return true;
 }
 
+// pause -> pause reconstruction/merging, but leave everything as it is.
+bool FusionModule::track()
+{
+    cout << "calling startTracker" <<endl;   
+    if (!startTracker())
+    { 
+        tracking = false;
+        cout << "Failed to initialize tracking" <<endl;    
+        return false; 
+    }
+    tracking = true;
+    cout << "Tracking initialized successfully" <<endl;
+    return true;         
+
+}
 
 
 // Save (string)-> save the cloud at current point with given name (or default) and go on merging.
@@ -124,6 +139,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     //ports
     bool ret = true;
     ret = ret && coordsInPort.open("/"+name+"/coords:i");
+    ret = ret && trackerInPort.open("/"+name+"/track:i");
     ret = ret && imgInPort.open("/"+name+"/img:i");
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                    // port to receive pointclouds from
 
@@ -149,6 +165,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     // Module rpc parameters
     closing = false;
     paused = false;
+    tracking = false;
     initAlignment = true;
     resolution = rf.check("resolution",Value(0.001)).asDouble();
 
@@ -192,6 +209,7 @@ bool FusionModule::interruptModule()
     rpcObjRecPort.interrupt();
 
     coordsInPort.interrupt();
+    trackerInPort.interrupt();
     cloudsInPort.interrupt();
     imgInPort.interrupt();
 
@@ -212,6 +230,7 @@ bool FusionModule::close()
 
     cloudsInPort.close();
     coordsInPort.close();
+    trackerInPort.close();
     imgInPort.close();
     cloudsOutPort.close();
     cropOutPort.close();
@@ -234,21 +253,19 @@ bool FusionModule::attach(RpcServer &source)
 /**********************************************************************/
 bool FusionModule::updateModule()
 {
-    if (STATE = 0){
-        if (startTracker()){
+    if (STATE == 0){
+        // Set template to track object
+        // XXX this could also be initialized to a motionCUT BoundingBox center, or from the segmetator module.
+        if (tracking){
             STATE = 1;
         }        
     }
         
+    cout << "Running on STATE: " << STATE <<endl;
 
     // STATE = init
     if (STATE == 1)
     {
-        // Set template to track object
-        // XXX this could also be initialized to a motionCUT BoundingBox center, or from the segmetator module.
-        cout << "Initializing the tracker" << endl;
-        startTracker();
-        cout << "Tracker initialized" << endl;
 
         // call obj3Drec with "seg" and the seed to obtain the first cloud
         cout << "Retriveing pointcloud" << endl;
@@ -350,6 +367,7 @@ bool FusionModule::updateModule()
 /************************************************************************/
 bool FusionModule::startTracker()
 {
+    printf("Initalizing tracker \n");
     // read image
     ImageOf<PixelRgb> *imgIn = imgInPort.read();  // read an image
     cv::Mat imgMatIn((IplImage*) imgIn->getIplImage());
@@ -410,7 +428,7 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
     // Retrieves and relays the 2D coordinates of the object tracked by the tracker
     cv::Point coords2D;
     if(verbose==1){printf("Getting 2D coords of tracked object!!\n");}
-    Bottle *trackCoords = coordsInPort.read(true);
+    Bottle *trackCoords = trackerInPort.read(true);
     coords2D.x =  trackCoords->get(0).asInt();
     coords2D.y =  trackCoords->get(1).asInt();
     if (verbose){printf("Point in 2D read from tracker: %.2i, %.2i!!\n", coords2D.x, coords2D.y);}

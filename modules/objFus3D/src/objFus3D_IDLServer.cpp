@@ -15,6 +15,14 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class objFus3D_IDLServer_track : public yarp::os::Portable {
+public:
+  bool _return;
+  void init();
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class objFus3D_IDLServer_restart : public yarp::os::Portable {
 public:
   bool _return;
@@ -76,6 +84,27 @@ bool objFus3D_IDLServer_save::read(yarp::os::ConnectionReader& connection) {
 void objFus3D_IDLServer_save::init(const std::string& name) {
   _return = false;
   this->name = name;
+}
+
+bool objFus3D_IDLServer_track::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(1)) return false;
+  if (!writer.writeTag("track",1,1)) return false;
+  return true;
+}
+
+bool objFus3D_IDLServer_track::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void objFus3D_IDLServer_track::init() {
+  _return = false;
 }
 
 bool objFus3D_IDLServer_restart::write(yarp::os::ConnectionWriter& connection) {
@@ -196,6 +225,16 @@ bool objFus3D_IDLServer::save(const std::string& name) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
+bool objFus3D_IDLServer::track() {
+  bool _return = false;
+  objFus3D_IDLServer_track helper;
+  helper.init();
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool objFus3D_IDLServer::track()");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
 bool objFus3D_IDLServer::restart() {
   bool _return = false;
   objFus3D_IDLServer_restart helper;
@@ -263,6 +302,17 @@ bool objFus3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
       }
       bool _return;
       _return = save(name);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "track") {
+      bool _return;
+      _return = track();
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -361,6 +411,7 @@ std::vector<std::string> objFus3D_IDLServer::help(const std::string& functionNam
   if(showAll) {
     helpString.push_back("*** Available commands:");
     helpString.push_back("save");
+    helpString.push_back("track");
     helpString.push_back("restart");
     helpString.push_back("pause");
     helpString.push_back("verb");
@@ -371,10 +422,17 @@ std::vector<std::string> objFus3D_IDLServer::help(const std::string& functionNam
   else {
     if (functionName=="save") {
       helpString.push_back("bool save(const std::string& name = \"model\") ");
+      helpString.push_back("save (string name) - saved the current merged cloud into file of given name ");
+      helpString.push_back("@return true/false on success/failure of saving cloud ");
+    }
+    if (functionName=="track") {
+      helpString.push_back("bool track() ");
+      helpString.push_back("@brief track - ask the user to select the bounding box and starts tracker on template ");
+      helpString.push_back("@return true/false on success/failure of starting tracker ");
     }
     if (functionName=="restart") {
       helpString.push_back("bool restart() ");
-      helpString.push_back("@brief restart - Clears all clouds and visualizer and restarts a new reconstruction. ");
+      helpString.push_back("@brief restart - Clears all clouds and visualizer, restarts tracker and restarts a new reconstruction. ");
       helpString.push_back("@return true/false on success/failure of cleaning and restarting ");
     }
     if (functionName=="pause") {

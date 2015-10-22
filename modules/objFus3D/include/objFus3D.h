@@ -80,6 +80,7 @@ protected:
 
     // Ports
     yarp::os::BufferedPort<yarp::os::Bottle>                            coordsInPort;
+    yarp::os::BufferedPort<yarp::os::Bottle>                            trackerInPort;
     yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelRgb> >    imgInPort;      // Port to receive camera images
     yarp::os::BufferedPort<yarp::os::Bottle>                            cloudsInPort;   // Buffered port to receive clouds.
 
@@ -98,6 +99,7 @@ protected:
     std::string filename;       //name of file to save recosntructed model.
 
     // Workflow variables
+    bool tracking; 
     bool saving;
     bool closing;
     bool paused;
@@ -129,6 +131,7 @@ public:
 
     // Thrift commands
     bool                        restart();
+    bool                        track();
     bool                        save(const std::string &name);
     bool                        pause();
     bool                        verb();

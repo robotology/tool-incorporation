@@ -7,12 +7,21 @@
 
 service objFus3D_IDLServer
 {
-    // save (string name) - saved the current merged cloud into file of given name
-    // @return true/false on success/failure of saving cloud
+    /**
+    * save (string name) - saved the current merged cloud into file of given name
+    * @return true/false on success/failure of saving cloud
+    */
     bool save(1: string name = "model");
+    
+    /**
+    * @brief track - ask the user to select the bounding box and starts tracker on template
+    * @return true/false on success/failure of starting tracker
+    */
+    bool track();
+    
 
     /**
-    * @brief restart - Clears all clouds and visualizer and restarts a new reconstruction.
+    * @brief restart - Clears all clouds and visualizer, restarts tracker and restarts a new reconstruction.
     * @return true/false on success/failure of cleaning and restarting
     */
     bool restart();
