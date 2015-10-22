@@ -18,7 +18,32 @@ service objFus3D_IDLServer
     * @return true/false on success/failure of starting tracker
     */
     bool track();
-    
+
+    /**
+    * @brief mls - sets parameters for moving least squares filtering
+    * @param
+    * @param
+    * @param
+    * @return true/false on success/failure setting parameters
+    */
+    bool mls(1:double rad, 2:double usRad, 3:double usStep);
+
+    /**
+    * @brief ds - sets parameters for downsampling
+    * @param
+    * @return true/false on success/failure setting parameters
+    */
+    bool ds(1:double res);
+
+    /**
+    * @brief icp - sets parameters for iterative closes algorithm
+    * @param
+    * @param
+    * @param
+    * @param
+    * @return true/false on success/failure of setting parameters
+    */
+    bool icp(1:i32 maxIt, 2:double maxCorr, 3:double ranORT, 4:double transEps );    
 
     /**
     * @brief restart - Clears all clouds and visualizer, restarts tracker and restarts a new reconstruction.

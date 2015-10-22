@@ -27,6 +27,29 @@ public:
    */
   virtual bool track();
   /**
+   * @brief mls - sets parameters for moving least squares filtering
+   * @param
+   * @param
+   * @param
+   * @return true/false on success/failure setting parameters
+   */
+  virtual bool mls(const double rad, const double usRad, const double usStep);
+  /**
+   * @brief ds - sets parameters for downsampling
+   * @param
+   * @return true/false on success/failure setting parameters
+   */
+  virtual bool ds(const double res);
+  /**
+   * @brief icp - sets parameters for iterative closes algorithm
+   * @param
+   * @param
+   * @param
+   * @param
+   * @return true/false on success/failure of setting parameters
+   */
+  virtual bool icp(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps);
+  /**
    * @brief restart - Clears all clouds and visualizer, restarts tracker and restarts a new reconstruction.
    * @return true/false on success/failure of cleaning and restarting
    */

@@ -104,7 +104,17 @@ protected:
     bool closing;
     bool paused;
     bool initAlignment;
-    double resolution;
+
+    // Algorithms parameters
+    double ds_res;
+    double mls_rad;
+    double mls_usRad;
+    double mls_usStep;
+    double icp_maxIt;
+    double icp_maxCorr;
+    double icp_ranORT;
+    double icp_transEp;
+
 
     //bool trackerInit;
     int NO_FILENUM;
@@ -132,6 +142,9 @@ public:
     // Thrift commands
     bool                        restart();
     bool                        track();
+    bool                        mls(double rad = 0.03, double usRad = 0.005, double usStep = 0.003);
+    bool                        icp(int maxIt = 100, double maxCorr = 0.03, double ranORT = 0.03, double transEp= 1e-6);
+    bool                        ds(double res = 0.002);
     bool                        save(const std::string &name);
     bool                        pause();
     bool                        verb();

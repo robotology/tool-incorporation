@@ -41,6 +41,10 @@ bool FusionModule::restart()
     cloud_merged->points.clear();      cloud_merged->clear();   // Clear cloud merged
     // clear visualizer
     visThrd->clearVisualizer();
+    paused = false;
+    tracking = false;
+
+
     // return to initial state
     STATE = 0;
     // trackerInit = false;
@@ -64,7 +68,29 @@ bool FusionModule::track()
 }
 
 
-// Save (string)-> save the cloud at current point with given name (or default) and go on merging.
+// mls -> sets parameters for minimum least squares filtering
+bool FusionModule::mls(double rad, double usRad, double usStep)
+{
+    mls_rad = rad;
+    mls_usRad = usRad;
+    mls_usStep = usStep;
+    return true;
+}
+// icp -> sets parameters for iterative closest point aligning algorithm
+bool FusionModule::icp(int maxIt, double maxCorr, double ranORT, double transEp)
+{
+    icp_maxIt = maxIt ;
+    icp_maxCorr = maxCorr;
+    icp_ranORT = ranORT;
+    icp_transEp = transEp;
+    return true;    
+}
+// ds -> sets parameters for downsampling
+bool FusionModule::ds(double res)
+{
+    ds_res = res;
+    return true;
+}
 
 // pause -> pause reconstruction/merging, but leave everything as it is.
 bool FusionModule::save(const string &name)
@@ -163,11 +189,21 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     attach(rpcInPort);
 
     // Module rpc parameters
+    verbose = true ; // XXX
     closing = false;
     paused = false;
     tracking = false;
     initAlignment = true;
-    resolution = rf.check("resolution",Value(0.001)).asDouble();
+
+    //ALgorithms parameters
+    mls_rad = 0.03;
+    mls_usRad = 0.005;
+    mls_usStep = 0.003;
+    icp_maxIt = 100;
+    icp_maxCorr = 0.03;
+    icp_ranORT = 0.03;
+    icp_transEp = 1e-6;
+    ds_res = rf.check("ds_resolution",Value(0.002)).asDouble();
 
     // Init variables
     STATE = 0;
@@ -216,7 +252,7 @@ bool FusionModule::interruptModule()
     cloudsOutPort.interrupt();
     cropOutPort.interrupt();
 
-    cout<<"Interrupting your module, for port cleanup"<<endl;
+    cout<<"Interrupting module."<<endl;
     return true;
 }
 
@@ -253,6 +289,9 @@ bool FusionModule::attach(RpcServer &source)
 /**********************************************************************/
 bool FusionModule::updateModule()
 {
+    cout << " =======================================================" << endl;
+    cout << "Running on STATE: " << STATE <<endl;
+
     if (STATE == 0){
         // Set template to track object
         // XXX this could also be initialized to a motionCUT BoundingBox center, or from the segmetator module.
@@ -261,37 +300,32 @@ bool FusionModule::updateModule()
         }        
     }
         
-    cout << "Running on STATE: " << STATE <<endl;
-
     // STATE = init
-    if (STATE == 1)
-    {
-
+    if (STATE == 1)  
+    {    
         // call obj3Drec with "seg" and the seed to obtain the first cloud
-        cout << "Retriveing pointcloud" << endl;
-        getPointCloud(cloud_raw);
-        cout << "Pointcloud Retrieved" << endl;
+        cout << "Retriveing model cloud for initialization" << endl;
+        if (!getPointCloud(cloud_raw)){
+            cout << "Cloud couldn't be retrieved, skipping" << endl;
+            return 1;
+        }
+
 
         // perform filtering on the 3D cloud to further reduce noise
         cout << "Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_merged);       // This cloud will be the initial model.        
-        cout << "Pointcloud Filtered" << endl;
         visThrd->updateCloud(cloud_merged);
-        string key;
-        cout << "Press any key to continue... " << endl;
-        cin >> key;        
+        //sleep(5.0);    
 
         // Downsamlpe / smooth cloud
         cout << "Downsampling pointcloud" << endl;
-        downsampleCloud(cloud_merged, cloud_merged, resolution);
-        cout << "Pointcloud Downsampled" << endl;
+        downsampleCloud(cloud_merged, cloud_merged, ds_res);
 
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        cout << "Press any key to continue... " << endl;
-        cin >> key;
+        //sleep(5.0);
 
-        STATE == 2;
+        //XXX stay on state one to check cloud quality       STATE = 2;
     }
 
     // STATE = FUSION
@@ -301,9 +335,11 @@ bool FusionModule::updateModule()
             return 1;
 
         // Get new cloud from obj3Drec from tracking coords
-        cout << "Retriveing pointcloud" << endl;
-        getPointCloud(cloud_raw);
-        cout << "Pointcloud Retrieved" << endl;
+        cout << "Retriveing new cloud for merging" << endl;
+        if (!getPointCloud(cloud_raw)){
+            cout << "Cloud couldn't be retrieved, skipping" << endl;
+            return 1;
+        }
 
         // XXX Eventually, backrpoject 3D image and get all blobs which fall to some extent within the backrpojected blob.
         // XXX Proper 2D tracker-segmentation could be done simultanoeusly to improve both.
@@ -312,45 +348,36 @@ bool FusionModule::updateModule()
         // filter received cloud
         cout << "Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model.        
-        cout << "Pointcloud Filtered" << endl;
-        string key;
-        cout << "Press any key to continue... " << endl;
-        cin >> key;
 
         // Align and merge new cloud to model.
         //  - Use multi-scale ICP for merging.
         //  - Smooth/average result
         //  - Again, filter resulting cloud
         //  - This will be the updated model
-
         Eigen::Matrix4f transfMatrix;
-
         // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
         cout << "Aligning pointcloud" << endl;
         if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)){ // Align
             cout << "Pointcloud not aligned" << endl;
-            return true;        // If alignment didnt converge, skip merging
+            return 1;        // If alignment didnt converge, skip merging
         }
-        cout << "Pointcloud aligned" << endl;
+
+        cout << "Merging pointcloud" << endl;
         *cloud_merged += *cloud_aligned;                                          // Merge
-        cout << "Pointcloud not merged" << endl;
 
         cout << "Downsampling pointcloud" << endl;
-        downsampleCloud(cloud_merged,cloud_merged,resolution);                    // Smooth and downsample.
-        cout << "Downsampling pointcloud" << endl;
+        downsampleCloud(cloud_merged,cloud_merged,ds_res );                    // Smooth and downsample.
 
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        cout << "Press any key to continue... " << endl;
-        cin >> key;
+        //sleep(5.0);
 
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
         pcl::transformPointCloud(*cloud_merged, *cloud_merged, transfMatrix);   // XXX ??? check if transfMatrix is correct, or needs to be the opposite.
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        cout << "Press any key to continue... " << endl;
-        cin >> key;
+        //sleep(5.0);
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -427,7 +454,6 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
 
     // Retrieves and relays the 2D coordinates of the object tracked by the tracker
     cv::Point coords2D;
-    if(verbose==1){printf("Getting 2D coords of tracked object!!\n");}
     Bottle *trackCoords = trackerInPort.read(true);
     coords2D.x =  trackCoords->get(0).asInt();
     coords2D.y =  trackCoords->get(1).asInt();
@@ -435,10 +461,13 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
 
     // requests 3D reconstruction to objectReconst module    
     Bottle cmdOR, replyOR;
-
     cmdOR.clear();	replyOR.clear();
     cmdOR.addString("setFormat");               // Set command to ask obj3Drec not to save files
     cmdOR.addString("none");
+    rpcObjRecPort.write(cmdOR,replyOR);
+
+    cmdOR.clear();	replyOR.clear();
+    cmdOR.addString("clear");                   // Send command to clear disparity visualizer.
     rpcObjRecPort.write(cmdOR,replyOR);
 
     cmdOR.clear();	replyOR.clear();
@@ -448,6 +477,7 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
     rpcObjRecPort.write(cmdOR,replyOR);
 
     // read the cloud from the objectReconst output port
+    //Bottle *cloudBottle = cloudsInPort.read(true);
     Bottle *cloudBottle = cloudsInPort.read(true);
     if (cloudBottle!=NULL){
         if (verbose){	cout << "Bottle of size " << cloudBottle->size() << " read from port \n"	<<endl;}
@@ -457,11 +487,6 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
         return -1;
     }
 
-    cmdOR.clear();	replyOR.clear();
-    cmdOR.addString("clear");
-    rpcObjRecPort.write(cmdOR,replyOR);
-
-    if (verbose){ cout << " Cloud of size " << cloud_read->points.size() << " obtained from 3D reconstruction" << endl;}
 
     return true;
 }
@@ -472,12 +497,14 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 {
     // Apply some filtering to clean the cloud
     // Process the cloud by removing distant points ...
-    const float depth_limit = 1.0;
+    cout << "--Original cloud to filter of size " << cloud_orig->points.size() << "." << endl;
+    const float depth_limit = 0.70;
     pcl::PassThrough<pcl::PointXYZRGB> pass;
     pass.setInputCloud(cloud_orig);
     pass.setFilterFieldName("z");
     pass.setFilterLimits(0, depth_limit);
     pass.filter(*cloud_filter);
+    cout << "--Size after passthrough: " << cloud_filter->points.size() << "." << endl;
 
      // ... and removing outliers
     pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
@@ -485,26 +512,42 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     ror.setRadiusSearch(0.05);
     ror.setMinNeighborsInRadius(5);
     ror.filter(*cloud_filter);
+    cout << "--Size after rad out rem: " << cloud_filter->points.size() << "." << endl;
 
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; // -- by statistical values
     sor.setStddevMulThresh(1.0);
     sor.setInputCloud(cloud_filter);
     sor.setMeanK(20);
     sor.filter(*cloud_filter);
+    cout << "--Size after Stat outrem: " << cloud_filter->points.size() << "." << endl;
 
     // Perform Moving least squares to smooth surfaces
     // Init object (second point type is for the normals, even if unused)
-    pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
-    mls.setInputCloud (cloud_filter);
-    mls.setSearchRadius (0.01);
+
+    // XXX Dirty hack to do it with XYZ clouds. Check better ways (less conversions) to change XYZ <-> XYZRGB
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>); 
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>); 
+    copyPointCloud(*cloud_filter, *cloudNoColor); 
+
+    //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+    //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
+    //    mls.setInputCloud (cloud_filter);
+    mls.setInputCloud (cloudNoColor);
+    mls.setSearchMethod (tree);
+    mls.setSearchRadius (mls_rad);
     mls.setPolynomialFit (true);
     mls.setPolynomialOrder (2);
-    mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB>::SAMPLE_LOCAL_PLANE);
-    mls.setUpsamplingRadius (0.005);
-    mls.setUpsamplingStepSize (0.003);
-    mls.process (*cloud_filter);
+    mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
+    mls.setUpsamplingRadius (mls_usRad);
+    mls.setUpsamplingStepSize (mls_usStep);
+    mls.process (*cloudNoColorFilter);
+    copyPointCloud(*cloudNoColorFilter, *cloud_filter); 
+    //    mls.process (*cloud_filter);
+    cout << "--Size after Mov leastsq: " << cloud_filter->points.size() << "." << endl;
 
-    if (verbose){ cout << " Size of filtered cloud " << cloud_filter->points.size() << " obtained from 3D reconstruction" << endl;}
+//    if (verbose){ cout << " Cloud of size " << cloud_filter->points.size() << "after filtering." << endl;}
 
     return true;
 }
@@ -515,13 +558,14 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res)
 {
     pcl::PointCloud<int> sampled_indices;
+     if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
 
     pcl::UniformSampling<pcl::PointXYZRGB> us;
     us.setInputCloud(cloud_orig);
     us.setRadiusSearch(res);
     us.compute(sampled_indices);
     pcl::copyPointCloud (*cloud_orig, sampled_indices.points, *cloud_ds);
-    if (verbose){cout << "Model total points: " << cloud_orig->size () << "; Downsampled to: " << cloud_ds->size () << endl;}
+    if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
     return true;
 }
 
@@ -578,10 +622,10 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 
     if (verbose){printf("Setting ICP parameters \n");}
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
-    icp.setMaximumIterations(100);
-    icp.setMaxCorrespondenceDistance (0.005);
-    icp.setRANSACOutlierRejectionThreshold (0.01);  // Apply RANSAC too
-    icp.setTransformationEpsilon (1e-6);
+    icp.setMaximumIterations(icp_maxIt);
+    icp.setMaxCorrespondenceDistance (icp_maxCorr);
+    icp.setRANSACOutlierRejectionThreshold (icp_ranORT);  // Apply RANSAC too
+    icp.setTransformationEpsilon (icp_transEp);
 
     //pcl::VoxelGrid<pcl::PointXYZRGB> vg;
     //for (int scale = 1; scale <=3 ; scale++){

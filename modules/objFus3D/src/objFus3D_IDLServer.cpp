@@ -23,6 +23,38 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class objFus3D_IDLServer_mls : public yarp::os::Portable {
+public:
+  double rad;
+  double usRad;
+  double usStep;
+  bool _return;
+  void init(const double rad, const double usRad, const double usStep);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
+class objFus3D_IDLServer_ds : public yarp::os::Portable {
+public:
+  double res;
+  bool _return;
+  void init(const double res);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
+class objFus3D_IDLServer_icp : public yarp::os::Portable {
+public:
+  int32_t maxIt;
+  double maxCorr;
+  double ranORT;
+  double transEps;
+  bool _return;
+  void init(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class objFus3D_IDLServer_restart : public yarp::os::Portable {
 public:
   bool _return;
@@ -105,6 +137,85 @@ bool objFus3D_IDLServer_track::read(yarp::os::ConnectionReader& connection) {
 
 void objFus3D_IDLServer_track::init() {
   _return = false;
+}
+
+bool objFus3D_IDLServer_mls::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(4)) return false;
+  if (!writer.writeTag("mls",1,1)) return false;
+  if (!writer.writeDouble(rad)) return false;
+  if (!writer.writeDouble(usRad)) return false;
+  if (!writer.writeDouble(usStep)) return false;
+  return true;
+}
+
+bool objFus3D_IDLServer_mls::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void objFus3D_IDLServer_mls::init(const double rad, const double usRad, const double usStep) {
+  _return = false;
+  this->rad = rad;
+  this->usRad = usRad;
+  this->usStep = usStep;
+}
+
+bool objFus3D_IDLServer_ds::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("ds",1,1)) return false;
+  if (!writer.writeDouble(res)) return false;
+  return true;
+}
+
+bool objFus3D_IDLServer_ds::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void objFus3D_IDLServer_ds::init(const double res) {
+  _return = false;
+  this->res = res;
+}
+
+bool objFus3D_IDLServer_icp::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(5)) return false;
+  if (!writer.writeTag("icp",1,1)) return false;
+  if (!writer.writeI32(maxIt)) return false;
+  if (!writer.writeDouble(maxCorr)) return false;
+  if (!writer.writeDouble(ranORT)) return false;
+  if (!writer.writeDouble(transEps)) return false;
+  return true;
+}
+
+bool objFus3D_IDLServer_icp::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void objFus3D_IDLServer_icp::init(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps) {
+  _return = false;
+  this->maxIt = maxIt;
+  this->maxCorr = maxCorr;
+  this->ranORT = ranORT;
+  this->transEps = transEps;
 }
 
 bool objFus3D_IDLServer_restart::write(yarp::os::ConnectionWriter& connection) {
@@ -235,6 +346,36 @@ bool objFus3D_IDLServer::track() {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
+bool objFus3D_IDLServer::mls(const double rad, const double usRad, const double usStep) {
+  bool _return = false;
+  objFus3D_IDLServer_mls helper;
+  helper.init(rad,usRad,usStep);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool objFus3D_IDLServer::mls(const double rad, const double usRad, const double usStep)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool objFus3D_IDLServer::ds(const double res) {
+  bool _return = false;
+  objFus3D_IDLServer_ds helper;
+  helper.init(res);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool objFus3D_IDLServer::ds(const double res)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool objFus3D_IDLServer::icp(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps) {
+  bool _return = false;
+  objFus3D_IDLServer_icp helper;
+  helper.init(maxIt,maxCorr,ranORT,transEps);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool objFus3D_IDLServer::icp(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
 bool objFus3D_IDLServer::restart() {
   bool _return = false;
   objFus3D_IDLServer_restart helper;
@@ -313,6 +454,79 @@ bool objFus3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
     if (tag == "track") {
       bool _return;
       _return = track();
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "mls") {
+      double rad;
+      double usRad;
+      double usStep;
+      if (!reader.readDouble(rad)) {
+        reader.fail();
+        return false;
+      }
+      if (!reader.readDouble(usRad)) {
+        reader.fail();
+        return false;
+      }
+      if (!reader.readDouble(usStep)) {
+        reader.fail();
+        return false;
+      }
+      bool _return;
+      _return = mls(rad,usRad,usStep);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "ds") {
+      double res;
+      if (!reader.readDouble(res)) {
+        reader.fail();
+        return false;
+      }
+      bool _return;
+      _return = ds(res);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "icp") {
+      int32_t maxIt;
+      double maxCorr;
+      double ranORT;
+      double transEps;
+      if (!reader.readI32(maxIt)) {
+        reader.fail();
+        return false;
+      }
+      if (!reader.readDouble(maxCorr)) {
+        reader.fail();
+        return false;
+      }
+      if (!reader.readDouble(ranORT)) {
+        reader.fail();
+        return false;
+      }
+      if (!reader.readDouble(transEps)) {
+        reader.fail();
+        return false;
+      }
+      bool _return;
+      _return = icp(maxIt,maxCorr,ranORT,transEps);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -412,6 +626,9 @@ std::vector<std::string> objFus3D_IDLServer::help(const std::string& functionNam
     helpString.push_back("*** Available commands:");
     helpString.push_back("save");
     helpString.push_back("track");
+    helpString.push_back("mls");
+    helpString.push_back("ds");
+    helpString.push_back("icp");
     helpString.push_back("restart");
     helpString.push_back("pause");
     helpString.push_back("verb");
@@ -429,6 +646,29 @@ std::vector<std::string> objFus3D_IDLServer::help(const std::string& functionNam
       helpString.push_back("bool track() ");
       helpString.push_back("@brief track - ask the user to select the bounding box and starts tracker on template ");
       helpString.push_back("@return true/false on success/failure of starting tracker ");
+    }
+    if (functionName=="mls") {
+      helpString.push_back("bool mls(const double rad, const double usRad, const double usStep) ");
+      helpString.push_back("@brief mls - sets parameters for moving least squares filtering ");
+      helpString.push_back("@param ");
+      helpString.push_back("@param ");
+      helpString.push_back("@param ");
+      helpString.push_back("@return true/false on success/failure setting parameters ");
+    }
+    if (functionName=="ds") {
+      helpString.push_back("bool ds(const double res) ");
+      helpString.push_back("@brief ds - sets parameters for downsampling ");
+      helpString.push_back("@param ");
+      helpString.push_back("@return true/false on success/failure setting parameters ");
+    }
+    if (functionName=="icp") {
+      helpString.push_back("bool icp(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps) ");
+      helpString.push_back("@brief icp - sets parameters for iterative closes algorithm ");
+      helpString.push_back("@param ");
+      helpString.push_back("@param ");
+      helpString.push_back("@param ");
+      helpString.push_back("@param ");
+      helpString.push_back("@return true/false on success/failure of setting parameters ");
     }
     if (functionName=="restart") {
       helpString.push_back("bool restart() ");
