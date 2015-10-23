@@ -325,7 +325,7 @@ bool FusionModule::updateModule()
         visThrd->updateCloud(cloud_merged);
         //sleep(5.0);
 
-        //XXX stay on state one to check cloud quality       STATE = 2;
+        STATE = 2;
     }
 
     // STATE = FUSION
