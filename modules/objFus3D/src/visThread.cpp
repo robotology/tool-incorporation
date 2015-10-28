@@ -119,7 +119,7 @@ void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
     {
         // Set camera position and orientation
         //viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-        viewer->setBackgroundColor (1,1,1, 0); // Setting background to a white
+        viewer->setBackgroundColor (1,1,1, 0); // Setting background to white
         viewer->addCoordinateSystem (0.05);
         initialized = true;
     }

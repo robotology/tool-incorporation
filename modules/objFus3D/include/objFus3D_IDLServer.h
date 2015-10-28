@@ -27,25 +27,25 @@ public:
    */
   virtual bool track();
   /**
-   * @brief mls - sets parameters for moving least squares filtering
-   * @param
-   * @param
-   * @param
+   * @brief mls - sets parameters for moving least squares filtering (def 0.03)
+   * @param rad: radius used for determining the k-nearest neighbors used for fitting (def 0.005)
+   * @param usRad: radius of the circle in the local point plane that will be sampled for upsampling (def 0.003).
+   * @param usStep: step size for the local plane sampling for upsampling.
    * @return true/false on success/failure setting parameters
    */
   virtual bool mls(const double rad, const double usRad, const double usStep);
   /**
    * @brief ds - sets parameters for downsampling
-   * @param
+   * @param res: 3D grid leaf size (downsampling resolution) (def 0.002).
    * @return true/false on success/failure setting parameters
    */
   virtual bool ds(const double res);
   /**
    * @brief icp - sets parameters for iterative closes algorithm
-   * @param
-   * @param
-   * @param
-   * @param
+   * @param maxIt: Maximum number of Iterations (def 100)
+   * @param maxCorr: Max distance between clouds to consider correspondence successful [m] (def 0.03);
+   * @param ranORT: Inlier distance threshold for the internal RANSAC outlier rejection loop [m] (def 0.03).
+   * @param transEp: Transformation epsilon to stop icp iterations (1e-6).
    * @return true/false on success/failure of setting parameters
    */
   virtual bool icp(const int32_t maxIt, const double maxCorr, const double ranORT, const double transEps);

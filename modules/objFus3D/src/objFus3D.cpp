@@ -226,6 +226,17 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
         return false;
     }
     cout << "PCL visualizer Thread istantiated...\n";
+
+    //Threads
+    visThrdTest = new VisThread(50, "Cloud");
+    if (!visThrdTest->start())
+    {
+        delete visThrdTest;
+        visThrdTest = 0;
+        cout << "\nERROR!!! visThrdTest wasn't instantiated!!\n";
+        return false;
+    }
+
     cout << endl << "Configuring done."<<endl;
 
     printf("Base path: %s \n \n",cloudpath.c_str());
@@ -278,6 +289,13 @@ bool FusionModule::close()
         visThrd =  0;
     }
 
+    if (visThrdTest)
+    {
+        visThrdTest->stop();
+        delete visThrdTest;
+        visThrdTest =  0;
+    }
+
     return true;
 }
 
@@ -310,6 +328,9 @@ bool FusionModule::updateModule()
             return 1;
         }
 
+        visThrd->updateCloud(cloud_raw);
+        sleep(5.0);
+
 
         // perform filtering on the 3D cloud to further reduce noise
         cout << "Filtering pointcloud" << endl;
@@ -341,6 +362,9 @@ bool FusionModule::updateModule()
             return 1;
         }
 
+        visThrdTest->updateCloud(cloud_raw);
+        sleep(5.0);
+
         // XXX Eventually, backrpoject 3D image and get all blobs which fall to some extent within the backrpojected blob.
         // XXX Proper 2D tracker-segmentation could be done simultanoeusly to improve both.
         // XXX Moreover, 3D backprojection could be used to further improve estimated blob and predict next
@@ -348,6 +372,8 @@ bool FusionModule::updateModule()
         // filter received cloud
         cout << "Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model.        
+        visThrdTest->updateCloud(cloud_in);
+        sleep(5.0);
 
         // Align and merge new cloud to model.
         //  - Use multi-scale ICP for merging.
@@ -362,22 +388,23 @@ bool FusionModule::updateModule()
             return 1;        // If alignment didnt converge, skip merging
         }
 
+        visThrdTest->updateCloud(cloud_aligned);
+        sleep(5.0);
+
         cout << "Merging pointcloud" << endl;
         *cloud_merged += *cloud_aligned;                                          // Merge
 
         cout << "Downsampling pointcloud" << endl;
-        downsampleCloud(cloud_merged,cloud_merged,ds_res );                    // Smooth and downsample.
-
-        // Update viewer
+        downsampleCloud(cloud_merged,cloud_merged,ds_res );                    // Smooth and downsample.        
         visThrd->updateCloud(cloud_merged);
-        //sleep(5.0);
+        sleep(5.0);
 
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
         pcl::transformPointCloud(*cloud_merged, *cloud_merged, transfMatrix);   // XXX ??? check if transfMatrix is correct, or needs to be the opposite.
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        //sleep(5.0);
+        sleep(5.0);
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -534,15 +561,15 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
     pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
     //    mls.setInputCloud (cloud_filter);
-    mls.setInputCloud (cloudNoColor);
-    mls.setSearchMethod (tree);
-    mls.setSearchRadius (mls_rad);
-    mls.setPolynomialFit (true);
-    mls.setPolynomialOrder (2);
-    mls.setUpsamplingMethod (pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
-    mls.setUpsamplingRadius (mls_usRad);
-    mls.setUpsamplingStepSize (mls_usStep);
-    mls.process (*cloudNoColorFilter);
+    mls.setInputCloud(cloudNoColor);
+    mls.setSearchMethod(tree);
+    mls.setSearchRadius(mls_rad);
+    mls.setPolynomialFit(true);
+    mls.setPolynomialOrder(2);
+    mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
+    mls.setUpsamplingRadius(mls_usRad);
+    mls.setUpsamplingStepSize(mls_usStep);
+    mls.process(*cloudNoColorFilter);
     copyPointCloud(*cloudNoColorFilter, *cloud_filter); 
     //    mls.process (*cloud_filter);
     cout << "--Size after Mov leastsq: " << cloud_filter->points.size() << "." << endl;
@@ -623,9 +650,9 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     if (verbose){printf("Setting ICP parameters \n");}
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations(icp_maxIt);
-    icp.setMaxCorrespondenceDistance (icp_maxCorr);
-    icp.setRANSACOutlierRejectionThreshold (icp_ranORT);  // Apply RANSAC too
-    icp.setTransformationEpsilon (icp_transEp);
+    icp.setMaxCorrespondenceDistance(icp_maxCorr);
+    icp.setRANSACOutlierRejectionThreshold(icp_ranORT);  // Apply RANSAC too
+    icp.setTransformationEpsilon(icp_transEp);
 
     //pcl::VoxelGrid<pcl::PointXYZRGB> vg;
     //for (int scale = 1; scale <=3 ; scale++){

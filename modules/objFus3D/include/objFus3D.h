@@ -77,6 +77,7 @@ protected:
 
     // module parameters
     VisThread *visThrd;
+    VisThread *visThrdTest;
 
     // Ports
     yarp::os::BufferedPort<yarp::os::Bottle>                            coordsInPort;
