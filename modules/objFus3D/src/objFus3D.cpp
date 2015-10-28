@@ -74,6 +74,7 @@ bool FusionModule::mls(double rad, double usRad, double usStep)
     mls_rad = rad;
     mls_usRad = usRad;
     mls_usStep = usStep;
+    cout << " mls Parameters set to " <<  rad << ", " << usRad << ", " << usStep << endl;
     return true;
 }
 // icp -> sets parameters for iterative closest point aligning algorithm
@@ -83,6 +84,7 @@ bool FusionModule::icp(int maxIt, double maxCorr, double ranORT, double transEp)
     icp_maxCorr = maxCorr;
     icp_ranORT = ranORT;
     icp_transEp = transEp;
+    cout << " icp Parameters set to " <<  maxIt << ", " << maxCorr << ", " <<ranORT<< ", " << transEp<< endl;
     return true;    
 }
 // ds -> sets parameters for downsampling
@@ -193,15 +195,15 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     closing = false;
     paused = false;
     tracking = false;
-    initAlignment = true;
+    initAlignment = false;
 
-    //ALgorithms parameters
+    //ALgorithms parameters by default
     mls_rad = 0.03;
     mls_usRad = 0.005;
     mls_usStep = 0.003;
     icp_maxIt = 100;
-    icp_maxCorr = 0.03;
-    icp_ranORT = 0.03;
+    icp_maxCorr = 0.05;
+    icp_ranORT = 0.05;
     icp_transEp = 1e-6;
     ds_res = rf.check("ds_resolution",Value(0.002)).asDouble();
 
@@ -246,7 +248,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 2.0; //module periodicity (seconds)
+    return 0.5; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -315,6 +317,7 @@ bool FusionModule::updateModule()
         // XXX this could also be initialized to a motionCUT BoundingBox center, or from the segmetator module.
         if (tracking){
             STATE = 1;
+            return true;
         }        
     }
         
@@ -325,7 +328,7 @@ bool FusionModule::updateModule()
         cout << "Retriveing model cloud for initialization" << endl;
         if (!getPointCloud(cloud_raw)){
             cout << "Cloud couldn't be retrieved, skipping" << endl;
-            return 1;
+            return true;
         }
 
         visThrd->updateCloud(cloud_raw);
@@ -353,13 +356,13 @@ bool FusionModule::updateModule()
     if (STATE == 2)
     {
         if (paused)
-            return 1;
+            return true;
 
         // Get new cloud from obj3Drec from tracking coords
         cout << "Retriveing new cloud for merging" << endl;
         if (!getPointCloud(cloud_raw)){
             cout << "Cloud couldn't be retrieved, skipping" << endl;
-            return 1;
+            return true;
         }
 
         visThrdTest->updateCloud(cloud_raw);
@@ -385,7 +388,7 @@ bool FusionModule::updateModule()
         cout << "Aligning pointcloud" << endl;
         if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)){ // Align
             cout << "Pointcloud not aligned" << endl;
-            return 1;        // If alignment didnt converge, skip merging
+            return true;        // If alignment didnt converge, skip merging
         }
 
         visThrdTest->updateCloud(cloud_aligned);
@@ -424,7 +427,7 @@ bool FusionModule::startTracker()
     printf("Initalizing tracker \n");
     // read image
     ImageOf<PixelRgb> *imgIn = imgInPort.read();  // read an image
-    cv::Mat imgMatIn((IplImage*) imgIn->getIplImage());
+    cv::Mat imgMatIn = cv::cvarrToMat((IplImage*)imgIn->getIplImage());
 
     // Get initial bounding box of object:
     printf("Click first top left and then bottom right from the object !!\n");
@@ -457,7 +460,7 @@ bool FusionModule::startTracker()
 
     ImageOf<PixelRgb> &templateOut  = cropOutPort.prepare();
     templateOut.resize(BBox.width, BBox.height);
-    cv::Mat tempOut((IplImage*)templateOut.getIplImage(),false);
+    cv::Mat tempOut=cv::cvarrToMat((IplImage*)templateOut.getIplImage());
     imgMatIn(BBox).copyTo(tempOut);
     //cv::GaussianBlur(img(BBox), imOut, cv::Size(1,1), 1, 1);
 
@@ -511,7 +514,7 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
         CloudUtils::bottle2cloud(*cloudBottle,cloud_read);
     } else{
         if (verbose){	printf("Couldn't read returned cloud \n");	}
-        return -1;
+        return false;
     }
 
 
@@ -585,14 +588,16 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res)
 {
     pcl::PointCloud<int> sampled_indices;
-     if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
+    //if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
+    cout << "== Size before downsampling: " << cloud_orig->size () << endl;
 
     pcl::UniformSampling<pcl::PointXYZRGB> us;
     us.setInputCloud(cloud_orig);
     us.setRadiusSearch(res);
     us.compute(sampled_indices);
     pcl::copyPointCloud (*cloud_orig, sampled_indices.points, *cloud_ds);
-    if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
+    //if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
+    cout << "== Size before downsampling: " << cloud_orig->size () << endl;
     return true;
 }
 
@@ -634,7 +639,7 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
         sac_ia.align(*cloud_IA);
 
         if (!sac_ia.hasConverged())
-            return -1;
+            return false;
 
         cout << "FPFH has converged:" << sac_ia.hasConverged() << " score: " << sac_ia.getFitnessScore() << endl;
 
@@ -645,7 +650,7 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     }
 
     //  Apply ICP registration
-    printf("Applying ICP alignment... \n");
+    printf("Starting ICP alignment procedure... \n");
 
     if (verbose){printf("Setting ICP parameters \n");}
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
@@ -659,15 +664,18 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 
     //ICP algorithm
     if (initAlignment){
+        printf("Setting initAlgined cloud as input... \n");
         icp.setInputSource(cloud_IA);
     }else{
+        printf("Setting source cloud as input... \n");
         icp.setInputSource(cloud_source);
     }
     icp.setInputTarget(cloud_target);
+    printf("Aligning... \n");
     icp.align(*cloud_align);
 
     if (!icp.hasConverged())
-        return -1;
+        return false;
 
     cout << icp.getFinalTransformation() << endl;
     transfMat = icp.getFinalTransformation() * initial_T;

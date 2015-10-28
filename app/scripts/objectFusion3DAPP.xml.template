@@ -116,7 +116,7 @@
     <connection>
         <from>/obj3Drec/pnt:o</from>
         <to external="true">/objFus3D/clouds:i</to>
-        <protocol>udp</protocol>
+        <protocol>tcp</protocol>
         <geometry>(Pos ((x 645.5) (y 239.5)) ((x 914) (y 194)) ((x 901) (y 151)) ((x 361) (y 151)) ((x 361) (y 271)) ((x 416) (y 279))  )</geometry>
     </connection>
     <connection>
@@ -146,13 +146,13 @@
     <connection>
         <from>/templatePFTracker/target:o</from>
         <to external="true">/objFus3D/track:i</to>
-        <protocol>tcp</protocol>
+        <protocol>udp</protocol>
         <geometry>(Pos ((x 565) (y 438.5)) ((x 752) (y 622)) ((x 415) (y 253))  )</geometry>
     </connection>
     <connection>
         <from external="true">/imLeft/out</from>
         <to external="true">/objFus3D/coords:i</to>
-        <protocol>udp</protocol>
+        <protocol>tcp</protocol>
         <geometry>(Pos ((x 297.5) (y 169.5)) ((x 217) (y 82)) ((x 415) (y 253))  )</geometry>
     </connection>
     <connection>

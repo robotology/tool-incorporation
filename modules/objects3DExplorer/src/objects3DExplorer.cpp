@@ -1111,7 +1111,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    YARP_REGISTER_DEVICES(icubmod)
 
     ResourceFinder rf;
     rf.setDefaultContext("objects3DModeler");

@@ -53,7 +53,6 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/registration/ia_ransac.h>
 
-YARP_DECLARE_DEVICES(icubmod)
 
 /**********************************************************/
 class Objects3DExplorer : public yarp::os::RFModule
