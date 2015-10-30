@@ -148,16 +148,22 @@ void VisThread::clearVisualizer()
 void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in)
 {
     printf("Updating displayed cloud\n");
-    if (addClouds)
+    if (addClouds){
         *cloud += *cloud_in; // new cloud is added to last one
-    else
+        cout << "Received cloud of size: " << cloud_in->points.size() << endl;
+        cout << " -New accum cloud of size " << cloud->points.size() <<endl; 
+    }
+    else{
         *cloud = *cloud_in;  // new cloud overwrites last one
+        cout << "Received cloud of size: " << cloud_in->points.size() << endl;
+        cout << " -New cloud of size "<< cloud->points.size() <<endl; 
+    }
 
     if (!initialized)
     {
         // Set camera position and orientation
         //viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-        viewer->setBackgroundColor (1,1,1, 0); // Setting background to a white
+        viewer->setBackgroundColor (1,1,1, 0); // Setting background to white
         viewer->addCoordinateSystem (0.05);
         initialized = true;
     }

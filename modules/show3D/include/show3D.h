@@ -60,6 +60,8 @@ protected:
 
     std::string cloudpath; //path to folder with .ply files
     std::string cloudfile; //name of the .ply file to show
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; // Point cloud
     bool closing;
 
 public:

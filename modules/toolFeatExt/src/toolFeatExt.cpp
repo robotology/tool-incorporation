@@ -238,7 +238,6 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 
 /**********************************************************/
 bool ToolFeatExt::setCanonicalPose(const double deg, const double disp, const double tilt)
-// XXX For the moment, the model is only transformed according to orientation and displacement, ignoring the tilt.
 {   // Rotates the tool model 'deg' degrees around the hand -Y axis
     float rad = deg*M_PI/180.0; // converse deg into rads
 
@@ -314,14 +313,15 @@ bool ToolFeatExt::loadToolModel()
     cout << "Loading tool model cloud from file" << cloudpath.c_str() << cloudname.c_str() << endl;
 
     // (Re-) initialize cloud transformations
-    cloud->clear();
+    cloud->points.clear();
+    cloud->clear(); 
     cloudTransformed = false;
     rotMat = eye(4,4);
 
     if (CloudUtils::loadCloud(cloudpath, cloudname, cloud_orig))
     {
+	cout << "Loaded tool model of size: " << cloud_orig->points.size () << endl;
         cloudLoaded = true;
-        sendCloud(cloud_orig);
         return true;
     }
     return false;
@@ -719,6 +719,7 @@ int ToolFeatExt::computeFeats()
 bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in)
 {
     Bottle &cloudBottle = cloudsOutPort.prepare();
+    cloudBottle.clear();
 
     CloudUtils::cloud2bottle(cloud_in, cloudBottle);
     cout << "Sending cloud of size " << cloud_in->size() << endl;

@@ -188,7 +188,7 @@ void CloudUtils::bottle2cloud(const yarp::os::Bottle& cloudB, pcl::PointCloud<pc
 /************************************************************************/
 void CloudUtils::cloud2bottle(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::os::Bottle& cloudB)
 {   // Converts pointcloud to surfaceMesh bottle.
-
+    cloudB.clear();
     for (unsigned int i=0; i<cloud->width; i++)
     {
         yarp::os::Bottle &bpoint = cloudB.addList();

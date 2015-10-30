@@ -128,6 +128,8 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     // Init variables
     cloudfile = "cloud.ply";
 
+    cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+
     //Threads
     visThrd = new VisThread(50, "Cloud");
     if (!visThrd->start())
@@ -155,10 +157,11 @@ bool ShowModule::updateModule()
     // read the cloud as bottle
     Bottle *cloudBottle=cloudsInPort.read(false);
     if (cloudBottle!=NULL){
-        cout<< "Received Cloud... " << endl;
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        cout<< "Received Cloud Bottle of size " << cloudBottle->size() << endl;
+        cloud->points.clear();
+        cloud->clear();
         CloudUtils::bottle2cloud(*cloudBottle,cloud);
-
+        cout<< "Cloud of size: " << cloud->points.size() << endl;
         visThrd->updateCloud(cloud);
 
     }
