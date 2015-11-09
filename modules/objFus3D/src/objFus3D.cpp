@@ -198,7 +198,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     initAlignment = false;
 
     //ALgorithms parameters by default
-    mls_rad = 0.03;
+    mls_rad = 0.02;
     mls_usRad = 0.005;
     mls_usStep = 0.003;
     icp_maxIt = 100;
@@ -230,6 +230,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     cout << "PCL visualizer Thread istantiated...\n";
 
     //Threads
+/*
     visThrdTest = new VisThread(50, "Cloud");
     if (!visThrdTest->start())
     {
@@ -238,7 +239,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
         cout << "\nERROR!!! visThrdTest wasn't instantiated!!\n";
         return false;
     }
-
+*/
     cout << endl << "Configuring done."<<endl;
 
     printf("Base path: %s \n \n",cloudpath.c_str());
@@ -248,7 +249,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 0.5; //module periodicity (seconds)
+    return 10.0; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -290,14 +291,14 @@ bool FusionModule::close()
         delete visThrd;
         visThrd =  0;
     }
-
+/*
     if (visThrdTest)
     {
         visThrdTest->stop();
         delete visThrdTest;
         visThrdTest =  0;
     }
-
+*/
     return true;
 }
 
@@ -324,6 +325,10 @@ bool FusionModule::updateModule()
     // STATE = init
     if (STATE == 1)  
     {    
+
+        if (paused)
+            return true;
+
         // call obj3Drec with "seg" and the seed to obtain the first cloud
         cout << "Retriveing model cloud for initialization" << endl;
         if (!getPointCloud(cloud_raw)){
@@ -331,15 +336,12 @@ bool FusionModule::updateModule()
             return true;
         }
 
-        visThrd->updateCloud(cloud_raw);
-        sleep(5.0);
-
+        //visThrd->updateCloud(cloud_raw);
 
         // perform filtering on the 3D cloud to further reduce noise
         cout << "Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_merged);       // This cloud will be the initial model.        
-        visThrd->updateCloud(cloud_merged);
-        //sleep(5.0);    
+        //visThrd->updateCloud(cloud_merged); 
 
         // Downsamlpe / smooth cloud
         cout << "Downsampling pointcloud" << endl;
@@ -347,7 +349,6 @@ bool FusionModule::updateModule()
 
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        //sleep(5.0);
 
         STATE = 2;
     }
@@ -359,24 +360,32 @@ bool FusionModule::updateModule()
             return true;
 
         // Get new cloud from obj3Drec from tracking coords
-        cout << "Retriveing new cloud for merging" << endl;
+        cout << "STATE 2: Retriveing new cloud for merging" << endl;
         if (!getPointCloud(cloud_raw)){
             cout << "Cloud couldn't be retrieved, skipping" << endl;
             return true;
         }
+        cout << "STATE 2: Retrieved cloud of size: " << cloud_raw->points.size() << endl << endl;
 
-        visThrdTest->updateCloud(cloud_raw);
-        sleep(5.0);
+        visThrd->updateCloud(cloud_raw);
+        sleep(2.0);
 
         // XXX Eventually, backrpoject 3D image and get all blobs which fall to some extent within the backrpojected blob.
         // XXX Proper 2D tracker-segmentation could be done simultanoeusly to improve both.
         // XXX Moreover, 3D backprojection could be used to further improve estimated blob and predict next
 
         // filter received cloud
-        cout << "Filtering pointcloud" << endl;
-        filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model.        
-        visThrdTest->updateCloud(cloud_in);
-        sleep(5.0);
+        cout << "STATE 2: Filtering pointcloud" << endl;
+        filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model. 
+        cout << "STATE 2: Filtered to cloud of size: " << cloud_in->points.size() << endl << endl;
+        visThrd->updateCloud(cloud_in);
+        sleep(2.0);
+
+        // Downsamlpe / smooth cloud
+        cout << "STATE 2: Downsampling pointcloud" << endl;
+	downsampleCloud(cloud_in,cloud_in,ds_res );      // Smooth and downsample.        
+        cout << "STATE 2: Downsampled cloud of size: " << cloud_in->points.size() << endl << endl;
+        sleep(2.0);
 
         // Align and merge new cloud to model.
         //  - Use multi-scale ICP for merging.
@@ -385,29 +394,33 @@ bool FusionModule::updateModule()
         //  - This will be the updated model
         Eigen::Matrix4f transfMatrix;
         // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
-        cout << "Aligning pointcloud" << endl;
+        cout << "STATE 2: Aligning pointcloud" << endl;
         if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)){ // Align
-            cout << "Pointcloud not aligned" << endl;
+            cout << "STATE 2: Pointcloud not aligned" << endl;
             return true;        // If alignment didnt converge, skip merging
         }
+        cout << "STATE 2: Pointcloud aligned to cloud of size " << cloud_aligned->points.size()  << endl;
+        visThrd->updateCloud(cloud_aligned);
+        sleep(2.0);
 
-        visThrdTest->updateCloud(cloud_aligned);
-        sleep(5.0);
-
-        cout << "Merging pointcloud" << endl;
+        cout << "STATE 2: Merging pointcloud" << endl;
         *cloud_merged += *cloud_aligned;                                          // Merge
+        cout << "STATE 2: Pointclouds Merged to cloud of size " << cloud_merged->points.size()  << endl;
 
-        cout << "Downsampling pointcloud" << endl;
-        downsampleCloud(cloud_merged,cloud_merged,ds_res );                    // Smooth and downsample.        
+        cout << "STATE 2: Downsampling merged pointcloud" << endl;
+        downsampleCloud(cloud_merged,cloud_merged,ds_res );    // Smooth and downsample.        
+        cout << "STATE 2: Downsampled to cloud of size " << endl;
         visThrd->updateCloud(cloud_merged);
-        sleep(5.0);
-
+        sleep(2.0);
+/*
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
+        cout << "STATE 2: Rotating merged pointcloud to new pose" << endl;
         pcl::transformPointCloud(*cloud_merged, *cloud_merged, transfMatrix);   // XXX ??? check if transfMatrix is correct, or needs to be the opposite.
+       cout << "STATE 2: Pointcloud tranformed to cloud of size " << cloud_merged->points.size()  << endl;
+*/
         // Update viewer
         visThrd->updateCloud(cloud_merged);
-        sleep(5.0);
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -595,9 +608,9 @@ bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     us.setInputCloud(cloud_orig);
     us.setRadiusSearch(res);
     us.compute(sampled_indices);
-    pcl::copyPointCloud (*cloud_orig, sampled_indices.points, *cloud_ds);
+    pcl::copyPointCloud(*cloud_orig, sampled_indices.points, *cloud_ds);
     //if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
-    cout << "== Size before downsampling: " << cloud_orig->size () << endl;
+    cout << "== Size after  downsampling: " << cloud_ds->size () << endl;
     return true;
 }
 
@@ -650,7 +663,7 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     }
 
     //  Apply ICP registration
-    printf("Starting ICP alignment procedure... \n");
+    printf("\n Starting ICP alignment procedure... \n");
 
     if (verbose){printf("Setting ICP parameters \n");}
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
@@ -674,9 +687,11 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     printf("Aligning... \n");
     icp.align(*cloud_align);
 
-    if (!icp.hasConverged())
+    if (!icp.hasConverged()){
+        printf("Clouds not aligned \n");
         return false;
-
+    }
+    printf("Clouds Aligned! \n");
     cout << icp.getFinalTransformation() << endl;
     transfMat = icp.getFinalTransformation() * initial_T;
 
