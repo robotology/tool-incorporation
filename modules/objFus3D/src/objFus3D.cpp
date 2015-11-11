@@ -249,7 +249,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 10.0; //module periodicity (seconds)
+    return 2.0; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -367,8 +367,8 @@ bool FusionModule::updateModule()
         }
         cout << "STATE 2: Retrieved cloud of size: " << cloud_raw->points.size() << endl << endl;
 
-        visThrd->updateCloud(cloud_raw);
-        sleep(2.0);
+        //visThrd->updateCloud(cloud_raw);
+        //sleep(2.0);
 
         // XXX Eventually, backrpoject 3D image and get all blobs which fall to some extent within the backrpojected blob.
         // XXX Proper 2D tracker-segmentation could be done simultanoeusly to improve both.
@@ -378,14 +378,14 @@ bool FusionModule::updateModule()
         cout << "STATE 2: Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model. 
         cout << "STATE 2: Filtered to cloud of size: " << cloud_in->points.size() << endl << endl;
-        visThrd->updateCloud(cloud_in);
-        sleep(2.0);
+        //visThrd->updateCloud(cloud_in);
+        //sleep(2.0);
 
         // Downsamlpe / smooth cloud
         cout << "STATE 2: Downsampling pointcloud" << endl;
 	downsampleCloud(cloud_in,cloud_in,ds_res );      // Smooth and downsample.        
         cout << "STATE 2: Downsampled cloud of size: " << cloud_in->points.size() << endl << endl;
-        sleep(2.0);
+        //sleep(2.0);
 
         // Align and merge new cloud to model.
         //  - Use multi-scale ICP for merging.
@@ -400,8 +400,8 @@ bool FusionModule::updateModule()
             return true;        // If alignment didnt converge, skip merging
         }
         cout << "STATE 2: Pointcloud aligned to cloud of size " << cloud_aligned->points.size()  << endl;
-        visThrd->updateCloud(cloud_aligned);
-        sleep(2.0);
+        //visThrd->updateCloud(cloud_aligned);
+        //sleep(2.0);
 
         cout << "STATE 2: Merging pointcloud" << endl;
         *cloud_merged += *cloud_aligned;                                          // Merge
@@ -411,7 +411,7 @@ bool FusionModule::updateModule()
         downsampleCloud(cloud_merged,cloud_merged,ds_res );    // Smooth and downsample.        
         cout << "STATE 2: Downsampled to cloud of size " << endl;
         visThrd->updateCloud(cloud_merged);
-        sleep(2.0);
+        //sleep(2.0);
 /*
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
@@ -420,7 +420,7 @@ bool FusionModule::updateModule()
        cout << "STATE 2: Pointcloud tranformed to cloud of size " << cloud_merged->points.size()  << endl;
 */
         // Update viewer
-        visThrd->updateCloud(cloud_merged);
+        //visThrd->updateCloud(cloud_merged);
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -550,6 +550,7 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     cout << "--Size after passthrough: " << cloud_filter->points.size() << "." << endl;
 
      // ... and removing outliers
+
     pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
     ror.setInputCloud(cloud_filter);
     ror.setRadiusSearch(0.05);
