@@ -27,15 +27,21 @@ bool VisThread::threadInit()
     updatingCloud = false;
     displayBB = false;
     displayNormals = false;
-    displayOMSEGI = false;
-    displayHist = true;
-    normalColors = false;
+    displayOMSEGI = false;    
+    displayFilt = false;
+
     normalsComputed = false;
 
-    // Processing parameters
-    styleBB = 2;
-    radiusSearch = 0.01;
-    resFeats = 0.01;
+    // Function parameters
+    dBBstyle = 2;
+    dNradSearch = 0.01;
+    dNcolored = false;
+    dEGIres = 0.01;
+    dEGIspheres = true;
+    dFror = false;
+    dFsor = false;
+    dFmls = false;
+    dFds = false;
 
     return true;
 }
@@ -51,60 +57,49 @@ void VisThread::run()
             // Get lock on the boolean update and check if cloud was updated
             boost::mutex::scoped_lock updateLock(updateModelMutex);
             if(update)
-            {
-                if(updatingCloud){
-                    // Clean visualizer to plot new cloud
-                    viewer->removePointCloud(id);
-                    viewer->removePointCloud("normals");
-                    viewer->removeAllShapes();
-
-                    // Check if the loaded file contains color information or not
-                    bool colorCloud = false;
-                    for  (int p = 1; p < cloud->points.size(); ++p)      {
-                        uint32_t rgb = *reinterpret_cast<int*>(&cloud->points[p].rgb);
-                        if (rgb != 0)
-                            colorCloud = true;
-                    }
-                    // Add cloud color if it has not
-                    if (!colorCloud)    {
-                        // Define R,G,B colors for the point cloud
-                        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> cloud_color_handler(cloud, 230, 20, 0); //red
-                        viewer->addPointCloud (cloud, cloud_color_handler, id);
-                    }else{
-                        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> cloud_color_handler (cloud);
-                        viewer->addPointCloud (cloud, cloud_color_handler, id);
-                    }
-                    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, id);
+            {                
+                if(updatingCloud)
+                {
+                    plotNewCloud();
                     updatingCloud = false;
                 }
 
                 // Compute and bounding box to display
                 if (displayBB)
                 {
-                    plotBB(styleBB);
+                    plotBB(dBBstyle);
                     displayBB = false;
                 }
 
                 // Compute and add normals to display
                 if (displayNormals)
                 {
-                    plotNormals(radiusSearch,normalColors);
+                    plotNormals(dNradSearch,dNcolored);
                     displayNormals = false;
                 }
                 
                 // Compute and add normals to display
                 if (displayOMSEGI)
                 {
-                    plotOMSEGI(resFeats, displayHist);
+                    plotOMSEGI(dEGIres, dEGIspheres);
                     displayOMSEGI = false;
                 }
 
+                // Compute filtering and show
+                if (displayFilt)
+                {
+                    filterCloud(dFror, dFsor, dFmls, dFds);
+                    displayFilt = false;
+                }
+
                 // Clear display
+                
                 if (clearing){
                     viewer->removePointCloud(id);
                     viewer->removePointCloud("normals");
                     viewer->removeAllShapes();
                     clearing = false;
+                    normalsComputed = false;
                 }
 
                 update = false;
@@ -173,18 +168,50 @@ void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
     printf("Cloud updated\n");
 }
 
-// Set flow to allow normals to be computed and added on display update.
-void VisThread::addNormals(double rS, bool normCol)
+
+// Plot updated cloud
+void VisThread::plotNewCloud()
+{
+    // Clean visualizer to plot new cloud
+    viewer->removePointCloud(id);
+    viewer->removePointCloud("normals");
+    viewer->removeAllShapes();
+
+    // Check if the loaded file contains color information or not
+    bool colorCloud = false;
+    for  (int p = 1; p < cloud->points.size(); ++p)      {
+        uint32_t rgb = *reinterpret_cast<int*>(&cloud->points[p].rgb);
+        if (rgb != 0)
+            colorCloud = true;
+    }
+    // Add cloud color if it has not
+    if (!colorCloud)    {
+        // Define R,G,B colors for the point cloud
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> cloud_color_handler(cloud, 230, 20, 0); //red
+        viewer->addPointCloud (cloud, cloud_color_handler, id);
+    }else{
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> cloud_color_handler (cloud);
+        viewer->addPointCloud (cloud, cloud_color_handler, id);
+    }
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, id);
+
+
+}
+
+
+// Normal computation interface
+void VisThread::addNormals(double rS, bool normAsRGB)
 {
     if (initialized){
         displayNormals = true;
-        normalColors = normCol;
-        radiusSearch = rS;
+        dNcolored = normAsRGB;
+        dNradSearch = rS;
         updateVis();
     }else{
         printf("Please load a cloud before trying to compute the normals\n");
     }
 }
+
 
 // Compute and display normals
 void VisThread::plotNormals(double rS, bool normCol)
@@ -265,17 +292,18 @@ void VisThread::plotNormals(double rS, bool normCol)
 }
 
 
-// Set flow to plot OMS-EGI visualization on viewer update.
+// OMS-EGI feature visualization interface
 void VisThread::addOMSEGI(double res, bool plotHist)
 {
-     if (!normalsComputed){
+    if (!normalsComputed){
         printf(" Need to compute the normals before computing OMS-EGIs" );
         return;
      }
     displayOMSEGI = true;
-    displayHist = plotHist;
-    resFeats = res;
+    dEGIspheres = plotHist;
+    dEGIres = res;
     updateVis();
+
 }
 
 
@@ -311,7 +339,7 @@ void VisThread::plotOMSEGI(double res, bool plotHist)
     for (tree_it = octree.leaf_begin(octree.getTreeDepth()); tree_it!=tree_it_end; ++tree_it)
     {
 
-        cout << "Computing on voxel: " << voxelI << endl;
+        //cout << "Computing on voxel: " << voxelI << endl;
 
         // Clear clouds and vectors from previous voxel.
         voxelCloud->points.clear();
@@ -331,7 +359,7 @@ void VisThread::plotOMSEGI(double res, bool plotHist)
         // Neighbors within voxel search
         // It assigns the search point to the corresponding leaf node voxel and returns a vector of point indices.
         // These indices relate to points which fall within the same voxel.
-        cout << "Saving Normals in voxel " << voxelI << endl;
+        //cout << "Saving Normals in voxel " << voxelI << endl;
         std::vector<int> voxelPointsIdx;
         if (octree.voxelSearch (voxelCenter, voxelPointsIdx))
         {
@@ -342,9 +370,9 @@ void VisThread::plotOMSEGI(double res, bool plotHist)
                 voxelCloudNormals->points.push_back(cloud_normals->points[voxelPointsIdx[i]]);
             } // for point in voxel
         }
-        std::cout << "Voxel has " << voxelCloud->points.size() << " points. " << std::endl;
+        //std::cout << "Voxel has " << voxelCloud->points.size() << " points. " << std::endl;
 
-        cout << "Computing voxel normal average " << endl;
+        //cout << "Computing voxel normal average " << endl;
         //cout << "Getting points from voxel " << voxelI << endl;
         float xn_Acc = 0;
         float yn_Acc = 0;
@@ -383,23 +411,25 @@ void VisThread::plotOMSEGI(double res, bool plotHist)
         voxID << "vox" << voxelI;
         sphID << "sph" << voxelI;
 
-        cout << "Dsiplaying cube on box " <<  endl;
+        //cout << "Dsiplaying cube on box " <<  endl;
         viewer->addCube(voxelCenter.x-res/2, voxelCenter.x+res/2, voxelCenter.y-res/2, voxelCenter.y+res/2, voxelCenter.z-res/2, voxelCenter.z+res/2, xn_r, yn_g, zn_b,voxID.str());
         if (plotHist){
             viewer->addSphere(voxelCenter, res/4, xn_r, yn_g, zn_b, sphID.str());
         }
         voxelI++;
     }
+
+    cout << "visual OMSEGI displayed " <<  endl;
+
     viewer->removePointCloud(id);
 }
 
-// Set flow to allow bounding box to be computed and added on display update.
+// addBoundingbox interface
 void VisThread::addBoundingBox(int typeBB)
 {
     if (initialized){
         displayBB = true;
-        styleBB = typeBB;
-
+        dBBstyle = typeBB;
         updateVis();
 
         if (typeBB == 0)
@@ -445,7 +475,8 @@ void VisThread::plotBB(int typeBB)
         feature_extractor.getAABB (min_point_AABB, max_point_AABB);
 
         // Display axis aligned minimum boinding box
-        viewer->addCube (min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 0,0,0, "AABB");
+        viewer->addCube (min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 0,1,0, "AABB");
+
     }else if (typeBB == 2){              // Cubic Axis Aligned Boundinb Box CAABB.
         pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
         feature_extractor.setInputCloud (cloud);
@@ -458,7 +489,7 @@ void VisThread::plotBB(int typeBB)
         double mx,my,mz,MX,MY,MZ;
         feature_extractor.getAABB (min_point_AABB, max_point_AABB);
 
-        pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(resFeats);
+        pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(dEGIspheres);
         octree.setInputCloud(cloud);
         octree.addPointsFromInputCloud();
         octree.defineBoundingBox(min_point_AABB.x, min_point_AABB.y, min_point_AABB.z,
@@ -473,6 +504,99 @@ void VisThread::plotBB(int typeBB)
         viewer->addCube(mx,MX,my,MY,mz,MZ, 1, 0, 0,"CAABB");
     }
 }
+
+
+// Filter cloud interface
+void VisThread::filter(bool ror, bool sor , bool mls, bool ds)
+{
+    if (initialized){
+
+        displayFilt = true;
+        dFror = ror;
+        dFsor = sor;
+        dFmls = mls;
+        dFds = ds;
+        updateVis();
+    }else{
+        printf("Please load a cloud before trying to filter it\n");
+    }
+}
+
+// Computes and display Bounding Box
+void VisThread::filterCloud(bool rorF, bool sorF , bool mlsF, bool dsF)
+{
+
+    if (rorF)
+    {
+        pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
+        ror.setInputCloud(cloud);
+        ror.setRadiusSearch(0.05);
+        ror.setMinNeighborsInRadius(5);
+        ror.filter(*cloud);
+        cout << "--Size after rad out rem: " << cloud->points.size() << "." << endl;
+    }
+
+    if (sorF)
+    {
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; // -- by statistical values
+        sor.setStddevMulThresh(1.0);
+        sor.setInputCloud(cloud);
+        sor.setMeanK(20);
+        sor.filter(*cloud);
+        cout << "--Size after Stat outrem: " << cloud->points.size() << "." << endl;
+    }
+
+    if (mlsF)
+    {
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>);
+        copyPointCloud(*cloud, *cloudNoColor);
+
+        //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+        //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+        pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
+        //    mls.setInputCloud (cloud_filter);
+        mls.setInputCloud(cloudNoColor);
+        mls.setSearchMethod(tree);
+        mls.setSearchRadius(0.02);
+        mls.setPolynomialFit(true);
+        mls.setPolynomialOrder(2);
+        mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
+        mls.setUpsamplingRadius(0.005);
+        mls.setUpsamplingStepSize(0.003);
+        mls.process(*cloudNoColorFilter);
+        copyPointCloud(*cloudNoColorFilter, *cloud);
+        //    mls.process (*cloud_filter);
+        cout << "--Size after Mov leastsq: " << cloud->points.size() << "." << endl;
+
+    }
+
+    if (dsF)
+    {
+        pcl::PointCloud<int> sampled_indices;
+        //if (verbose){cout << "Model total points: " << cloud->size () << endl;}
+        cout << "== Size before downsampling: " << cloud->size () << endl;
+
+        pcl::UniformSampling<pcl::PointXYZRGB> us;
+        us.setInputCloud(cloud);
+        us.setRadiusSearch(0.002);
+        us.compute(sampled_indices);
+        pcl::copyPointCloud(*cloud, sampled_indices.points, *cloud);
+
+        //if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
+        cout << "== Size after  downsampling: " << cloud->size () << endl;
+    }
+
+
+    viewer->removePointCloud(id);
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> color(cloud);
+    viewer->addPointCloud(cloud, color, id);
+    return;
+
+
+}
+
 
 // Selects between displaying each cloud individually or accumulating them on the display.
 void VisThread::accumulateClouds(bool accum)

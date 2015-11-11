@@ -602,6 +602,8 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res)
 {
     pcl::PointCloud<int> sampled_indices;
+    cloud_ds->points.clear();
+    cloud_ds->clear();
     //if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
     cout << "== Size before downsampling: " << cloud_orig->size () << endl;
 

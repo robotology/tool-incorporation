@@ -37,6 +37,15 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
 
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/bilateral.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/keypoints/uniform_sampling.h>
+#include <pcl/surface/mls.h>
+
 
 class VisThread: public yarp::os::RateThread
 {
@@ -61,40 +70,29 @@ protected:
     bool clearing;
     bool updatingCloud;
     bool displayNormals;
-    bool displayOMSEGI;
-    bool displayHist;
-    bool normalColors;
+    bool displayOMSEGI;    
+    bool displayFilt;
     bool normalsComputed;
     bool displayBB;
 
     // Processing parameters
-    int styleBB;
-    double radiusSearch;
-    float resFeats;
+    int dBBstyle;
+    double dNradSearch;
+    bool dNcolored;
+    float dEGIres;
+    bool dEGIspheres;
 
-    /**
-     * @brief updateVis -  Unlocks the mutex on a cycle so that the visualizer and its contents can be updated
-     */
-    void updateVis();
-
-    /**
-     * @brief plotBB - Computes and displays Bounding Box
-     * @param minBB - true for oriented (minimum) boinding box. False for axis aligned bounding box
-     */
-    void plotBB(int typeBB);            // Function called within the update loop.
-
-    /**
-     * @brief plotNormals - Computes and displays Normals
-     * @param rS - radiusSearch for consider nerighbors to compute surface normal.
-     * @param normCol - normCol determines if normals are plotted as vectors or as RGB color.
-     */
-    void plotNormals(double rS, bool normCol = false);        // Function called within the update loop.
+    bool dFror;
+    bool dFsor;
+    bool dFmls;
+    bool dFds;
     
-     /**
-     * @brief plotOMSEGI - Displays the OMS-EGI features per octree voxel, as colored points where RGB represent the XYZ normal frequencies. 
-     * @param res - resolution of the minimal octree division
-     */
-    void plotOMSEGI(double res = 0.02, bool plotHist = true);      // Function called within the update loop.
+    void updateVis();
+    void plotNewCloud();
+    void plotBB(int typeBB = 2);
+    void plotNormals(double rS = 0.01, bool normCol = false);
+    void plotOMSEGI(double res = 0.02, bool plotHist = true);    
+    void filterCloud(bool rorF = false, bool sorF = false, bool mlsF = false, bool dsF = false);
 
 public:
     // CONSTRUCTOR
@@ -136,6 +134,17 @@ public:
      * @param cloud_in - Input cloud to be displayed
      */
     void updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in);
+
+    /**
+     * @brief filter - Function to apply and show different filtering processes to the displayed cloud.
+     * @param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5).
+     * @param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20).
+     * @param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003).
+     * @param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002).
+     * @return true/false on showing the poitnclouddar =
+     */
+     void filter(bool ror = false, bool sor = false, bool mks = false, bool ds = false);
+
 
     /**
      * @brief accumulateClouds - Selects between displaying clouds together or not

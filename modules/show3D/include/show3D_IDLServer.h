@@ -36,13 +36,14 @@ public:
   /**
    * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
    * @param radSearch - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
-   * @param normalColors - (bool) Expresses whether the normals should be expressed as a vector, or as color gradients on the cloud.
+   * @param normalColors - (bool) Expresses whether the normals should be expressed as a vector (false), or as color gradients on the cloud (true).
    * @return true/false on showing the poitncloud
    */
-  virtual bool addNormals(const double radSearch = 0.01, const bool normCol = 0);
+  virtual bool addNormals(const double radSearch = 0.01, const bool normCol = 1);
   /**
    * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
    * @param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
+   * @param plotHist - (bool) Determines whether the average value of the normal histogram should be shown inside each voxel as a sphere (default = true) or not (false).
    * @return true/false on showing the poitncloud
    */
   virtual bool addFeats(const double res = 0.01, const bool plotHist = 1);
@@ -52,6 +53,15 @@ public:
    * @return true/false on showing the poitncloud
    */
   virtual bool addBoundingBox(const int32_t typeBB = 2);
+  /**
+   * @brief filter - Function to apply and show different filtering processes to the displayed cloud.
+   * @param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5).
+   * @param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20).
+   * @param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003)\
+   * @param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002).
+   * @return true/false on showing the poitnclouddar =
+   */
+  virtual bool filter(const bool ror = 0, const bool sor = 0, const bool mks = 0, const bool ds = 0);
   /**
    * @brief quit - quits the module
    * @return true/false on success/failure of extracting features

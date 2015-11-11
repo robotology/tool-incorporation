@@ -36,14 +36,15 @@ service show3D_IDLServer
     /**
      * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
      * @param radSearch - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
-     * @param normalColors - (bool) Expresses whether the normals should be expressed as a vector, or as color gradients on the cloud.
+     * @param normalColors - (bool) Expresses whether the normals should be expressed as a vector (false), or as color gradients on the cloud (true).
      * @return true/false on showing the poitncloud
      */
-    bool addNormals(1: double radSearch = 0.01, 2: bool normCol = false);
+    bool addNormals(1: double radSearch = 0.01, 2: bool normCol = true);
     
     /**
      * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
      * @param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).     
+     * @param plotHist - (bool) Determines whether the average value of the normal histogram should be shown inside each voxel as a sphere (default = true) or not (false).
      * @return true/false on showing the poitncloud
      */
     bool addFeats(1: double res = 0.01, 2: bool plotHist = true);
@@ -53,7 +54,7 @@ service show3D_IDLServer
      * @param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2),
      * @return true/false on showing the poitncloud
      */
-    bool addBoundingBox(1: i32 typeBB = 2);
+    bool addBoundingBox(1: i32 typeBB = 0);
 
 
     /**
@@ -62,6 +63,16 @@ service show3D_IDLServer
      * @return true/false on showing the poitncloud
      */
      //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
+
+    /**
+     * @brief filter - Function to apply and show different filtering processes to the displayed cloud.
+     * @param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5).
+     * @param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20).
+     * @param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003)\
+     * @param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002).
+     * @return true/false on showing the poitnclouddar =
+     */
+     bool filter(1: bool ror = false, 2: bool sor = false, 3: bool mks = false, 4: bool ds = false);
 
     /**
      * @brief setVerbose (ON/OFF) - sets verbose of the output on or off

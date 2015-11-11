@@ -79,6 +79,12 @@ bool ShowModule::addBoundingBox(int typeBB)
     return true;
 }
 
+bool ShowModule::filter(bool ror, bool sor, bool mls, bool ds)
+{
+    visThrd->filter(ror, sor, mls, ds);
+    return true;
+}
+
 bool ShowModule::quit()
 {
     std::cout << "Quitting!" << std::endl;

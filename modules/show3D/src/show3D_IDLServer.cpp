@@ -61,6 +61,18 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class show3D_IDLServer_filter : public yarp::os::Portable {
+public:
+  bool ror;
+  bool sor;
+  bool mks;
+  bool ds;
+  bool _return;
+  void init(const bool ror, const bool sor, const bool mks, const bool ds);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class show3D_IDLServer_quit : public yarp::os::Portable {
 public:
   bool _return;
@@ -209,6 +221,35 @@ void show3D_IDLServer_addBoundingBox::init(const int32_t typeBB) {
   this->typeBB = typeBB;
 }
 
+bool show3D_IDLServer_filter::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(5)) return false;
+  if (!writer.writeTag("filter",1,1)) return false;
+  if (!writer.writeBool(ror)) return false;
+  if (!writer.writeBool(sor)) return false;
+  if (!writer.writeBool(mks)) return false;
+  if (!writer.writeBool(ds)) return false;
+  return true;
+}
+
+bool show3D_IDLServer_filter::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void show3D_IDLServer_filter::init(const bool ror, const bool sor, const bool mks, const bool ds) {
+  _return = false;
+  this->ror = ror;
+  this->sor = sor;
+  this->mks = mks;
+  this->ds = ds;
+}
+
 bool show3D_IDLServer_quit::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
@@ -293,6 +334,16 @@ bool show3D_IDLServer::addBoundingBox(const int32_t typeBB) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
+bool show3D_IDLServer::filter(const bool ror, const bool sor, const bool mks, const bool ds) {
+  bool _return = false;
+  show3D_IDLServer_filter helper;
+  helper.init(ror,sor,mks,ds);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool show3D_IDLServer::filter(const bool ror, const bool sor, const bool mks, const bool ds)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
 bool show3D_IDLServer::quit() {
   bool _return = false;
   show3D_IDLServer_quit helper;
@@ -361,7 +412,7 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
         radSearch = 0.01;
       }
       if (!reader.readBool(normCol)) {
-        normCol = 0;
+        normCol = 1;
       }
       bool _return;
       _return = addNormals(radSearch,normCol);
@@ -399,6 +450,33 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
       }
       bool _return;
       _return = addBoundingBox(typeBB);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "filter") {
+      bool ror;
+      bool sor;
+      bool mks;
+      bool ds;
+      if (!reader.readBool(ror)) {
+        ror = 0;
+      }
+      if (!reader.readBool(sor)) {
+        sor = 0;
+      }
+      if (!reader.readBool(mks)) {
+        mks = 0;
+      }
+      if (!reader.readBool(ds)) {
+        ds = 0;
+      }
+      bool _return;
+      _return = filter(ror,sor,mks,ds);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -458,6 +536,7 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
     helpString.push_back("addNormals");
     helpString.push_back("addFeats");
     helpString.push_back("addBoundingBox");
+    helpString.push_back("filter");
     helpString.push_back("quit");
     helpString.push_back("help");
   }
@@ -480,16 +559,17 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addNormals") {
-      helpString.push_back("bool addNormals(const double radSearch = 0.01, const bool normCol = 0) ");
+      helpString.push_back("bool addNormals(const double radSearch = 0.01, const bool normCol = 1) ");
       helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
       helpString.push_back("@param radSearch - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
-      helpString.push_back("@param normalColors - (bool) Expresses whether the normals should be expressed as a vector, or as color gradients on the cloud. ");
+      helpString.push_back("@param normalColors - (bool) Expresses whether the normals should be expressed as a vector (false), or as color gradients on the cloud (true). ");
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addFeats") {
       helpString.push_back("bool addFeats(const double res = 0.01, const bool plotHist = 1) ");
       helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
       helpString.push_back("@param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
+      helpString.push_back("@param plotHist - (bool) Determines whether the average value of the normal histogram should be shown inside each voxel as a sphere (default = true) or not (false). ");
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addBoundingBox") {
@@ -497,6 +577,15 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one. ");
       helpString.push_back("@param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2), ");
       helpString.push_back("@return true/false on showing the poitncloud ");
+    }
+    if (functionName=="filter") {
+      helpString.push_back("bool filter(const bool ror = 0, const bool sor = 0, const bool mks = 0, const bool ds = 0) ");
+      helpString.push_back("@brief filter - Function to apply and show different filtering processes to the displayed cloud. ");
+      helpString.push_back("@param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5). ");
+      helpString.push_back("@param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20). ");
+      helpString.push_back("@param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003)\ ");
+      helpString.push_back("@param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002). ");
+      helpString.push_back("@return true/false on showing the poitnclouddar = ");
     }
     if (functionName=="quit") {
       helpString.push_back("bool quit() ");

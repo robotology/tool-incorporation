@@ -73,6 +73,7 @@ public:
     bool addNormals(double radSearch, bool normCol);
     bool addFeats(double res, bool plotHist);
     bool addBoundingBox(int typeBB);
+    bool filter(bool ror, bool sor, bool mls, bool ds);
     //bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);
 
     // module control //
