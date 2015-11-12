@@ -539,9 +539,9 @@ void VisThread::filterCloud(bool rorF, bool sorF , bool mlsF, bool dsF)
     if (sorF)
     {
         pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; // -- by statistical values
-        sor.setStddevMulThresh(1.0);
+        sor.setStddevMulThresh(3.0);
         sor.setInputCloud(cloud);
-        sor.setMeanK(20);
+        sor.setMeanK(10);
         sor.filter(*cloud);
         cout << "--Size after Stat outrem: " << cloud->points.size() << "." << endl;
     }
@@ -578,11 +578,15 @@ void VisThread::filterCloud(bool rorF, bool sorF , bool mlsF, bool dsF)
         //if (verbose){cout << "Model total points: " << cloud->size () << endl;}
         cout << "== Size before downsampling: " << cloud->size () << endl;
 
-        pcl::UniformSampling<pcl::PointXYZRGB> us;
-        us.setInputCloud(cloud);
-        us.setRadiusSearch(0.002);
-        us.compute(sampled_indices);
-        pcl::copyPointCloud(*cloud, sampled_indices.points, *cloud);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil(new pcl::PointCloud<pcl::PointXYZRGB>);
+        pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+        vg.setInputCloud (cloud);
+        vg.setLeafSize (0.002, 0.002, 0.002);
+        vg.filter (*cloud_fil);
+        cloud->points.clear();
+        cloud->clear();
+        copyPointCloud(*cloud_fil, *cloud);
+
 
         //if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
         cout << "== Size after  downsampling: " << cloud->size () << endl;

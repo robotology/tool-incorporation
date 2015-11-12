@@ -559,9 +559,9 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     cout << "--Size after rad out rem: " << cloud_filter->points.size() << "." << endl;
 
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; // -- by statistical values
-    sor.setStddevMulThresh(1.0);
+    sor.setStddevMulThresh(3.0);
     sor.setInputCloud(cloud_filter);
-    sor.setMeanK(20);
+    sor.setMeanK(10);
     sor.filter(*cloud_filter);
     cout << "--Size after Stat outrem: " << cloud_filter->points.size() << "." << endl;
 
@@ -599,19 +599,23 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 
 
 /************************************************************************/
-bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res)
+bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, double res)
 {
     pcl::PointCloud<int> sampled_indices;
-    cloud_ds->points.clear();
-    cloud_ds->clear();
     //if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
     cout << "== Size before downsampling: " << cloud_orig->size () << endl;
 
-    pcl::UniformSampling<pcl::PointXYZRGB> us;
-    us.setInputCloud(cloud_orig);
-    us.setRadiusSearch(res);
-    us.compute(sampled_indices);
-    pcl::copyPointCloud(*cloud_orig, sampled_indices.points, *cloud_ds);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+    vg.setInputCloud(cloud_orig);
+    vg.setLeafSize(res, res, res);
+    vg.filter (*cloud_fil);
+    cloud_orig->points.clear();
+    cloud_ds->points.clear();
+    cloud_orig->clear();
+    cloud_ds->clear();
+    copyPointCloud(*cloud_fil, *cloud_ds);
+
     //if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
     cout << "== Size after  downsampling: " << cloud_ds->size () << endl;
     return true;
