@@ -490,7 +490,6 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
     rpcObjRecPort.write(cmdOR,replyOR);
 
     // read the cloud from the objectReconst output port
-    //Bottle *cloudBottle = cloudsInPort.read(true);
     Bottle *cloudBottle = cloudsInPort.read(true);
     if (cloudBottle!=NULL){
         if (verbose){	cout << "Bottle of size " << cloudBottle->size() << " read from port \n"	<<endl;}
@@ -722,11 +721,8 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
         transfMat = icp.getFinalTransformation();
     }
 
-    */
-
+   */
 }
-
-
 
 void FusionModule::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
 {
