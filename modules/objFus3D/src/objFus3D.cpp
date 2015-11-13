@@ -205,7 +205,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     icp_maxCorr = 0.05;
     icp_ranORT = 0.05;
     icp_transEp = 1e-6;
-    ds_res = rf.check("ds_resolution",Value(0.002)).asDouble();
+    ds_res = rf.check("ds_resolution",Value(0.003)).asDouble();
 
     // Init variables
     STATE = 0;
@@ -238,7 +238,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 2.0; //module periodicity (seconds)
+    return 5.0; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -318,6 +318,8 @@ bool FusionModule::updateModule()
             return true;
         }
 
+        visThrd->updateCloud(cloud_raw,"raw", 0);
+
         // perform filtering on the 3D cloud to further reduce noise
         cout << "Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_merged);       // This cloud will be the initial model.        
@@ -327,7 +329,7 @@ bool FusionModule::updateModule()
         downsampleCloud(cloud_merged, cloud_merged, ds_res);
 
         // Update viewer
-        visThrd->updateCloud(cloud_merged);
+        visThrd->updateCloud(cloud_merged,"merged" ,1);
 
         STATE = 2;
     }
@@ -345,6 +347,7 @@ bool FusionModule::updateModule()
             return true;
         }
         cout << "STATE 2: Retrieved cloud of size: " << cloud_raw->points.size() << endl << endl;
+        visThrd->updateCloud(cloud_raw,"raw",  0);
 
         // XXX Eventually, backrpoject 3D image and get all blobs which fall to some extent within the backrpojected blob.
         // XXX Proper 2D tracker-segmentation could be done simultanoeusly to improve both.
@@ -354,16 +357,17 @@ bool FusionModule::updateModule()
         cout << "STATE 2: Filtering pointcloud" << endl;
         filterCloud(cloud_raw, cloud_in);       // This cloud will be the initial model. 
         cout << "STATE 2: Filtered to cloud of size: " << cloud_in->points.size() << endl << endl;
-        //visThrd->updateCloud(cloud_in);
 
         // Downsamlpe / smooth cloud
         cout << "STATE 2: Downsampling pointcloud" << endl;
         downsampleCloud(cloud_in,cloud_in,ds_res );      // Smooth and downsample.
-        cout << "STATE 2: Downsampled cloud of size: " << cloud_in->points.size() << endl << endl;
+        cout << "STATE 2: Downsampled cloud of size: " << cloud_in->points.size() << endl <<endl;
 
         // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
 
         cout << "STATE 2: Aligning pointcloud" << endl;
+        cout << "STATE 2: Source cloud of size: " << cloud_in->points.size() << endl;
+        cout << "STATE 2: Merged model cloud has size: " << cloud_merged->points.size() << endl;
         Eigen::Matrix4f transfMatrix;
         if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)){ // Align
             cout << "STATE 2: Pointcloud not aligned" << endl;
@@ -376,11 +380,8 @@ bool FusionModule::updateModule()
         cout << "STATE 2: Pointclouds Merged to cloud of size " << cloud_merged->points.size()  << endl;
 
         cout << "STATE 2: Downsampling merged pointcloud" << endl;
-        downsampleCloud(cloud_merged,cloud_merged,ds_res );    // Smooth and downsample.        
+        downsampleCloud(cloud_merged,cloud_merged,ds_res);    // Smooth and downsample.        
         cout << "STATE 2: Downsampled to cloud of size " << endl;
-
-        // visThrd->updateCloud(cloud_merged);
-
 
         // Estimate new object pose as the inverse of the transformation used for alignment
         // Rotate updated model to new object pose
@@ -390,7 +391,7 @@ bool FusionModule::updateModule()
         cout << "STATE 2: Pointcloud tranformed to cloud of size " << cloud_merged->points.size()  << endl;
 
         // Update viewer
-        visThrd->updateCloud(cloud_merged);
+        visThrd->updateCloud(cloud_merged,"merged", 1);
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -579,9 +580,7 @@ bool FusionModule::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     vg.setInputCloud(cloud_orig);
     vg.setLeafSize(res, res, res);
     vg.filter (*cloud_fil);
-    cloud_orig->points.clear();
     cloud_ds->points.clear();
-    cloud_orig->clear();
     cloud_ds->clear();
     copyPointCloud(*cloud_fil, *cloud_ds);
 
@@ -648,8 +647,9 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     icp.setRANSACOutlierRejectionThreshold(icp_ranORT);  // Apply RANSAC too
     icp.setTransformationEpsilon(icp_transEp);
 
+/*
     // Do multiscale ICP to get inital good guess and increase speed and resolution
-    double icpRes = ds_res*8;   // Start with 1 cm resolution
+    double icpRes = ds_res*4;   // Start with 1 cm resolution
     bool init_it = false;
     Eigen::Matrix4f guess = Eigen::Matrix4f::Identity ();
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_src_ds (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -695,9 +695,9 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 
     transfMat = icp.getFinalTransformation();
     cout << transfMat << endl;
-
+*/
     //ICP algorithm
-    /*
+    
     if (initAlignment){
         printf("Setting initAlgined cloud as input... \n");
         icp.setInputSource(cloud_IA);
@@ -708,7 +708,7 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     icp.setInputTarget(cloud_target);
     printf("Aligning... \n");
     icp.align(*cloud_align);
-
+    printf("Alignment attept done\n");
     if (!icp.hasConverged()){
         printf("Clouds not aligned \n");
         return false;
@@ -720,8 +720,6 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     }else{
         transfMat = icp.getFinalTransformation();
     }
-
-   */
 }
 
 void FusionModule::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)

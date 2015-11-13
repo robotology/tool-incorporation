@@ -49,12 +49,13 @@ protected:
 
     // Visualizer global variables
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
-	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
     // Flow control flags
-    bool initialized;
+    bool initialized[2];
     bool clearing;
     bool updatingCloud;
+    int visNum;
 
 
     /**
@@ -82,7 +83,7 @@ public:
      * @brief updateCloud - Updates the displayed cloud with the received one.
      * @param cloud_in - Input cloud to be displayed
      */
-    void updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in);
+    void updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, const std::string &name, int visNum = 0);
 
 };
 

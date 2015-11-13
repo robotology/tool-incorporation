@@ -446,7 +446,7 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
     if (tag == "addBoundingBox") {
       int32_t typeBB;
       if (!reader.readI32(typeBB)) {
-        typeBB = 2;
+        typeBB = 0;
       }
       bool _return;
       _return = addBoundingBox(typeBB);
@@ -567,13 +567,13 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
     }
     if (functionName=="addFeats") {
       helpString.push_back("bool addFeats(const double res = 0.01, const bool plotHist = 1) ");
-      helpString.push_back("@brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points. ");
-      helpString.push_back("@param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03). ");
+      helpString.push_back("@brief addFeats - adds a visualization of the OMS-EGI features (voxel based spherical normal histograms). ");
+      helpString.push_back("@param res - (double) value (in meters) side of the voxel grid on which the OMS-EGI featureas are copmuted (default = 0.01). ");
       helpString.push_back("@param plotHist - (bool) Determines whether the average value of the normal histogram should be shown inside each voxel as a sphere (default = true) or not (false). ");
       helpString.push_back("@return true/false on showing the poitncloud ");
     }
     if (functionName=="addBoundingBox") {
-      helpString.push_back("bool addBoundingBox(const int32_t typeBB = 2) ");
+      helpString.push_back("bool addBoundingBox(const int32_t typeBB = 0) ");
       helpString.push_back("@brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one. ");
       helpString.push_back("@param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2), ");
       helpString.push_back("@return true/false on showing the poitncloud ");
@@ -583,7 +583,7 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@brief filter - Function to apply and show different filtering processes to the displayed cloud. ");
       helpString.push_back("@param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5). ");
       helpString.push_back("@param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20). ");
-      helpString.push_back("@param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003)\ ");
+      helpString.push_back("@param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003) ");
       helpString.push_back("@param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002). ");
       helpString.push_back("@return true/false on showing the poitnclouddar = ");
     }

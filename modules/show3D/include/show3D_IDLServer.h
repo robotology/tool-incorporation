@@ -41,8 +41,8 @@ public:
    */
   virtual bool addNormals(const double radSearch = 0.01, const bool normCol = 1);
   /**
-   * @brief addNormals - adds Normals to the displayed cloud radSearch is used to find neighboring points.
-   * @param res - (double) value (in meters) of the extension of the radius search in order to estimate the surface to compute normals from (default = 0.03).
+   * @brief addFeats - adds a visualization of the OMS-EGI features (voxel based spherical normal histograms).
+   * @param res - (double) value (in meters) side of the voxel grid on which the OMS-EGI featureas are copmuted (default = 0.01).
    * @param plotHist - (bool) Determines whether the average value of the normal histogram should be shown inside each voxel as a sphere (default = true) or not (false).
    * @return true/false on showing the poitncloud
    */
@@ -52,12 +52,12 @@ public:
    * @param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2),
    * @return true/false on showing the poitncloud
    */
-  virtual bool addBoundingBox(const int32_t typeBB = 2);
+  virtual bool addBoundingBox(const int32_t typeBB = 0);
   /**
    * @brief filter - Function to apply and show different filtering processes to the displayed cloud.
    * @param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5).
    * @param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20).
-   * @param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003)\
+   * @param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003)
    * @param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002).
    * @return true/false on showing the poitnclouddar =
    */
