@@ -11,22 +11,20 @@ bool VisThread::threadInit()
 {
     cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>); // Point cloud
     viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer> (new pcl::visualization::PCLVisualizer("Point Cloud Viewer")); //viewer
-    viewer->setSize(1000,650);
-    viewer->setPosition(300,350);
-    int v0 (0);
-    int v1 (1);
-    viewer->createViewPort (0.0, 0.0, 0.5, 1.0, v0);
-    viewer->createViewPort (0.5, 0.0, 1.0, 1.0, v1);
+    viewer->setSize(900,600);
+    viewer->setPosition(320,370);
+    viewer->createViewPort (0.0, 0.0, 0.5, 1.0, vp1);
+    viewer->createViewPort (0.5, 0.0, 1.0, 1.0, vp2);
+    viewer->setCameraPosition(0.5, 0.0, 0.3,0,0,0 );
 
     //initialize here variables
     printf("\nStarting visualizer Thread\n");
 
     // Flags
-    initialized[1] = false;
-    initialized[2] = false;
+    initialized = false;
     clearing = false;
     updatingCloud = false;
-    visNum =0;
+    visNum = 0;
 
     return true;
 }
@@ -44,10 +42,21 @@ void VisThread::run()
             if(update)
             {
                 if(updatingCloud){
+
+                    // Determine the corresponding id and viewport
+                    string idC;
+                    if (visNum == 0){
+                        idC = "raw";
+                        vp = vp1;
+                    }else if (visNum==1){
+                        idC = "merged";
+                        vp = vp2;
+                    }
+
                     // Clean visualizer to plot new cloud
-                    viewer->removePointCloud(id,visNum);
-                    viewer->removePointCloud("normals",visNum);
-                    viewer->removeAllShapes(visNum);
+                    viewer->removePointCloud(id,vp);
+                    viewer->removePointCloud("normals",vp);
+                    viewer->removeAllShapes(vp);
 
                     // Check if the loaded file contains color information or not
                     bool colorCloud = false;
@@ -56,24 +65,28 @@ void VisThread::run()
                         if (rgb != 0)
                             colorCloud = true;
                     }
+
                     // Add cloud color if it has not
                     if (!colorCloud)    {
                         // Define R,G,B colors for the point cloud
                         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> cloud_color_handler(cloud, 230, 20, 0); //red
-                        viewer->addPointCloud (cloud, cloud_color_handler, id, visNum);
+                        viewer->addPointCloud(cloud, cloud_color_handler, idC, vp);
                     }else{
                         pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> cloud_color_handler (cloud);
-                        viewer->addPointCloud (cloud, cloud_color_handler, id,visNum);
+                        viewer->addPointCloud(cloud, cloud_color_handler, idC, vp);
                     }
-                    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, id);
+
+                    // Plot cloud
+                    //viewer->addPointCloud(cloud, cloud_color_handler, idC, visNum);
+                    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, id,vp);
                     updatingCloud = false;
                 }
 
                 // Clear display
                 if (clearing){
-                    viewer->removePointCloud(id,visNum);
-                    viewer->removePointCloud("normals",visNum);
-                    viewer->removeAllShapes(visNum);
+                    viewer->removePointCloud(id,0);
+                    viewer->removePointCloud("normals",0);
+                    viewer->removeAllShapes();
                     clearing = false;
                 }
 
@@ -82,9 +95,9 @@ void VisThread::run()
             updateLock.unlock();
         }else{
             //Close viewer
-            printf("Closing Visualizer\n");
+            printf("Closing Visualizer\n");            
+            viewer->removePointCloud(id,0);
             viewer->close();
-            viewer->removePointCloud(id);
             this->stop();
         }
 
@@ -117,17 +130,22 @@ void VisThread::clearVisualizer()
 // Display new cloud received
 void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, const string &name, int vN)
 {
-    printf("Updating displayed cloud\n");
+    cout << "Updating Cloud " << name << " on viewport " << vN << endl;
+    cloud->points.clear();
+    cloud->clear();
     *cloud = *cloud_in;  // new cloud overwrites last one
     id = name;
     visNum = vN;
-    if (!initialized[visNum])
+    if (!initialized)
     {
         // Set camera position and orientation
         //viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-        viewer->setBackgroundColor (1,1,1, visNum); // Setting background to white
-        viewer->addCoordinateSystem (0.05, "coord", visNum);
-        initialized[visNum] = true;
+        viewer->setBackgroundColor (1,1,1, vp1); // Setting background to white
+        viewer->setBackgroundColor (0.9,0.9,0.9, vp2); // Setting background to white-ish
+        viewer->addCoordinateSystem (0.05, "coord", 0);
+        initialized = true;
+
+        cout << "Visualizer viewport " << vN << " initialized.";
     }
 
     updatingCloud = true;

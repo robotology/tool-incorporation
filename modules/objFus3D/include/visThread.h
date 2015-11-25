@@ -52,7 +52,8 @@ protected:
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
     // Flow control flags
-    bool initialized[2];
+    bool initialized;
+    int vp1,vp2, vp;
     bool clearing;
     bool updatingCloud;
     int visNum;

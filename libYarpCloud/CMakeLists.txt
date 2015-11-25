@@ -14,12 +14,16 @@ SET(YARPCLOUD_SRCS
     src/CloudUtils.cpp
 )
 
+
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories(${YARP_INCLUDE_DIRS})
+include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
+
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-include_directories(${YARP_INCLUDE_DIRS})
-include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
+
 link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by default, but it's not, so add it just in case.
 
 #include_directories(${objects3D_INCLUDE_DIRS})

@@ -238,7 +238,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 5.0; //module periodicity (seconds)
+    return 2.0; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -511,7 +511,7 @@ bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     // Apply some filtering to clean the cloud
     // Process the cloud by removing distant points ...
     cout << "--Original cloud to filter of size " << cloud_orig->points.size() << "." << endl;
-    const float depth_limit = 0.70;
+    const float depth_limit = 1.0;
     pcl::PassThrough<pcl::PointXYZRGB> pass;
     pass.setInputCloud(cloud_orig);
     pass.setFilterFieldName("z");
