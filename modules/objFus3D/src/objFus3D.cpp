@@ -144,6 +144,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     string name=rf.check("name",Value("objFus3D")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
     verbose = rf.check("verbose", Value(true)).asBool();
+    pfTracker = rf.check("pfTracker", Value(false)).asBool();
     filename = rf.check("filename",Value("model")).asString().c_str();
     string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
@@ -408,54 +409,56 @@ bool FusionModule::updateModule()
 /************************************************************************/
 bool FusionModule::startTracker()
 {
-    printf("Initalizing tracker \n");
-    // read image
-    ImageOf<PixelRgb> *imgIn = imgInPort.read();  // read an image
-    cv::Mat imgMatIn = cv::cvarrToMat((IplImage*)imgIn->getIplImage());
-
-    // Get initial bounding box of object:
-    printf("Click first top left and then bottom right from the object !!\n");
-    cv::Rect BBox;
-    cv::Point tl, br;
-    bool boxOK = false;
-    while (!boxOK)
+    if (pfTracker)
     {
-        printf("Click on top left!\n");
-        Bottle *point1 = coordsInPort.read(true);
-        tl.x =  point1->get(0).asDouble();
-        tl.y =  point1->get(1).asDouble();
-        printf("Point read at %d, %d!!\n", tl.x, tl.y);
 
-        printf("Click on bottom right!\n");
-        Bottle *point2 = coordsInPort.read(true);
-        br.x =  point2->get(0).asDouble();
-        br.y =  point2->get(1).asDouble();
-        printf("Point read at %d, %d!!\n", br.x, br.y);
-        BBox = cv::Rect(tl,br);
-        if (BBox.area() > 20) {
-            printf("valid coordinates, cropping image!\n");
-            boxOK = true;
-        } else {
-            printf("Coordinates not valid, click again!\n");
+        printf("Initalizing tracker \n");
+        // read image
+        ImageOf<PixelRgb> *imgIn = imgInPort.read();  // read an image
+        cv::Mat imgMatIn = cv::cvarrToMat((IplImage*)imgIn->getIplImage());
+
+        // Get initial bounding box of object:
+        printf("Click first top left and then bottom right from the object !!\n");
+        cv::Rect BBox;
+        cv::Point tl, br;
+        bool boxOK = false;
+        while (!boxOK)
+        {
+            printf("Click on top left!\n");
+            Bottle *point1 = coordsInPort.read(true);
+            tl.x =  point1->get(0).asDouble();
+            tl.y =  point1->get(1).asDouble();
+            printf("Point read at %d, %d!!\n", tl.x, tl.y);
+
+            printf("Click on bottom right!\n");
+            Bottle *point2 = coordsInPort.read(true);
+            br.x =  point2->get(0).asDouble();
+            br.y =  point2->get(1).asDouble();
+            printf("Point read at %d, %d!!\n", br.x, br.y);
+            BBox = cv::Rect(tl,br);
+            if (BBox.area() > 20) {
+                printf("valid coordinates, cropping image!\n");
+                boxOK = true;
+            } else {
+                printf("Coordinates not valid, click again!\n");
+            }
+        }
+
+        if(verbose==1){printf("Prep out mat !!\n");}
+
+        ImageOf<PixelRgb> &templateOut  = cropOutPort.prepare();
+        templateOut.resize(BBox.width, BBox.height);
+        cv::Mat tempOut=cv::cvarrToMat((IplImage*)templateOut.getIplImage());
+        imgMatIn(BBox).copyTo(tempOut);
+        //cv::GaussianBlur(img(BBox), imOut, cv::Size(1,1), 1, 1);
+
+        double t0 = Time::now();
+        while(Time::now()-t0 < 1) {  //send the template for one second
+            printf("Writing Template!\n");
+            cropOutPort.write();
+            Time::delay(0.1);
         }
     }
-
-    if(verbose==1){printf("Prep out mat !!\n");}
-
-    ImageOf<PixelRgb> &templateOut  = cropOutPort.prepare();
-    templateOut.resize(BBox.width, BBox.height);
-    cv::Mat tempOut=cv::cvarrToMat((IplImage*)templateOut.getIplImage());
-    imgMatIn(BBox).copyTo(tempOut);
-    //cv::GaussianBlur(img(BBox), imOut, cv::Size(1,1), 1, 1);
-
-    double t0 = Time::now();
-    while(Time::now()-t0 < 1) {  //send the template for one second
-        printf("Writing Template!\n");
-        cropOutPort.write();
-        Time::delay(0.1);
-    }
-
-    //    trackerInit = true;
 
     return true;
 }
@@ -509,6 +512,10 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
 bool FusionModule::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filter)
 {
     // Apply some filtering to clean the cloud
+    // First of all, remove possible NaNs
+    std::vector<int> indices;
+    pcl::removeNaNFromPointCloud(*cloud_orig, *cloud_orig, indices);
+
     // Process the cloud by removing distant points ...
     cout << "--Original cloud to filter of size " << cloud_orig->points.size() << "." << endl;
     const float depth_limit = 1.0;

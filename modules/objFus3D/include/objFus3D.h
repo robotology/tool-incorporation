@@ -52,6 +52,7 @@
 #include <pcl/filters/bilateral.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/filter.h>
 #include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/fpfh.h>
@@ -77,7 +78,6 @@ protected:
 
     // module parameters
     VisThread *visThrd;
-    VisThread *visThrdTest;
 
     // Ports
     yarp::os::BufferedPort<yarp::os::Bottle>                            coordsInPort;
@@ -96,6 +96,7 @@ protected:
 
     // config variables
     bool        verbose;
+    bool        pfTracker;      //sets whether an external pfTracker is running (true) or tracking is performed automatically by segmentation module.
     std::string cloudpath;      //path to folder with .ply files
     std::string filename;       //name of file to save recosntructed model.
 
