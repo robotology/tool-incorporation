@@ -239,7 +239,7 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 double FusionModule::getPeriod()
 {
-    return 2.0; //module periodicity (seconds)
+    return 0.5; //module periodicity (seconds)
 }
 
 bool FusionModule::interruptModule()
@@ -496,13 +496,17 @@ bool FusionModule::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_re
     // read the cloud from the objectReconst output port
     Bottle *cloudBottle = cloudsInPort.read(true);
     if (cloudBottle!=NULL){
+        if (verbose){	cout << "Received bottle of size " << cloudBottle->size() << endl;	}
+        if (cloudBottle->size()==0) {
+            if (verbose){	printf("Received empty bottle \n");	}
+            return false;
+        }
         if (verbose){	cout << "Bottle of size " << cloudBottle->size() << " read from port \n"	<<endl;}
         CloudUtils::bottle2cloud(*cloudBottle,cloud_read);
     } else{
         if (verbose){	printf("Couldn't read returned cloud \n");	}
         return false;
     }
-
 
     return true;
 }
@@ -704,15 +708,25 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     cout << transfMat << endl;
 */
     //ICP algorithm
-    
+    // Carefully clean NaNs, as otherwise they make the alignment crash horribly.
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source_noNaN (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target_noNaN (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    std::vector <int> nanInd;
+
+    removeNaNs(cloud_source,cloud_source_noNaN, nanInd);
+    cout << "Found " << nanInd.size() << " NaNs on source cloud." <<endl;
+    removeNaNs(cloud_target,cloud_target_noNaN, nanInd);
+    cout << "Found " << nanInd.size() << " NaNs on target cloud." <<endl;
+
     if (initAlignment){
         printf("Setting initAlgined cloud as input... \n");
         icp.setInputSource(cloud_IA);
     }else{
         printf("Setting source cloud as input... \n");
-        icp.setInputSource(cloud_source);
+        icp.setInputSource(cloud_source_noNaN);
     }
-    icp.setInputTarget(cloud_target);
+    icp.setInputTarget(cloud_target_noNaN);
     printf("Aligning... \n");
     icp.align(*cloud_align);
     printf("Alignment attept done\n");
@@ -727,6 +741,29 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     }else{
         transfMat = icp.getFinalTransformation();
     }
+}
+
+
+int FusionModule::removeNaNs(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_noNaN, vector <int> nanInds)
+{
+
+    cloud_noNaN->points.clear();
+    cloud_noNaN->clear();
+    nanInds.clear();
+
+    int sizeC;
+    sizeC = cloud->size();
+
+    int nanCount = 0;
+    for (int i = 0 ;i < sizeC; i++){
+        if (!pcl_isfinite (cloud->points[i].x) || !pcl_isfinite (cloud->points[i].y) || !pcl_isfinite (cloud->points[i].z)){
+            nanCount ++;
+            nanInds.push_back(i);
+        }else {
+            cloud_noNaN->push_back(cloud->points[i]);
+        }
+    }
+    return nanCount;
 }
 
 void FusionModule::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
