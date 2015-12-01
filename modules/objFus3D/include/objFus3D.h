@@ -21,6 +21,7 @@
 // Includes
 #include <iostream>
 #include <string>
+#include <gsl/gsl_math.h>
 
 // YARP libs
 #include <yarp/os/RFModule.h>
@@ -32,6 +33,9 @@
 #include <yarp/os/RateThread.h>
 #include <yarp/os/all.h>
 #include <yarp/sig/Image.h>
+#include <yarp/sig/Matrix.h>
+#include <yarp/sig/Vector.h>
+#include <yarp/math/Math.h>
 
 // icub Libraries
 #include "iCub/YarpCloud/CloudUtils.h"

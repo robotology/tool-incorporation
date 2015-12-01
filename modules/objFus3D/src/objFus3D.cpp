@@ -21,6 +21,7 @@
 using namespace std;
 using namespace yarp::os;
 using namespace yarp::sig;
+using namespace yarp::math;
 using namespace iCub::YarpCloud;
 
 /************************************************************************/
@@ -194,11 +195,12 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     // Module rpc parameters
     verbose = true ; // XXX
     closing = false;
+    saving = false;
     paused = false;
     tracking = false;
     initAlignment = false;
 
-    //ALgorithms parameters by default
+    //Algorithms parameters by default
     mls_rad = 0.02;
     mls_usRad = 0.005;
     mls_usStep = 0.003;
@@ -740,6 +742,21 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
         transfMat = icp.getFinalTransformation() * initial_T;
     }else{
         transfMat = icp.getFinalTransformation();
+    }
+
+
+    // Check if the rotation in any angle is too big > 30, assuming the object is rotated slowly, it would mean the aligning is incorrect.
+    Matrix transfMatYARP = CloudUtils::eigMat2yarpMat(transfMat);
+    Vector rotVec = dcm2rpy(transfMatYARP);  // from rot Matrix to roll pitch yaw
+    Vector rotVecDeg = rotVec*(180.0/M_PI);
+
+
+    printf("Alignment rotated new cloud: \n %s  degrees \n",rotVecDeg.toString().c_str());
+    for (int d=0;d<rotVecDeg.size();d++){
+        if (rotVecDeg[d]>30.0 ){//M_PI/6.0){
+            cout << "Alignment required too much rotation. Skipping" << endl;
+            return false;
+        }
     }
 }
 
