@@ -28,6 +28,7 @@ option (BUILD_OBJFUS3D "Build object Fusion 3D" ON)
 
 # build the library 
 add_subdirectory(libYarpCloud)
+add_subdirectory(libcpu_tsdf)
 
 ## add modules
 if(BUILD_OBJECTS3DEXPLORER)

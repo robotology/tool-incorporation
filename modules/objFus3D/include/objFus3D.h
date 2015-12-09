@@ -21,7 +21,8 @@
 // Includes
 #include <iostream>
 #include <string>
-#include <gsl/gsl_math.h>
+#include <Eigen/Core>
+
 
 // YARP libs
 #include <yarp/os/RFModule.h>
@@ -63,6 +64,13 @@
 #include <pcl/surface/mls.h>
 #include <pcl/registration/ia_ransac.h>
 
+
+#include <cpu_tsdf/tsdf_volume_octree.h>
+#include <cpu_tsdf/marching_cubes_tsdf_octree.h>
+//#include <cpu_tsdf/octree.h>
+//#include <cpu_tsdf/tsdf_interface.h>
+//#include <cpu_tsdf/impl/tsdf_volume_octree.hpp>
+
 // OpenCV libs
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -101,6 +109,7 @@ protected:
     // config variables
     bool        verbose;
     bool        pfTracker;      //sets whether an external pfTracker is running (true) or tracking is performed automatically by segmentation module.
+    bool        tsdfON;
     std::string cloudpath;      //path to folder with .ply files
     std::string filename;       //name of file to save recosntructed model.
 
@@ -109,7 +118,7 @@ protected:
     bool saving;
     bool closing;
     bool paused;
-    bool initAlignment;
+    bool initAlignment;    
 
     // Algorithms parameters
     double ds_res;
@@ -127,10 +136,16 @@ protected:
     int STATE;
 
     // Algorithm variables
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_in;       // Last registered pointcloud    
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_merged;   // Validated merged pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_raw;      // Merged pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_aligned;  // Cloud in after alignment
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr       cloud_in;       // Last registered pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr       cloud_merged;   // Validated merged pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr       cloud_raw;      // Merged pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr       cloud_aligned;  // Cloud in after alignment
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_normals;  // Cloud with normals information.
+
+    // TSDF variables
+    cpu_tsdf::TSDFVolumeOctree::Ptr              tsdf;            // Truncates Signed distance function object.
+    Eigen::Matrix4f                              transfMatAccum;  // Accumulated camera pose
+    Eigen::Affine3d                              cameraPose;      // Accumulated camera pose
 
     /* functions */
     //bool                read(yarp::os::ConnectionReader &connection);
@@ -140,9 +155,10 @@ protected:
     bool                downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, const double res = 0.001);    
 
     bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat);
-    int                removeNaNs(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_noNaN, std::vector <int> nanInds);
+    int                 removeNaNs(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_noNaN, std::vector <int> nanInds);
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
+    void                transf2pose (const Eigen::Matrix4f trans, Eigen::Affine3d pose);
 
 public:
 

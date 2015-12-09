@@ -29,8 +29,7 @@ link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib) #This should be added by def
 #include_directories(${objects3D_INCLUDE_DIRS})
 #include_directories(${minimumBoundingBox_INCLUDE_DIRS})
 
-include_directories(include 
-                    ${YARP_INCLUDE_DIRS})
+include_directories(include ${YARP_INCLUDE_DIRS})
 
 add_library(${PROJECTNAME} ${YARPCLOUD_HDRS} ${YARPCLOUD_SRCS})
 target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES})

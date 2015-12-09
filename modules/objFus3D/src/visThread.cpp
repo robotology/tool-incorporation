@@ -16,6 +16,23 @@ bool VisThread::threadInit()
     viewer->createViewPort (0.0, 0.0, 0.5, 1.0, vp1);
     viewer->createViewPort (0.5, 0.0, 1.0, 1.0, vp2);
     viewer->setCameraPosition(0.5, 0.0, 0.3,0,0,0 );
+    // XXX get the right values pressing 'c' when I am visualizing the cloud properly, and then subistutte those values in:
+    // eg 0.00522511,5.22511/0.0427789,-0.185814,0.0496169/0.0497412,-0.196849,-0.0978747/-0.0956887,-0.992963,0.0697719/0.523599/631,491/1650,152
+/*    The parameters represent (in order):
+      * clipping range (camera parameters)
+      * focal point (camera parameters) // Where is the camera looking at.
+      * position (camera parameters) // Where is the camera situated
+      * view up (camera parameters) // AFAIUnderstand, the vector definingn what is 'up' on the camera view
+      * view angle (camera parameters) // angular height of the camera view measured in rad.
+      * window size (window parameters)
+      * window position (window parameters)
+*/
+    // viewer->setCameraPosition(0.0497412, -0.196849, -0.0978747, 0.0427789, -0.185814, 0.0496169, -0.0956887, -0.992963, 0.0697719);
+    // viewer->setCameraFieldOfView(0.523599);
+    // viewer->setCameraClipDistances(0.00522511, 5.22511);
+    // viewer->setPosition(1650, 152);
+    // viewer->setSize(631, 491);
+
 
     //initialize here variables
     printf("\nStarting visualizer Thread\n");
