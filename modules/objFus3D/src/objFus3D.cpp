@@ -16,6 +16,7 @@
  * Public License for more details
 */
 
+
 #include "objFus3D.h"
 
 using namespace std;
@@ -192,13 +193,19 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     //coordsInPort.setReader(*this);
     attach(rpcInPort);
 
+    // Init variables
+    // Defines:
+    STATE = 0;
+    NO_FILENUM = -1;
+
     // Module rpc parameters
-    verbose = true ; // XXX
+    verbose = true ; // XXX    
     closing = false;
     saving = false;
     paused = false;
     tracking = false;
     initAlignment = false;
+    tsdfON = true; //XXX
 
     //Algorithms parameters by default
     mls_rad = 0.02;
@@ -210,16 +217,28 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
     icp_transEp = 1e-6;
     ds_res = rf.check("ds_resolution",Value(0.003)).asDouble();
 
-    // Init variables
-    STATE = 0;
-    // trackerInit = false;
-    NO_FILENUM = -1;
+    // Initilaize clouds
+    cloud_raw = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());                  // Point cloud
+    cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());                   // Point cloud
+    cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());               // Point cloud
+    cloud_aligned = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());              // Point cloud
+    cloud_normals = pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr (new pcl::PointCloud<pcl::PointXYZRGBNormal> ());  // Point cloud
+    cloud_normals->clear();
+    transfMatAccum = Eigen::Matrix4f::Identity();
 
-    cloud_raw = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-    cloud_in = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-    cloud_merged = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-    cloud_aligned = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
 
+// XXX Check here why tsdf functions appear as not defined and give compilation errors!!!
+    // it might be because they are directly defined and declared on the hpp, and hence it does not find the definition atl linking time.
+    tsdf = cpu_tsdf::TSDFVolumeOctree::Ptr (new cpu_tsdf::TSDFVolumeOctree ());
+    // Set initial values for tsdf
+    if (tsdfON){
+        tsdf->setGridSize (0.5, 0.5, 0.5); // 10m x 10m x 10m
+        tsdf->setResolution (256, 256, 256); // Smallest cell size = 0.5m / 256 = about 2 mm
+        tsdf->setIntegrateColor(true); // Set to true if you want the TSDF to store color
+        Eigen::Affine3d tsdf_center; // Optionally offset the center
+        tsdf->setGlobalTransform (tsdf_center);
+        tsdf->reset (); // Initialize it to be empty
+    }
 
     //Threads
     visThrd = new VisThread(50, "Cloud");
@@ -331,6 +350,13 @@ bool FusionModule::updateModule()
         cout << "Downsampling pointcloud" << endl;
         downsampleCloud(cloud_merged, cloud_merged, ds_res);
 
+
+        if (tsdfON){
+            Eigen::Affine3d cameraPose;
+            transf2pose(transfMatAccum,cameraPose);
+            tsdf->integrateCloud(*cloud_merged, *cloud_normals, cameraPose); // Integrate the cloud
+        }
+
         // Update viewer
         visThrd->updateCloud(cloud_merged,"merged" ,1);
 
@@ -366,35 +392,55 @@ bool FusionModule::updateModule()
         downsampleCloud(cloud_in,cloud_in,ds_res );      // Smooth and downsample.
         cout << "STATE 2: Downsampled cloud of size: " << cloud_in->points.size() << endl <<endl;
 
-        // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
+
 
         cout << "STATE 2: Aligning pointcloud" << endl;
-        cout << "STATE 2: Source cloud of size: " << cloud_in->points.size() << endl;
-        cout << "STATE 2: Merged model cloud has size: " << cloud_merged->points.size() << endl;
+        cout << "-- Source cloud of size: " << cloud_in->points.size() << endl;
+        cout << "-- Merged model cloud has size: " << cloud_merged->points.size() << endl;
         Eigen::Matrix4f transfMatrix;
         if(!alignPointClouds(cloud_in,cloud_merged,cloud_aligned,transfMatrix)){ // Align
-            cout << "STATE 2: Pointcloud not aligned" << endl;
+            cout << "xxx Pointcloud not aligned" << endl;
             return true;        // If alignment didnt converge, skip merging
         }
-        cout << "STATE 2: Pointcloud aligned to cloud of size " << cloud_aligned->points.size()  << endl;
+        cout << "== Pointcloud aligned to cloud of size " << cloud_aligned->points.size()  << endl;
+        transfMatAccum = transfMatrix * transfMatAccum;
+        //Eigen::Affine3d cameraPose = eigenTransform(transfMatAccum);
+        Eigen::Affine3d cameraPose;
+        transf2pose(transfMatAccum,cameraPose);
 
-        cout << "STATE 2: Merging pointcloud" << endl;
-        *cloud_merged += *cloud_aligned;                                          // Merge
-        cout << "STATE 2: Pointclouds Merged to cloud of size " << cloud_merged->points.size()  << endl;
+        if (!tsdfON){
+            cout << "STATE 2: Merging pointcloud" << endl;
+            *cloud_merged += *cloud_aligned;                                          // Merge
+            cout << "== Pointclouds Merged to cloud of size " << cloud_merged->points.size()  << endl;
 
-        cout << "STATE 2: Downsampling merged pointcloud" << endl;
-        downsampleCloud(cloud_merged,cloud_merged,ds_res);    // Smooth and downsample.        
-        cout << "STATE 2: Downsampled to cloud of size " << endl;
+            cout << "STATE 2: Downsampling merged pointcloud" << endl;
+            downsampleCloud(cloud_merged,cloud_merged,ds_res);    // Smooth and downsample.
+            cout << "== Downsampled to cloud of size " << endl;
 
-        // Estimate new object pose as the inverse of the transformation used for alignment
-        // Rotate updated model to new object pose
-        cout << "STATE 2: Rotating merged pointcloud to new pose" << endl;
-        Eigen::Matrix4f targetToSource = transfMatrix.inverse();            //
-        pcl::transformPointCloud(*cloud_merged, *cloud_merged, targetToSource);   // XXX ??? check if transfMatrix is correct, or needs to be the inverse
-        cout << "STATE 2: Pointcloud tranformed to cloud of size " << cloud_merged->points.size()  << endl;
+            // Estimate new object pose as the inverse of the transformation used for alignment
+            // Rotate updated model to new object pose
+            cout << "STATE 2: Rotating merged pointcloud to new pose" << endl;
+            Eigen::Matrix4f targetToSource = transfMatrix.inverse();            //
+            pcl::transformPointCloud(*cloud_merged, *cloud_merged, targetToSource);   // targetToSource is correct, checked
+
+            cout << "== Pointcloud transformed to model pose " << cloud_merged->points.size()  << endl;
+        } else {
+            // XXX add an option to do merging throuhg TSDF when GPU is active. (http://docs.pointclouds.org/trunk/classpcl_1_1gpu_1_1kinfu_l_s_1_1_tsdf_volume.html)
+            // Set initial pose to 4x4 identity, and multiply each T (from ICP) by all the previous ones (iteratively) to get the pose at each cloud wrt the first one.
+            // Probably we dont need to invert if we keep assume that the world is fixed at the pose of the first cloud.
+            cout << "Performinf TSDF-based integration" << endl;
+            tsdf->integrateCloud(*cloud_in, *cloud_normals, cameraPose); // Integrate the cloud
+
+            // Now what do you want to do with it?
+            float distance; pcl::PointXYZ query_point (1.0, 2.0, -1.0);
+            tsdf->getFxn (query_point, distance); // distance is normalized by the truncation limit -- goes from -1 to 1
+            pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_raytraced = tsdf->renderColoredView(cameraPose); // Render it
+            cloud_merged->clear();
+            pcl::copyPointCloud(*cloud_raytraced, *cloud_merged);
+        }
 
         // Update viewer
-        visThrd->updateCloud(cloud_merged,"merged", 1);
+        //visThrd->updateCloud(cloud_merged,"merged", 1);
 
         if (saving){
             CloudUtils::savePointsPly(cloud_merged, cloudpath, filename, NO_FILENUM);
@@ -810,6 +856,18 @@ void FusionModule::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB
     norm_est.setSearchMethod(tree);
     norm_est.setRadiusSearch(0.02f);
     norm_est.compute(*normals);
+}
+
+void FusionModule::transf2pose (const Eigen::Matrix4f trans, Eigen::Affine3d pose){
+
+    pose(3,0) = 0;pose(3,1) = 0; pose(3,2) = 0; pose(3,3) = 1; // Make last row 0 0 0 1
+    for (int y = 0; y < 3; y++)
+    {
+        for (int x = 0; x < 4; x++)     {
+            pose(y,x) = static_cast<double>(trans(y,x));
+        }
+    }
+
 }
 
 

@@ -7,6 +7,7 @@ SET(PROJECTNAME objFus3D)
 PROJECT(${PROJECTNAME})
 
 find_package(OpenCV)
+find_package(CPUTSDF)
 
 include(YarpIDL)
 # Thrift compile definition file to generate source code into the desired directory
@@ -32,11 +33,12 @@ link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) #This shoul
 include(objFus3D_thrift.cmake)
 include_directories(${generated_libs_dir}/include)
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(${CPUTSDF_INCLUDE_DIRS})
 include_directories(${YarpCloud_INCLUDE_DIRS})
 
 
 add_executable(${PROJECTNAME} ${source} ${header} ${idl})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} YarpCloud)
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} YarpCloud ${CPUTSDF_libraries})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})
