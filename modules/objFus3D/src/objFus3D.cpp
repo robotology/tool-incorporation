@@ -228,7 +228,8 @@ bool FusionModule::configure(yarp::os::ResourceFinder &rf)
 
 
 // XXX Check here why tsdf functions appear as not defined and give compilation errors!!!
-    tsdf = cpu_tsdf::TSDFVolumeOctree::Ptr (new cpu_tsdf::TSDFVolumeOctree);
+    // it might be because they are directly defined and declared on the hpp, and hence it does not find the definition atl linking time.
+    tsdf = cpu_tsdf::TSDFVolumeOctree::Ptr (new cpu_tsdf::TSDFVolumeOctree ());
     // Set initial values for tsdf
     if (tsdfON){
         tsdf->setGridSize (0.5, 0.5, 0.5); // 10m x 10m x 10m
