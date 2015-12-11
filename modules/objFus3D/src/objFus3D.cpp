@@ -711,14 +711,11 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 */
     //ICP algorithm
     // Carefully clean NaNs, as otherwise they make the alignment crash horribly.
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source_noNaN (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target_noNaN (new pcl::PointCloud<pcl::PointXYZRGB> ());
     std::vector <int> nanInd;
 
-    removeNaNs(cloud_source,cloud_source_noNaN, nanInd);
+    removeNaNs(cloud_source,cloud_source, nanInd);
     cout << "Found " << nanInd.size() << " NaNs on source cloud." <<endl;
-    removeNaNs(cloud_target,cloud_target_noNaN, nanInd);
+    removeNaNs(cloud_target,cloud_target, nanInd);
     cout << "Found " << nanInd.size() << " NaNs on target cloud." <<endl;
 
     if (initAlignment){
@@ -726,9 +723,9 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
         icp.setInputSource(cloud_IA);
     }else{
         printf("Setting source cloud as input... \n");
-        icp.setInputSource(cloud_source_noNaN);
+        icp.setInputSource(cloud_source);
     }
-    icp.setInputTarget(cloud_target_noNaN);
+    icp.setInputTarget(cloud_target);
     printf("Aligning... \n");
     icp.align(*cloud_align);
     printf("Alignment attept done\n");
@@ -764,6 +761,8 @@ bool FusionModule::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 int FusionModule::removeNaNs(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_noNaN, vector <int> nanInds)
 {
 
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudC (new pcl::PointCloud<pcl::PointXYZRGB> ()); // Copy input cloud to allow having input and output the same cloud
+    pcl::copyPointCloud(*cloud, *cloudC);
     cloud_noNaN->points.clear();
     cloud_noNaN->clear();
     nanInds.clear();
@@ -773,11 +772,11 @@ int FusionModule::removeNaNs(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
 
     int nanCount = 0;
     for (int i = 0 ;i < sizeC; i++){
-        if (!pcl_isfinite (cloud->points[i].x) || !pcl_isfinite (cloud->points[i].y) || !pcl_isfinite (cloud->points[i].z)){
+        if (!pcl_isfinite (cloudC->points[i].x) || !pcl_isfinite (cloudC->points[i].y) || !pcl_isfinite (cloudC->points[i].z)){
             nanCount ++;
             nanInds.push_back(i);
         }else {
-            cloud_noNaN->push_back(cloud->points[i]);
+            cloud_noNaN->push_back(cloudC->points[i]);
         }
     }
     return nanCount;
