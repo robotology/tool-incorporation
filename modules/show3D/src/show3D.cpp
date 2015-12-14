@@ -114,7 +114,7 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     }else{
         string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
-        cloudpath  = icubContribEnvPath + defPathFrom;
+        cloudpath  = icubContribEnvPath.c_str() + defPathFrom;
     }
     cout << "Clouds will be loaded from " << cloudpath << endl;
 
