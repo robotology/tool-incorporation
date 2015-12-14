@@ -109,19 +109,14 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     cloudsRF.configure(0,NULL);
 
     // Set the path that contains previously saved pointclouds
-    string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
-    string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
-    string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
-
-    cloudpath  = icubContribEnvPath + localModelsPath;
-
-
-    // XXX update this so it can get either a path specified by cloudsPath.ini, or as in 'objects3DExplorer', the installation one where sample clouds go.
-    /*if (strcmp(robot.c_str(),"icub")==0)
-        cloudpath = rf.find("clouds_path").asString();
-    else
-        cloudpath = "/home/icub/icubTanis/objects3DModeler/data/data50tools/modelData"; // rf.find("clouds_path_sim").asString();
-    */
+    if (rf.check("clouds_path")){
+        cloudpath = rf.find("clouds_path").asString().c_str();
+    }else{
+        string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+        string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
+        cloudpath  = icubContribEnvPath + defPathFrom;
+    }
+    cout << "Clouds will be loaded from " << cloudpath << endl;
 
     handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
