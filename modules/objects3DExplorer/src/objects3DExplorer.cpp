@@ -33,7 +33,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 {
     string name = rf.check("name",Value("objects3DExplorer")).asString().c_str();
     robot = rf.check("robot",Value("icub")).asString().c_str();
-    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
+    string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
     ResourceFinder cloudsRF;
@@ -42,11 +42,14 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     cloudsRF.configure(0,NULL);
 
     // Set the path that contains previously saved pointclouds
-    string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
-    string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
-    string localModelsPath    = rf.check("clouds_path")?rf.find("clouds_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
-
-    cloudsPathFrom  = icubContribEnvPath + localModelsPath;
+    if (rf.check("clouds_path")){
+        cloudsPathFrom = rf.find("clouds_path").asString().c_str();
+    }else{
+        string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+        string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
+        string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
+        cloudsPathFrom  = icubContribEnvPath + localModelsPath;
+    }
 
     // Set the path where new pointclouds will be saved
     string defSaveDir = "/saveModels";

@@ -100,7 +100,7 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     //Ports
     string name=rf.check("name",Value("show3D")).asString().c_str();
     string robot = rf.check("robot",Value("icub")).asString().c_str();
-    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
+    string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
     ResourceFinder cloudsRF;
@@ -113,10 +113,10 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
         cloudpath = rf.find("clouds_path").asString().c_str();
     }else{
         string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+        string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
-        cloudpath  = icubContribEnvPath.c_str() + defPathFrom;
+        cloudpath  = icubContribEnvPath + localModelsPath;
     }
-    cout << "Clouds will be loaded from " << cloudpath << endl;
 
     handlerPort.open("/"+name+"/rpc:i");
         attach(handlerPort);
