@@ -246,7 +246,8 @@ bool ToolFeatExt::setCanonicalPose(const double deg, const double disp, const do
     float rad = deg*M_PI/180.0; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
-    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;    
+    oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= rad; // XXX This is the RIGHT WAY!!
+    // oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
 
     Matrix toolPose = axis2dcm(oy); // from axis/angle to rotation matrix notation
     toolPose(1,3) = -disp /100.0;   // This accounts for the traslation of 'disp' in the -Y axis in the hand coord system along the extended thumb).
@@ -402,6 +403,8 @@ int ToolFeatExt::computeFeats()
 
     double maxSize = max(max(BBlengthX,BBlengthY), BBlengthZ);
     cout << "Lenght of the larger size is = " << maxSize <<  "." << endl;
+
+    // XXX Limit bounding box to the upper part of the tool only, to remove handle from feature list.
 
 
     /* =========================================================================== */
