@@ -24,6 +24,11 @@ public:
    */
   virtual bool getFeats();
   /**
+   * @brief getFeats - Performs 3D feature extraction of the tool in the rotated pose.
+   * @return true/false on success/failure of extracting features
+   */
+  virtual bool getAllToolFeats(const std::string& robot = "real");
+  /**
    * @brief getToolTip - Returns the tooltip (as the center of the edge opposite edge of the hand the bounding box)
    * @return true/false on success/failure of computing the tooltip
    */

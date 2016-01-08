@@ -36,7 +36,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     rf.findFile(cloudpath_file.c_str());
 
     ResourceFinder cloudsRF;
-    cloudsRF.setContext("toolModeler");
+    cloudsRF.setContext("tool3DModeler");
     cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
     cloudsRF.configure(0,NULL);
 
@@ -55,6 +55,8 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     verbose = rf.check("verbose",Value(true)).asBool();
     maxDepth = rf.check("maxDepth",Value(2)).asInt();
     binsPerDim = rf.check("depth",Value(2)).asInt();
+
+    loadModelsFromFile(rf);
 
 
     //open ports
@@ -228,6 +230,56 @@ bool ToolFeatExt::getSamples(const int n, const double deg)
 }
 
 /**********************************************************/
+bool ToolFeatExt::getAllToolFeats(const string& robot)
+{
+    int iniTool = 0;
+    if (robot ==  "sim")
+        iniTool = 1;    // in sim model 0 is the cube, so skip it
+
+    for (int toolI = iniTool ; toolI <models.size(); toolI++)
+    {
+        string meshName = models[toolI].get(2).asString();
+        string::size_type idx;
+        idx = meshName.rfind('.');
+        string cloudName = meshName.substr(0,idx);  //remove format
+        cloudName = robot + "/"+ cloudName;
+        cout << "cloud model: " << cloudName << endl;
+
+        if (!loadModel(cloudName)){
+            cout << "Couldn't load model for tool " << cloudName << endl;
+            return false;
+        }
+
+        if(robot=="real"){
+            computeFeats();         // Get first the canonical position features
+            // Transform tools to orientations 90, 0  and -90 , in that order.  And for each, displacements -1, 0
+            for ( int ori = 90; ori > -100; ori = ori - 90){            // This is a loop for {90, 0, -90}
+                for (int disp=-1 ; disp<1 ; disp ++){                   // This is a loop for {-1,0}
+                    setCanonicalPose(ori, disp);
+                    computeFeats();                                     // Compute features for each desired pose
+                }
+            }
+
+        }else if (robot=="sim"){
+            computeFeats();         // Get first the canonical position features
+            // Transform tools to orientations -90, 0  and 90 , in that order. And for each, displacements -2, 0, 2
+            for ( int ori = -90; ori < 100; ori +=  90){                  // This is a loop for {-90, 0, 90}
+                for (int disp=-2 ; disp<3 ; disp += 2){                   // This is a loop for {-2,0, 2}
+                    setCanonicalPose(ori, disp);
+                    computeFeats();                                       // Compute features for each desired pose
+                }
+            }
+
+        }else {
+            cout << "Please select 'real' or 'sim' tools" << endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**********************************************************/
 bool ToolFeatExt::setPose(const Matrix& toolPose)
 {   // Rotates the tool model according to the given rotation matrix to extract pose dependent features.
     int ok =  transform2pose(toolPose);
@@ -246,8 +298,8 @@ bool ToolFeatExt::setCanonicalPose(const double deg, const double disp, const do
     float rad = deg*M_PI/180.0; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
-    //oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= rad; // XXX This is the RIGHT WAY, becasue the tool is along the -Y axis!!
-    oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
+    oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= rad; // XXX This is the RIGHT WAY, becasue the tool is along the -Y axis!!
+    //oy[0]=0.0; oy[1]=1.0; oy[2]=0.0; oy[3]= rad;
 
     Matrix toolPose = axis2dcm(oy); // from axis/angle to rotation matrix notation
     toolPose(1,3) = -disp /100.0;   // This accounts for the traslation of 'disp' in the -Y axis in the hand coord system along the extended thumb).
@@ -311,6 +363,39 @@ bool ToolFeatExt::quit()
                     PRIVATE METHODS
 /**********************************************************/
 
+
+/************************************************************************/
+bool ToolFeatExt::loadModelsFromFile(ResourceFinder &rf)
+{
+    // Read the Models configurations
+    Bottle temp;
+    string modelName = "obj";
+
+    cout << "Loading models to buffer" << endl;
+    bool noMoreModels = false;
+    int n =0;
+    while (!noMoreModels){      // read until there are no more objects.
+        stringstream s;
+        s.str("");
+        s << modelName << n;
+        string objNameNum = s.str();
+        temp = rf.findGroup("objects").findGroup(objNameNum);
+
+        if(!temp.isNull()) {
+            cout << "model " << n << ", id: " << objNameNum;
+            cout << ", model: " << temp.get(2).asString() << endl;
+            models.push_back(temp);
+            temp.clear();
+            n++;
+        }else {
+            noMoreModels = true;
+        }
+    }
+    int numberObjs = n;
+    cout << "Loaded " << numberObjs << " objects. " << endl;
+    return true;
+}
+
 /************************************************************************/
 bool ToolFeatExt::loadToolModel()
 {
@@ -342,7 +427,7 @@ bool ToolFeatExt::transform2pose(const Matrix &toolPose)
 
     //Load cloud if ain't yet loaded
     if (!cloudLoaded){
-        if (!loadToolModel())//XXX
+        if (!loadToolModel())
         {
             printf("Couldn't load cloud");
             return false;
@@ -404,9 +489,6 @@ int ToolFeatExt::computeFeats()
     double maxSize = max(max(BBlengthX,BBlengthY), BBlengthZ);
     cout << "Lenght of the larger size is = " << maxSize <<  "." << endl;
 
-    // XXX Limit bounding box to the upper part of the tool only, to remove handle from feature list.
-
-
     /* =========================================================================== */
     // Divide the bounding box in subregions using octree, and compute the normal histogram (EGI) in each of those subregions at different levels.
 
@@ -458,8 +540,6 @@ int ToolFeatExt::computeFeats()
 
 
     // Initialize histogram variables
-    //float pi = 3.14159;
-
     float rangeMin = -1;
     float rangeMax = 1;
     float rangeValid = rangeMax - rangeMin;
@@ -507,9 +587,9 @@ int ToolFeatExt::computeFeats()
                    voxelOccupancy[i][j][k] = false;
 
         // Instantiate normal histogram at actual depth
-        int numLeaves = octree.getLeafCount();      // Get the number of occupied voxels (leaves) at actual depth
-        float voxelHist[numLeaves][binsPerDim][binsPerDim][binsPerDim]; // Histogram 3D matrix per voxel
-        std::vector< double> featVecHist;                                 // Vector containing a seriazed version of the 3D histogram
+        int numLeaves = octree.getLeafCount();                              // Get the number of occupied voxels (leaves) at actual depth
+        float voxelHist[numLeaves][binsPerDim][binsPerDim][binsPerDim];     // Histogram 3D matrix per voxel
+        std::vector< double> featVecHist;                                   // Vector containing a serialized version of the 3D histogram
 
         if(verbose){
             cout << "BB divided into " << voxPerSide << " voxels per side of size "<< minVoxSize << ", " << numLeaves << " occupied." << endl;
@@ -526,7 +606,6 @@ int ToolFeatExt::computeFeats()
         // Iterate through lower level leafs (voxels).
         for (tree_it = octree.leaf_begin(depth); tree_it!=tree_it_end; ++tree_it)
         {
-            //std::cout << "Finding points within voxel " << voxelI << std::endl;
             //std::cout << "Finding points within voxel " << voxelI << std::endl;
 
             // Clear clouds and vectors from previous voxel.
@@ -616,7 +695,7 @@ int ToolFeatExt::computeFeats()
             std::cout << "." ;
             std::cout << "Voxel (" << occx << "," << occy << "," << occz << ")" << "has " << okNormalsVox << " valid points and " << nanCountVox << " NaNs." << std::endl;
 
-            //Normalize by the total number of point in voxel so that each histogram has sum 1, independent of the number of points in the voxel.
+            //Normalize by the total number of points in voxel so that each histogram has sum 1, independent of the number of points in the voxel.
             for (int i = 0; i < binsPerDim; ++i){
                 for (int j = 0; j < binsPerDim; ++j){
                     for (int k = 0; k < binsPerDim; ++k){
@@ -663,32 +742,35 @@ int ToolFeatExt::computeFeats()
 
         // Print out voxel occupancy and stream out histograms
         // /*
-        cout << "Voxel Occupancy: " << std::endl << "{";
-        for (int i = 0; i < voxPerSide; ++i){
-            cout <<  "[" ;
-            for (int j = 0; j < voxPerSide; ++j){
-                for (int k = 0; k < voxPerSide; ++k){
-                   cout << voxelOccupancy[i][j][k] << "," ;
+        if(verbose){
+            cout << "Voxel Occupancy: " << std::endl << "{";
+            for (int i = 0; i < voxPerSide; ++i){
+                cout <<  "[" ;
+                for (int j = 0; j < voxPerSide/2; ++j){    //Limit bounding box to the upper part of the tool only, to remove handle from feature list.
+
+                    for (int k = 0; k < voxPerSide; ++k){
+                       cout << voxelOccupancy[i][j][k] << "," ;
+                    }
+                    cout <<  std::endl;
                 }
-                cout <<  std::endl;
+                cout <<  "]" ;
             }
-            cout <<  "]" ;
+            cout <<  "}" <<std::endl;
         }
-        cout <<  "}" <<std::endl;
         //*/
 
         // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // Fill the complete feature vector, including histograms for empty voxels.
         int occVoxI = 0;
         for (int i = 0; i < voxPerSide; ++i){
-            for (int j = 0; j < voxPerSide; ++j){
+            for (int j = 0; j < voxPerSide/2; ++j){   //Limit bounding box to the upper part of the tool only, to remove handle from feature list.
                 for (int k = 0; k < voxPerSide; ++k){
                     if (voxelOccupancy[i][j][k]){        // if the voxel is occupied
                         std::vector< double > histVec;
                         histVec = featureVectorOccVox[occVoxI];
                         featureVectorAllVox.toolFeats.push_back(histVec); // copy histogram
                         occVoxI++;
-                    }else{
+                    }else{                               // if the voxel is empty fill with 0s.
                         std::vector< double >  zeroVector(pow(binsPerDim,3),0.0f);
                         featureVectorAllVox.toolFeats.push_back(zeroVector); // fill with the same amount of zeros
                     }
@@ -747,8 +829,8 @@ int main(int argc, char * argv[])
 
     ToolFeatExt module;
     ResourceFinder rf;
-    rf.setDefaultContext("objects3DModeler");
-    rf.setDefaultConfigFile("toolFeatExt.ini");
+    rf.setDefaultContext("AffordancesProject");
+    rf.setDefaultConfigFile("50tools.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);
 

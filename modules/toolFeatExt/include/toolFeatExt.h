@@ -85,12 +85,15 @@ protected:
     int maxDepth;
     int binsPerDim;
 
+    std::vector<yarp::os::Bottle>   models;             // Vector to contain all models considered in the experiment.
+
     bool closing;
     bool cloudLoaded;
     bool cloudTransformed;
 
-    /* functions*/
+    /* functions*/    
     bool loadToolModel();
+    bool loadModelsFromFile(yarp::os::ResourceFinder &rf);
     bool transform2pose(const yarp::sig::Matrix& toolPose = yarp::math::eye(4,4));
     int  computeFeats();    
     bool sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in);
@@ -99,6 +102,7 @@ public:
 
     // RPC Accesible methods
     bool getFeats();
+    bool getAllToolFeats(const std::string& robot = "real");
     Point3D getToolTip();
     bool getSamples(const int n, const double deg);
     bool setPose(const yarp::sig::Matrix& rotMat);

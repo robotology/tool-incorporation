@@ -24,14 +24,12 @@ struct RotationMatrix
 struct ToolFeat3D
 {   
 1: string toolname;
-#2: list< VoxFeat> toolFeats;            # Every tool is represented as a vector of voxel-based histograms.
 2: list< list < double>> toolFeats;      # Every tool is represented as a vector of voxel-based histograms.
 }
 
 struct ToolFeat3DwithOrient
 {   
 1: string toolname;
-#2: list< VoxFeat> toolFeats;           # Every tool is represented as a vector of voxel-based histograms.
 2: list< list < double>> toolFeats;      # Every tool is represented as a vector of voxel-based histograms.
 3: RotationMatrix orientation;          # Orientation with respect to the canonical position.
 }
@@ -48,6 +46,13 @@ service tool3DFeat_IDLServer
      * @return true/false on success/failure of extracting features
      */
     bool getFeats();
+
+
+    /**
+     * @brief getFeats - Performs 3D feature extraction of the tool in the rotated pose.
+     * @return true/false on success/failure of extracting features
+     */
+    bool getAllToolFeats(1: string robot = "real");
 
     /**
      * @brief getToolTip - Returns the tooltip (as the center of the edge opposite edge of the hand the bounding box)
