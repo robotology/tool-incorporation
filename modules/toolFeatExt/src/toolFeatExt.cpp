@@ -295,6 +295,7 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 /**********************************************************/
 bool ToolFeatExt::setCanonicalPose(const double deg, const double disp, const double tilt)
 {   // Rotates the tool model 'deg' degrees around the hand -Y axis
+    // Positive angles turn the end effector "inwards" wrt the iCub, while negative ones rotate it "outwards" (for tool on the right hand).
     float rad = deg*M_PI/180.0; // converse deg into rads
 
     Vector oy(4);   // define the rotation over the Y axis (that is the one that we consider for tool orientation -left,front,right -
