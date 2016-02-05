@@ -68,8 +68,7 @@ class ToolFeatExt : public yarp::os::RFModule, public tool3DFeat_IDLServer
 protected:
     /* module parameters */
     yarp::os::RpcServer rpcInPort;  // port to handle incoming commands
-    yarp::os::Port      feat3DoutPort; // Port where the features of the tool are send out (as a thrift Tool3DwithOrient struct)
-    //yarp::os::BufferedPort<iCub::data3D::SurfaceMeshWithBoundingBox> meshOutPort; // Port to send out the cloud as a mesh to be further processed or displayed
+    yarp::os::Port      feat3DoutPort; // Port where the features of the tool are send out (as a thrift Tool3DwithOrient struct)    
     yarp::os::BufferedPort<yarp::os::Bottle> cloudsOutPort; // Port to send out the cloud as a boltte to be further processed or displayed
     std::string cloudpath;            // path to folder with .ply or .pcd files
     std::string cloudname;           // name of the .ply or .pcd cloud file
@@ -101,17 +100,17 @@ protected:
 public:
 
     // RPC Accesible methods
-    bool getFeats();
-    bool getAllToolFeats(const std::string& robot = "real");
-    Point3D getToolTip();
-    bool getSamples(const int n, const double deg);
-    bool setPose(const yarp::sig::Matrix& rotMat);
-    bool setCanonicalPose(const double deg = 0.0, const double disp = 0.0, const double tilt = 45.0);
+    bool                        getFeats();
+    bool                        getAllToolFeats(const std::string& robot = "real");
+    Point3D                     getToolTip();
+    bool                        getSamples(const int n, const double deg);
+    bool                        setPose(const yarp::sig::Matrix& rotMat);
+    bool                        setCanonicalPose(const double deg = 0.0, const double disp = 0.0, const double tilt = 45.0);
 
-    bool bins(const int binsN = 2);
-    bool depth(const int depthN = 2);
-    bool loadModel(const std::string& name = "cloud.ply");
-    bool setVerbose(const std::string& verb);
+    bool                        bins(const int binsN = 2);
+    bool                        depth(const int depthN = 2);
+    bool                        loadModel(const std::string& name = "cloud.ply");
+    bool                        setVerbose(const std::string& verb);
 
     // module control //
     bool						attach(yarp::os::RpcServer &source);

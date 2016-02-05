@@ -91,7 +91,18 @@ protected:
     bool                                verbose;
     bool                                toolExploration;
 
+    // icp variables
+    int                                 icp_maxIt;
+    double                              icp_maxCorr;
+    double                              icp_ranORT;
+    double                              icp_transEp;
+
+    // noise params
+    double                              noise_mean;
+    double                              noise_sigma;
+
     // module parameters
+    bool                                cloudLoaded;
     bool                                initAlignment;
     bool                                closing;    
     int                                 numCloudsSaved;
@@ -99,7 +110,7 @@ protected:
     yarp::sig::Matrix                   toolPose;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_in;       // Last registered pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;   // Merged pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;     // Merged pointcloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_merged;   // Validated merged pointcloud    
 
     /* functions*/
@@ -110,19 +121,23 @@ protected:
     bool                turnHand(const int rotDegX = 0, const int rotDegY = 0);
     bool                lookAround();
     bool                getPointCloud();
-    bool                normFrame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
+    bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
     bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat);
-    void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
-    void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
     bool                showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                showPointCloudFromFile(const std::string& fname);
     bool                extractFeatures();
+    bool                addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
+    bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+    bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]);
+    void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
+    void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
+
     
     
     /* Configuration commands */ 
     bool                changeModelName(const std::string& modelname);
     bool                setVerbose(const std::string& verb);
-    bool                setNormalization(const std::string& norm);
+    bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
        
 public:

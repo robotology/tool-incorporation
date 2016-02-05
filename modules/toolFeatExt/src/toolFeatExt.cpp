@@ -16,6 +16,11 @@
  * Public License for more details
 */
 
+// toolFeatExt deals with extracting features from the oriented cloud model.
+// Therefore it works only on the model.
+// Required rotations/orietations are found by other modules.
+// At the same time, it is the only module having in memory the rotate/oriented point cloud.
+
 #include "toolFeatExt.h"
 
 using namespace std;
@@ -404,22 +409,24 @@ bool ToolFeatExt::loadToolModel()
     cout << "Loading tool model cloud from file" << cloudpath.c_str() << cloudname.c_str() << endl;
 
     // (Re-) initialize cloud transformations
-    cloud->points.clear();
-    cloud->clear(); 
+    cloud_orig->points.clear();
+    cloud_orig->clear();
     cloudTransformed = false;
     rotMat = eye(4,4);
 
     if (CloudUtils::loadCloud(cloudpath, cloudname, cloud_orig))
     {
-	cout << "Loaded tool model of size: " << cloud_orig->points.size () << endl;
+        cout << "Loaded tool model of size: " << cloud_orig->points.size () << endl;
         cloudLoaded = true;
+
+        sendCloud(cloud_orig);
         return true;
     }
     return false;
 }
 
 /************************************************************************/
-// toolPose is represented by the rotation matrix of the explored object wrt the canonical position.
+// toolPose is represented by the transformation matrix of the explored object wrt the canonical position.
 // It shall be computed by a previous fucntion/module as the transformation matrix obtained when
 //   registratering the single view to the canonical mode.
 bool ToolFeatExt::transform2pose(const Matrix &toolPose)
