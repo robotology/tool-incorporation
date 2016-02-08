@@ -358,6 +358,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
 
         // Find grasp by comparing partial view with model
+	Matrix toolPose;
         bool ok = findToolPose(cloud_merged,toolPose);
         //showPointCloud(cloud_in);
 
@@ -580,7 +581,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");            
         reply.addString("findGrasp (string) - Find the actual grasp by comparing the actual registration to the given model of the tool.");        
-        reply.addString("loadFromFile - Loads a cloud from a file (.ply or .pcd).");
+        reply.addString("loadCloud - Loads a cloud from a file (.ply or .pcd).");
         reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' loaded from .ply or .pcd files.");
 		reply.addString("modelname (string) - Changes the name with which the pointclouds will be saved.");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame.");

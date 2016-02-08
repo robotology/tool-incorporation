@@ -1,13 +1,6 @@
 <application>
     <name>objects3DModelerAPP</name>
     <module>
-        <name>graphBasedSegmentation</name>
-        <parameters></parameters>
-        <node>localhost</node>
-        <prefix></prefix>
-        <geometry>(Pos (x 628) (y 151.9))</geometry>
-    </module>
-    <module>
         <name>show3D</name>
         <parameters>--from cloudPath.ini</parameters>
         <node>localhost</node>
@@ -27,20 +20,6 @@
         <node>localhost</node>
         <prefix></prefix>
         <geometry>(Pos (x 836) (y 414.9))</geometry>
-    </module>
-    <module>
-        <name>yarpview</name>
-        <parameters>--out /out</parameters>
-        <node>localhost</node>
-        <prefix>/imLeft</prefix>
-        <geometry>(Pos (x 755) (y 72.9))</geometry>
-    </module>
-    <module>
-        <name>yarpview</name>
-        <parameters>--out /out</parameters>
-        <node>localhost</node>
-        <prefix>/segView</prefix>
-        <geometry>(Pos (x 953) (y 159.9))</geometry>
     </module>
     <connection>
         <from>/objects3DExplorer/visualizer:rpc</from>
@@ -73,39 +52,9 @@
         <geometry>(Pos ((x 437.5) (y 303)) ((x 577) (y 369)) ((x 319) (y 237))  )</geometry>
     </connection>
     <connection>
-        <from>/obj3Drec/segmentation</from>
-        <to>/GBSeg/conf</to>
-        <protocol>tcp</protocol>
-        <geometry>(Pos ((x 590) (y 209.5)) ((x 572) (y 224)) ((x 629) (y 195))  )</geometry>
-    </connection>
-    <connection>
         <from>/obj3Drec/pnt:o</from>
         <to>/objects3DExplorer/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 476.5) (y 303.5)) ((x 577) (y 200)) ((x 397) (y 407))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icub/camcalib/left/out</from>
-        <to>/GBSeg/rawImg:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 398.5) (y 133)) ((x 189) (y 96)) ((x 629) (y 170))  )</geometry>
-    </connection>
-    <connection>
-        <from>/GBSeg/viewImg:o</from>
-        <to>/segView/yarpview/img:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 913.5) (y 180)) ((x 894) (y 182)) ((x 954) (y 178))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/icub/camcalib/left/out</from>
-        <to>/imLeft/yarpview/img:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 462) (y 93.5)) ((x 189) (y 96)) ((x 756) (y 91))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/segView/out</from>
-        <to>/objects3DExplorer/seed:i</to>
-        <protocol>udp</protocol>
-        <geometry>(Pos ((x 248.5) (y 387.5)) ((x 121) (y 393)) ((x 397) (y 382))  )</geometry>
     </connection>
 </application>
