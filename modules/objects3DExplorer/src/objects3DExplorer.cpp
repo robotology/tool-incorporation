@@ -359,7 +359,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         // Find grasp by comparing partial view with model
         bool ok = findToolPose(cloud_merged,toolPose);
-        showPointCloud(cloud_in);
+        //showPointCloud(cloud_in);
 
         if (ok){
             reply.addString(" [ack] Grasp pose successfully retrieved ");
@@ -811,16 +811,43 @@ bool Objects3DExplorer::exploreInteractive()
 /************************************************************************/
 bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Matrix toolPose)
 {
+    // Set accumulator mode.
+    Bottle cmdVis, replyVis;
+    cmdVis.clear();	replyVis.clear();
+    cmdVis.addString("clearVis");
+    rpcVisualizerPort.write(cmdVis,replyVis);
+
+    cmdVis.clear();	replyVis.clear();
+    cmdVis.addString("accumClouds");
+    cmdVis.addInt(1);
+    rpcVisualizerPort.write(cmdVis,replyVis);
+
+    Time::delay(1);
+    showPointCloud(modelCloud);
+    Time::delay(1);
+
      // Get a registration
      getPointCloud();    // Registration get and normalized to hand-reference frame. saved as 'cloud_in'
+     int blue[3] = {0,0,255};          // Plot oriented model green
+     changeCloudColor(cloud_in, blue);
+     showPointCloud(cloud_in);
+     Time::delay(1);
 
      // Align it to the canonical model
      Eigen::Matrix4f alignMatrix;
      Eigen::Matrix4f poseMatrix;
      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
      alignPointClouds(cloud_in, modelCloud, cloud_aligned, alignMatrix);
-
      poseMatrix = alignMatrix.inverse();
+
+     // Inverse the alignment to find tool pose
+     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_modelInPose (new pcl::PointCloud<pcl::PointXYZRGB> ());
+     pcl::transformPointCloud (*modelCloud, *cloud_modelInPose, poseMatrix);
+
+     int green[3] = {0,255,0};          // Plot oriented model green
+     changeCloudColor(cloud_modelInPose, green);
+     showPointCloud(cloud_modelInPose);
+     Time::delay(1);
 
      // return the alineation matrix as toolPose YARP Matrix
      toolPose = CloudUtils::eigMat2yarpMat(poseMatrix);
