@@ -55,12 +55,6 @@ service tool3DFeat_IDLServer
     bool getAllToolFeats(1: string robot = "real");
 
     /**
-     * @brief getToolTip - Returns the tooltip (as the center of the edge opposite edge of the hand the bounding box)
-     * @return true/false on success/failure of computing the tooltip
-     */
-    Point3D getToolTip();
-
-    /**
      * @brief getSamples - Generates n poses of the tool around a base orientation deg.
      * @param n - (int) desired number of poses (default = 10) .
      * @param deg - (double) base orientation of the tool pose (default = 0.0).

@@ -21,13 +21,22 @@
 // Required rotations/orietations are found by other modules.
 // At the same time, it is the only module having in memory the rotate/oriented point cloud.
 
-#include "toolFeatExt.h"
+#include <toolFeatExt.h>
 
 using namespace std;
 using namespace yarp::os;
 using namespace yarp::sig;
 using namespace yarp::math;
 using namespace iCub::YarpCloud;
+
+// XXX XXX Modify this module so that it is mainly concerned with getting OMS-EGI features from a point cloud. Therefore, it should
+// - be able to load cloud from model (loadModel) and orient it with matrix (setPose-setCanonicalPose)
+// - be able read a cloud (on updateModule) and set it as the model.  <-- XXX missing!!
+// - compute features on command and send them out (getFeat), and set paraemters
+// - Optionally,
+//      - compute automatically all features for all avaiable models. (getAllToolFeats).
+//      - get multiple samples from a single tool-pose with slight variations (getSamples).
+
 
 
 /************************* RF overwrites ********************************/
@@ -106,7 +115,7 @@ double ToolFeatExt::getPeriod()
 
 bool ToolFeatExt::updateModule()
 {
-    // XXX add a function here so that everytime that the module receives a cloud it computes its 3D features.
+    // XXX add a function here so that everytime that the module receives a cloud it saves it as the loaded model.
     return !closing;
 }
 
@@ -151,56 +160,6 @@ bool ToolFeatExt::getFeats()
         fprintf(stdout,"3D Features not computed correctly. \n");
         return false;
     }
-}
-
-Point3D ToolFeatExt::getToolTip()
-{   // returns the xyz coordinates of the tooltip with respect to the hand coordinate frame, for the loaded model.
-    // It computes the tooltip point first from the canonical model, ie, with tool oriented on -Y and end-effector always oriented along X (toolpose front).
-    // Then the point coordinates are rotated in the same manner as the tool (tilted and end-effector rotated).
-
-    // The tooltip is considered to be the the middle point of the upper edge opposite to the hand (tt: tooltip, H: hand (origin))
-    //           __tt__
-    //          /     /|    |^| -Y-axis             so: tt.x = maxBB.x
-    //         /_____/ |                                tt.y = minBB.y
-    //         |     | /    /^/ X-axis                  tt.z = (maxBB.z + minBB.z)/2
-    //         |__H__|/     <-- Z-axis
-
-    Point3D tooltip;
-    if (!cloudLoaded){
-        if (!loadToolModel())
-        {
-            fprintf(stdout,"Couldn't load cloud");
-
-            tooltip.x = 0.0;
-            tooltip.y = 0.0;
-            tooltip.z = 0.0;
-
-            return tooltip;
-        }
-    }
-    if (!cloudTransformed){
-        transform2pose();
-    }
-
-    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
-    feature_extractor.setInputCloud(cloud);
-    feature_extractor.compute();
-
-    pcl::PointXYZRGB min_point_AABB;
-    pcl::PointXYZRGB max_point_AABB;
-    feature_extractor.getAABB(min_point_AABB, max_point_AABB);
-
-    cout << endl<< "Max AABB x: " << max_point_AABB.x << ". Min AABB x: " << min_point_AABB.x << endl;
-    cout << "Max AABB y: " << max_point_AABB.y << ". Min AABB y: " << min_point_AABB.y << endl;
-    cout << "Max AABB z: " << max_point_AABB.z << ". Min AABB z: " << min_point_AABB.z << endl;
-    
-    double effLength = fabs(max_point_AABB.x- min_point_AABB.x); //Length of the effector
-    tooltip.x = max_point_AABB.x-effLength/3;               // tooltip not on the extreme, but sligthly in
-    tooltip.y = min_point_AABB.y;
-    tooltip.z = (max_point_AABB.z + min_point_AABB.z)/2;
-
-
-    return tooltip;
 }
 
 

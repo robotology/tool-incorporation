@@ -52,6 +52,8 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/fpfh.h>
 #include <pcl/registration/ia_ransac.h>
+#include <pcl/features/moment_of_inertia_estimation.h>
+
 
 
 /**********************************************************/
@@ -83,13 +85,13 @@ protected:
 
     // config variables
     std::string                         hand;
-    std::string                         eye;
+    std::string                         camera;
     std::string                         robot;    
     std::string                         cloudsPathFrom;
     std::string                         cloudsPathTo;
-    std::string                         cloudName;
+    std::string                         saveName;
     bool                                verbose;
-    bool                                toolExploration;
+    bool                                handFrame;
 
     // icp variables
     int                                 icp_maxIt;
@@ -103,39 +105,54 @@ protected:
 
     // module parameters
     bool                                cloudLoaded;
+    bool                                poseFound;
     bool                                initAlignment;
     bool                                closing;    
     int                                 numCloudsSaved;
     int                                 NO_FILENUM;
-    yarp::sig::Matrix                   toolPose;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_in;       // Last registered pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;     // Merged pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_merged;   // Validated merged pointcloud    
+
+    struct                              Point3D {double x;double y; double z;};
+
+    yarp::sig::Matrix                           toolPose;
+    Point3D                                     tooltip, tooltipCanon;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;     // Temporal pointcloud for validation
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_model;    // Validated merged pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_pose;     // Cloud oriented on estimated Pose
+
 
     /* functions*/
     
+    /* Actions */
     bool                exploreAutomatic();
     bool                exploreInteractive();
-    bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, yarp::sig::Matrix toolPose);
     bool                turnHand(const int rotDegX = 0, const int rotDegY = 0);
     bool                lookAround();
-    bool                getPointCloud();
-    bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
+
+
+    /* Object info from Cloud */
+    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec);
     bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat);
-    bool                showPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-    bool                showPointCloudFromFile(const std::string& fname);
-    bool                extractFeatures();
+    bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &toolPose);
+    bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
+    bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &toolPose, Point3D &tooltipTrans);         //overload
+    bool                findTooltip(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, Point3D &tooltipTrans);
+    bool                paramFromPose(const yarp::sig::Matrix &pose, double ori, double displ, double tilt, double shift); // XXX not implemented
+    bool                extractFeats();
+
+    bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+
+    /* Cloud Utils */
+    bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
     bool                addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-    bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]);
+    bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
-    void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);
-
-    
+    void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);    
     
     /* Configuration commands */ 
-    bool                changeModelName(const std::string& modelname);
+    bool                changeSaveName(const std::string& fname);
     bool                setVerbose(const std::string& verb);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
