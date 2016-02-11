@@ -371,7 +371,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     }else if (receivedCmd == "findToolPose"){
         // Check if model is loaded, else return false
         if (!cloudLoaded){
-            cout << "Model needed to find grasp. Load model" << endl;
+            cout << "Model needed to find Pose. Load model" << endl;
             reply.addString("[nack] Load model first to find grasp. \n");
             return false;
         }
@@ -380,7 +380,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = findToolPose(cloud_model, cloud_pose, toolPose);
 
         if (ok){
-            reply.addString("[ack]");
             reply.addList().read(toolPose);
             return true;
         }else {
@@ -389,6 +388,46 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+    }else if (receivedCmd == "setPoseByParam"){
+        // Check if model is loaded, else return false
+        if (!cloudLoaded){
+            cout << "Model needed to set a pose on. Load model" << endl;
+            reply.addString("[nack] Load model first to find grasp. \n");
+            return false;
+        }
+
+        // Setting default valules
+        double ori = 0.0;
+        double disp = 0.0;
+        double tilt = 45.0;
+        double shift = 0.0;
+
+        // Reading only the available parameters
+        if (command.size() > 1)
+            ori = command.get(1).asDouble();
+
+        if (command.size() > 2)
+            disp = command.get(2).asDouble();
+
+        if (command.size() > 3)
+            tilt = command.get(3).asDouble();
+
+        if (command.size() > 4)
+            shift = command.get(4).asDouble();
+
+        poseFromParam(ori, disp, tilt, shift, toolPose);
+
+        // Set the oriented cloud by transforming model accordign to pose.
+        bool ok = setToolPose(cloud_model, toolPose, cloud_pose);
+
+        if (ok){
+            reply.addString("[ack]\n");
+            return true;
+        }else {
+            fprintf(stdout,"Grasp pose could not be obtained. \n");
+            reply.addString("[nack] Grasp pose could not be obtained \n");
+            return false;
+        }
 
 
     }else if (receivedCmd == "findTooltip"){
@@ -408,12 +447,27 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         if (command.size() > 1)        // grasp parameters are given by command
         {
-            double graspOr = command.get(1).asDouble();
-            double graspDisp = command.get(2).asDouble();
-            double graspTilt = command.get(3).asDouble();
+            // Setting default valules
+            double ori = 0.0;
+            double disp = 0.0;
+            double tilt = 45.0;
+            double shift = 0.0;
+
+            // Reading only the available parameters
+            if (command.size() > 1)
+                ori = command.get(1).asDouble();
+
+            if (command.size() > 2)
+                disp = command.get(2).asDouble();
+
+            if (command.size() > 3)
+                tilt = command.get(3).asDouble();
+
+            if (command.size() > 4)
+                shift = command.get(4).asDouble();
 
 
-            if(!findTooltip(tooltipCanon, graspOr, graspDisp, graspTilt, tooltip)){
+            if(!findTooltip(tooltipCanon, ori, disp,tilt, shift, tooltip)){
                 cout << "Could not compute tooltip from the canonical one and the pose parameters" << endl;
                 reply.addString("[nack] Could not compute tooltip. \n");
                 return false;
@@ -631,6 +685,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("loadCloud - Loads a cloud from a file (.ply or .pcd).");
 		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");            
         reply.addString("findToolPose - Find the actual grasp by comparing the actual registration to the given model of the tool.");
+        reply.addString("setPose (double)orientation (double)displacement (double)tilt (double)shift - Set the tool pose given the grasp parameters.");
         reply.addString("findTooltip - Computes the tooltip by rotating the canonical toolpose with the estimated tool pose.");
         reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' loaded from .ply or .pcd files.");
         reply.addString("---------- SET PARAMETERS ------------");
@@ -1131,7 +1186,7 @@ bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>
     ttCanon.x = max_point_AABB.x-effLength/3;                           // tooltip not on the extreme, but sligthly in  -  x coord of ttCanon
     ttCanon.y = min_point_AABB.y;                                       // y coord of ttCanon
     ttCanon.z = 0.03 + (max_point_AABB.z + min_point_AABB.z)/2;         // z coord of ttCanon (+3 cm to account for displacement of tool in hand)
-
+                                                                        // - add 3 cm away from the palm to compensate for the fact that the center of the tool axis is ON the palm, not IN the hand
     cout << "Canonical tooltip at ( " << ttCanon.x << ", " << ttCanon.y << ", " << ttCanon.z <<")." << endl;
     return true;
 }
@@ -1159,8 +1214,35 @@ bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const Matrix &toolPo
 }
 
 
-bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, Point3D &tooltipTrans)
+bool Objects3DExplorer::findTooltip(const Point3D &tooltipCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans)
 {
+
+    cout << "Transforming Canonical tooltip (" << tooltipCanon.x << ", " << tooltipCanon.y << ", " << tooltipCanon.z << ")" << endl;
+    cout << "With parameters: or= " << graspOr << ", disp= " << graspDisp << ", tilt= " << graspTilt << ", shift= " << graspShift << "." <<endl;
+
+    Matrix pose;
+    poseFromParam(graspOr, graspDisp, graspTilt, graspShift, pose);
+
+    cout << "-> with matrix " << endl << pose.toString() << endl;
+
+    Vector ttcanVec(4), ttVec(4);
+    ttcanVec[0] = tooltipCanon.x;
+    ttcanVec[1] = tooltipCanon.y;
+    ttcanVec[2] = tooltipCanon.z;
+    ttcanVec[3] = 1.0;
+    cout << "Canonical Tooltip  is " << endl<< ttcanVec.toString() << endl;
+
+    ttVec = pose*ttcanVec;
+
+    cout << "Rotated tooltip " << endl<< ttVec.toString() << endl;
+
+    tooltipTrans.x = ttVec[0];
+    tooltipTrans.y = ttVec[1];
+    tooltipTrans.z = ttVec[2];
+
+    return true;
+
+    /*
     // Transform canonical coordinates to correspond with tilt, rotation and displacemnt of the tool.
     Point3D ttRot = {0.0, 0.0, 0.0};
     //ttRot.x = 0.0, ttRot.y = 0.0, ttRot.z = 0.0;    // Receive coordinates of tooltip of tool in canonical position
@@ -1180,23 +1262,69 @@ bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const double graspOr
     ttTilt.z = ttRot.z;
     cout << "Tooltip of tool rotated " << graspOr << " degrees and tilted 45 degrees: x= "<< ttTilt.x << ", y = " << ttTilt.y << ", z = " << ttTilt.z << endl;
 
-    // Finally add translation along -Y axis to match handle displacement
+    // Finally add translation along -Y axis to match handle displacement, and Z to match shift.
     tooltipTrans.x = ttTilt.x;
-    tooltipTrans.y = ttTilt.y - graspDisp/100.0;;
-    tooltipTrans.z = ttTilt.z;
+    tooltipTrans.y = ttTilt.y - graspDisp/100.0;
+    tooltipTrans.z = ttTilt.z + graspShift/100.0 + 0.03;
     cout << "Tooltip of tool rotated, tilted and displaced "<< graspDisp << "cm: x= "<< tooltipTrans.x << ", y = " << tooltipTrans.y << ", z = " << tooltipTrans.z << endl;
 
     return true;
+    */
+
 }
 
-bool Objects3DExplorer::paramFromPose(const yarp::sig::Matrix &pose, double ori, double displ, double tilt, double shift)
+bool Objects3DExplorer::paramFromPose(const Matrix &pose, double ori, double displ, double tilt, double shift)
 {
 
-    // XXX
+    Matrix R = pose.submatrix(0,0,2,2); // Get the rotation matrix
+    double rotZ = atan2(R(2,1),R(2,1));
+    double rotY = atan2(-R(3,1),sqrt(pow(R(3,2),2) + pow(R(3,3),2)));
+    double rotX = atan2(R(3,2),R(3,3));
+
+    ori = -rotY;
+    displ = -pose(1,3);
+    tilt = rotZ;
+    shift = pose(2,3);
+
     return true;
 }
 
-/************************************************************************/
+bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const double tilt, const double shift, Matrix &pose)
+{
+
+    // Rotates the tool model 'deg' degrees around the hand -Y axis
+    // Positive angles turn the end effector "inwards" wrt the iCub, while negative ones rotate it "outwards" (for tool on the right hand).
+    double radOr = ori*M_PI/180.0; // converse deg into rads
+    double radTilt = tilt*M_PI/180.0; // converse deg into rads
+
+    cout << "Ori: rotation of "<< ori << " around -Y" << radOr << "Rad." << endl;
+    Vector oy(4);   // define the rotation over the -Y axis or effector orientation
+    oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= radOr; // tool is along the -Y axis!!
+    Matrix R_ori = axis2dcm(oy);          // from axis/angle to rotation matrix notation
+    cout << "R_ori = "<< endl << R_ori.toString() << endl;
+
+    cout << "Tilt: rotation of "<< tilt << " around Z."<< radTilt << "Rad." << endl;
+    Vector oz(4);   // define the rotation over the Z axis for tilt.
+    oz[0]=0.0; oz[1]=0.0; oz[2]=1.0; oy[3]= radTilt; // tilt around the Z axis!!
+    Matrix R_tilt = axis2dcm(oz);
+    cout << "R_tilt = "<< endl << R_tilt.toString() << endl;
+
+    pose = R_tilt*R_ori;         // Compose matrices in order, first rotate around -Y (R_ori), then around Z
+    cout << "Compbined rotation matrix R = R_tilt*R_ori" << endl;
+    cout << "R = "<< endl << pose.toString() << endl;
+
+    pose(1,3) = -disp /100.0;   // This accounts for the traslation of 'disp' in the -Y axis in the hand coord system along the extended thumb).
+    cout << "Disp: Translation of "<< disp << " along -Y " << endl;
+
+    pose(2,3) = shift/100.0;   // This accounts for the Z translation to match the tooltip    
+    cout << "Shift: Translation of "<< shift << " along Z " << endl;
+
+    cout << "pose = "<< endl << pose.toString() << endl;
+
+    return true;
+}
+
+
 /************************************************************************/
 bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat)
 {
@@ -1354,6 +1482,14 @@ bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     return true;
 }
 
+/************************************************************************/
+bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
+{
+    Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
+    pcl::transformPointCloud(*cloud, *cloudInPose, TM);
+    poseFound = true;
+    return true;
+}
 
 /************************************************************************/
 bool Objects3DExplorer::addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma)

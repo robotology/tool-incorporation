@@ -23,14 +23,6 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3DFeat_IDLServer_getToolTip : public yarp::os::Portable {
-public:
-  Point3D _return;
-  void init();
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
-};
-
 class tool3DFeat_IDLServer_getSamples : public yarp::os::Portable {
 public:
   int32_t n;
@@ -139,26 +131,6 @@ bool tool3DFeat_IDLServer_getAllToolFeats::read(yarp::os::ConnectionReader& conn
 void tool3DFeat_IDLServer_getAllToolFeats::init(const std::string& robot) {
   _return = false;
   this->robot = robot;
-}
-
-bool tool3DFeat_IDLServer_getToolTip::write(yarp::os::ConnectionWriter& connection) {
-  yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(1)) return false;
-  if (!writer.writeTag("getToolTip",1,1)) return false;
-  return true;
-}
-
-bool tool3DFeat_IDLServer_getToolTip::read(yarp::os::ConnectionReader& connection) {
-  yarp::os::idl::WireReader reader(connection);
-  if (!reader.readListReturn()) return false;
-  if (!reader.read(_return)) {
-    reader.fail();
-    return false;
-  }
-  return true;
-}
-
-void tool3DFeat_IDLServer_getToolTip::init() {
 }
 
 bool tool3DFeat_IDLServer_getSamples::write(yarp::os::ConnectionWriter& connection) {
@@ -351,16 +323,6 @@ bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& robot) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-Point3D tool3DFeat_IDLServer::getToolTip() {
-  Point3D _return;
-  tool3DFeat_IDLServer_getToolTip helper;
-  helper.init();
-  if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","Point3D tool3DFeat_IDLServer::getToolTip()");
-  }
-  bool ok = yarp().write(helper,helper);
-  return ok?helper._return:_return;
-}
 bool tool3DFeat_IDLServer::getSamples(const int32_t n, const double deg) {
   bool _return = false;
   tool3DFeat_IDLServer_getSamples helper;
@@ -463,17 +425,6 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
         if (!writer.writeBool(_return)) return false;
-      }
-      reader.accept();
-      return true;
-    }
-    if (tag == "getToolTip") {
-      Point3D _return;
-      _return = getToolTip();
-      yarp::os::idl::WireWriter writer(reader);
-      if (!writer.isNull()) {
-        if (!writer.writeListHeader(3)) return false;
-        if (!writer.write(_return)) return false;
       }
       reader.accept();
       return true;
@@ -633,7 +584,6 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     helpString.push_back("*** Available commands:");
     helpString.push_back("getFeats");
     helpString.push_back("getAllToolFeats");
-    helpString.push_back("getToolTip");
     helpString.push_back("getSamples");
     helpString.push_back("loadModel");
     helpString.push_back("setPose");
@@ -653,11 +603,6 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("bool getAllToolFeats(const std::string& robot = \"real\") ");
       helpString.push_back("@brief getFeats - Performs 3D feature extraction of the tool in the rotated pose. ");
       helpString.push_back("@return true/false on success/failure of extracting features ");
-    }
-    if (functionName=="getToolTip") {
-      helpString.push_back("Point3D getToolTip() ");
-      helpString.push_back("@brief getToolTip - Returns the tooltip (as the center of the edge opposite edge of the hand the bounding box) ");
-      helpString.push_back("@return true/false on success/failure of computing the tooltip ");
     }
     if (functionName=="getSamples") {
       helpString.push_back("bool getSamples(const int32_t n = 10, const double deg = 0) ");

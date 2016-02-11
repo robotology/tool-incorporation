@@ -6,7 +6,6 @@
 
 #include <yarp/os/Wire.h>
 #include <yarp/os/idl/WireTypes.h>
-#include <Point3D.h>
 #include <yarp/sig/Matrix.h>
 
 class tool3DFeat_IDLServer;
@@ -28,11 +27,6 @@ public:
    * @return true/false on success/failure of extracting features
    */
   virtual bool getAllToolFeats(const std::string& robot = "real");
-  /**
-   * @brief getToolTip - Returns the tooltip (as the center of the edge opposite edge of the hand the bounding box)
-   * @return true/false on success/failure of computing the tooltip
-   */
-  virtual Point3D getToolTip();
   /**
    * @brief getSamples - Generates n poses of the tool around a base orientation deg.
    * @param n - (int) desired number of poses (default = 10) .
