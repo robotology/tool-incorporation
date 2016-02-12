@@ -336,7 +336,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         cout << "cloud of size "<< cloud_model->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
 
         cloudLoaded = true;
-        cloud_pose = cloud_model;
+        //cloud_pose = cloud_model;
 
         // Display the merged cloud
         sendPointCloud(cloud_model);
@@ -429,6 +429,27 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+    }else if (receivedCmd == "findTooltipCanon"){
+        // Check if model is loaded, else return false
+        if (!cloudLoaded){
+            cout << "Model needed to find tooltip. Load model" << endl;
+            reply.addString("[nack] Load model first to find tooltip. \n");
+            return false;
+        }
+
+        // Find grasp by comparing partial view with model
+        if(!findTooltipCanon(cloud_model, tooltipCanon)){
+            cout << "Could not compute canonical tooltip fom model" << endl;
+            reply.addString("[nack] Could not compute canonical tooltip. \n");
+            return false;
+        }
+
+        reply.addDouble(tooltipCanon.x);
+        reply.addDouble(tooltipCanon.y);
+        reply.addDouble(tooltipCanon.z);
+
+        return true;
+
 
     }else if (receivedCmd == "findTooltip"){
         // Check if model is loaded, else return false
@@ -444,6 +465,10 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack] Could not compute canonical tooltip. \n");
             return false;
         }
+
+        int green[3] = {0,255,0};
+        addPoint(cloud_model, tooltipCanon, green);
+        sendPointCloud(cloud_model);
 
         if (command.size() > 1)        // grasp parameters are given by command
         {
@@ -467,7 +492,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
                 shift = command.get(4).asDouble();
 
 
-            if(!findTooltip(tooltipCanon, ori, disp,tilt, shift, tooltip)){
+            if(!findTipAndPose(tooltipCanon, ori, disp,tilt, shift, tooltip, toolPose)){
                 cout << "Could not compute tooltip from the canonical one and the pose parameters" << endl;
                 reply.addString("[nack] Could not compute tooltip. \n");
                 return false;
@@ -488,9 +513,18 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             }
         }
 
+        cout << "Transforming the model with pose" << endl;
+        setToolPose(cloud_model, toolPose, cloud_pose);
+        cloud_pose->erase(cloud_pose->end()); // Remove last point
+        addPoint(cloud_pose, tooltip, true);
+        Time::delay(1.0);
+        sendPointCloud(cloud_pose);
+
+
         reply.addDouble(tooltip.x);
         reply.addDouble(tooltip.y);
         reply.addDouble(tooltip.z);
+
         return true;
 
 
@@ -1156,7 +1190,7 @@ bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
      return true;
 }
 
-bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon)
+bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D& ttCanon)
 {
     // returns the xyz coordinates of the tooltip with respect to the hand coordinate frame, for the loaded model.
     // It computes the tooltip point first from the canonical model, ie, with tool oriented on -Y and end-effector always oriented along X (toolpose front).
@@ -1185,92 +1219,46 @@ bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>
     double effLength = fabs(max_point_AABB.x- min_point_AABB.x);        //Length of the effector
     ttCanon.x = max_point_AABB.x-effLength/3;                           // tooltip not on the extreme, but sligthly in  -  x coord of ttCanon
     ttCanon.y = min_point_AABB.y;                                       // y coord of ttCanon
-    ttCanon.z = 0.03 + (max_point_AABB.z + min_point_AABB.z)/2;         // z coord of ttCanon (+3 cm to account for displacement of tool in hand)
-                                                                        // - add 3 cm away from the palm to compensate for the fact that the center of the tool axis is ON the palm, not IN the hand
-    cout << "Canonical tooltip at ( " << ttCanon.x << ", " << ttCanon.y << ", " << ttCanon.z <<")." << endl;
+    ttCanon.z = (max_point_AABB.z + min_point_AABB.z)/2;                // z coord of ttCanon
+
+    cout << "Canonical tooltip at ( " << ttCanon.x << ", " << ttCanon.y << ", " << ttCanon.z <<")." << endl;    
     return true;
 }
 
 
-bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const Matrix &toolPose, Point3D &tooltipTrans)
+bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const Matrix &pose, Point3D &tooltipTrans)
 {
 
-    Vector ttCanonVec;
-    ttCanonVec.push_back(ttCanon.x);
-    ttCanonVec.push_back(ttCanon.y);
-    ttCanonVec.push_back(ttCanon.z);
-    ttCanonVec.push_back(1.0);          // 1.0 to allow Transformation matrix multiplication
+    Vector ttCanonVec(4,0.0), tooltipVec(4);
+    ttCanonVec[0] = ttCanon.x;
+    ttCanonVec[1] = ttCanon.y;
+    ttCanonVec[2] = ttCanon.z;
+    ttCanonVec[3] = 1.0;
 
     // Rotate the tooltip Canon according to the toolpose
-    Vector tooltipVec = ttCanonVec*toolPose;
+    tooltipVec = pose*ttCanonVec;
 
     tooltipTrans.x = tooltipVec[0];
     tooltipTrans.y = tooltipVec[1];
-    tooltipTrans.z = tooltipVec[2];
+    tooltipTrans.z = tooltipVec[2] + 0.03; // Add 3 cm in the direction of Z because the tool origin is not exactin IN the palm, but ON the palm, 3cm let of the refrence frame
 
-    cout << "Transformed tooltip at ( " << tooltip.x << ", " << tooltip.y << ", " << tooltip.z <<")." << endl;
+    cout << "Transformed tooltip at ( " << tooltipTrans.x << ", " << tooltipTrans.y << ", " << tooltipTrans.z <<")." << endl;
 
     return true;
 }
 
 
-bool Objects3DExplorer::findTooltip(const Point3D &tooltipCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans)
+bool Objects3DExplorer::findTipAndPose(const Point3D &tooltipCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans, Matrix &pose)
 {
 
     cout << "Transforming Canonical tooltip (" << tooltipCanon.x << ", " << tooltipCanon.y << ", " << tooltipCanon.z << ")" << endl;
     cout << "With parameters: or= " << graspOr << ", disp= " << graspDisp << ", tilt= " << graspTilt << ", shift= " << graspShift << "." <<endl;
 
-    Matrix pose;
-    poseFromParam(graspOr, graspDisp, graspTilt, graspShift, pose);
+    poseFromParam(graspOr, graspDisp, graspTilt, graspShift, pose);     // Get the pose matrix from the parameters
 
-    cout << "-> with matrix " << endl << pose.toString() << endl;
-
-    Vector ttcanVec(4), ttVec(4);
-    ttcanVec[0] = tooltipCanon.x;
-    ttcanVec[1] = tooltipCanon.y;
-    ttcanVec[2] = tooltipCanon.z;
-    ttcanVec[3] = 1.0;
-    cout << "Canonical Tooltip  is " << endl<< ttcanVec.toString() << endl;
-
-    ttVec = pose*ttcanVec;
-
-    cout << "Rotated tooltip " << endl<< ttVec.toString() << endl;
-
-    tooltipTrans.x = ttVec[0];
-    tooltipTrans.y = ttVec[1];
-    tooltipTrans.z = ttVec[2];
+    findTooltip(tooltipCanon, pose, tooltipTrans);                      // Rotate tooltip with pose
 
     return true;
-
-    /*
-    // Transform canonical coordinates to correspond with tilt, rotation and displacemnt of the tool.
-    Point3D ttRot = {0.0, 0.0, 0.0};
-    //ttRot.x = 0.0, ttRot.y = 0.0, ttRot.z = 0.0;    // Receive coordinates of tooltip of tool in canonical position
-    // Rotate first around Y axis to match tooltip to end-effector orientation
-    double sinOr = sin(graspOr*M_PI/180.0);
-    double cosOr = cos(graspOr*M_PI/180.0);
-    ttRot.x = ttCanon.x*cosOr - ttCanon.z*sinOr;
-    ttRot.y = ttCanon.y;
-    ttRot.z = ttCanon.x*sinOr + ttCanon.z*cosOr;
-    cout << "Tooltip of tool rotated " << graspOr << " degrees: x= "<< ttRot.x << ", y = " << ttRot.y << ", z = " << ttRot.z << endl;
-
-    // Now tilt 45 degrees arund Z to match the way in which the tool is held
-    Point3D ttTilt = {0.0, 0.0, 0.0};
-    // ttTilt.x =0.0, ttTilt.y=0.0, ttTilt.z=0.0;    // Receive coordinates of tooltip of tool in canonical position
-    ttTilt.x = ttRot.x*cos(graspTilt*M_PI/180.0) - ttRot.y*sin(graspTilt*M_PI/180.0);
-    ttTilt.y = ttRot.x*sin(graspTilt*M_PI/180.0) + ttRot.y*cos(graspTilt*M_PI/180.0);
-    ttTilt.z = ttRot.z;
-    cout << "Tooltip of tool rotated " << graspOr << " degrees and tilted 45 degrees: x= "<< ttTilt.x << ", y = " << ttTilt.y << ", z = " << ttTilt.z << endl;
-
-    // Finally add translation along -Y axis to match handle displacement, and Z to match shift.
-    tooltipTrans.x = ttTilt.x;
-    tooltipTrans.y = ttTilt.y - graspDisp/100.0;
-    tooltipTrans.z = ttTilt.z + graspShift/100.0 + 0.03;
-    cout << "Tooltip of tool rotated, tilted and displaced "<< graspDisp << "cm: x= "<< tooltipTrans.x << ", y = " << tooltipTrans.y << ", z = " << tooltipTrans.z << endl;
-
-    return true;
-    */
-
 }
 
 bool Objects3DExplorer::paramFromPose(const Matrix &pose, double ori, double displ, double tilt, double shift)
@@ -1297,21 +1285,21 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
     double radOr = ori*M_PI/180.0; // converse deg into rads
     double radTilt = tilt*M_PI/180.0; // converse deg into rads
 
-    cout << "Ori: rotation of "<< ori << " around -Y" << radOr << "Rad." << endl;
+    cout << "Ori: rotation of "<< ori << " around -Y: " << radOr << "Rad." << endl;
     Vector oy(4);   // define the rotation over the -Y axis or effector orientation
     oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= radOr; // tool is along the -Y axis!!
     Matrix R_ori = axis2dcm(oy);          // from axis/angle to rotation matrix notation
-    cout << "R_ori = "<< endl << R_ori.toString() << endl;
+    cout << endl << "R_ori = "<< endl << R_ori.toString() << endl;
 
-    cout << "Tilt: rotation of "<< tilt << " around Z."<< radTilt << "Rad." << endl;
+    cout << "Tilt: rotation of "<< tilt << " around Z: "<< radTilt << "Rad." << endl;
     Vector oz(4);   // define the rotation over the Z axis for tilt.
-    oz[0]=0.0; oz[1]=0.0; oz[2]=1.0; oy[3]= radTilt; // tilt around the Z axis!!
+    oz[0]=0.0; oz[1]=0.0; oz[2]=1.0; oz[3]= radTilt; // tilt around the Z axis!!
     Matrix R_tilt = axis2dcm(oz);
-    cout << "R_tilt = "<< endl << R_tilt.toString() << endl;
+    cout << endl <<"R_tilt = "<< endl << R_tilt.toString() << endl;
 
     pose = R_tilt*R_ori;         // Compose matrices in order, first rotate around -Y (R_ori), then around Z
-    cout << "Compbined rotation matrix R = R_tilt*R_ori" << endl;
-    cout << "R = "<< endl << pose.toString() << endl;
+    cout << "Combined rotation matrix R = R_tilt*R_ori" << endl;
+    cout << endl << "R = "<< endl << pose.toString() << endl;
 
     pose(1,3) = -disp /100.0;   // This accounts for the traslation of 'disp' in the -Y axis in the hand coord system along the extended thumb).
     cout << "Disp: Translation of "<< disp << " along -Y " << endl;
@@ -1461,11 +1449,39 @@ bool Objects3DExplorer::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::
 }
 
 /************************************************************************/
+bool Objects3DExplorer::addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, bool shift)
+{
+   int color[3] = {127, 0, 255};  // Black by default
+   return addPoint(cloud, coords, color, shift);
+}
+
+bool Objects3DExplorer::addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift)
+{
+    cout << "Addint point at " << coords.x << ", " << coords.y << ", " << coords.z << ") " << endl;
+
+    pcl::PointXYZRGB point;
+    point.x = coords.x;
+    point.y = coords.y;
+    point.z = coords.z;
+    if (shift){
+        point.z -= 0.03;}
+
+    point.r = color[0];
+    point.g = color[1];
+    point.b = color[2];
+
+    cloud->push_back(point);
+
+    return true;
+}
+
+
+
+/************************************************************************/
 bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
-    int color[3] = {0, 255, 0};
-    changeCloudColor(cloud, color);
-    return true;
+    int color[3] = {0, 255, 0};    
+    return changeCloudColor(cloud, color);
 }
 
 bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[])
@@ -1483,8 +1499,9 @@ bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 }
 
 /************************************************************************/
-bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
+bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
 {
+    cout << "Setting cloud to pose " << endl << pose.toString() << endl;
     Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
     pcl::transformPointCloud(*cloud, *cloudInPose, TM);
     poseFound = true;

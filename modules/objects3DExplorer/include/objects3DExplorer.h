@@ -134,24 +134,26 @@ protected:
     /* Object info from Cloud */
     bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec);
     bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat);
-    bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &toolPose);
+    bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose);
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
-    bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &toolPose, Point3D &tooltipTrans);         //overload
-    bool                findTooltip(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans);
+    bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);
+    bool                findTipAndPose(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans, yarp::sig::Matrix &pose);
 
     bool                extractFeats();
-
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     bool                poseFromParam(const double ori, const double displ, const double tilt, const double shift, yarp::sig::Matrix &pose);
     bool                paramFromPose(const yarp::sig::Matrix &pose, double ori, double displ, double tilt, double shift);
-    bool                setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose);
+    bool                setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose);
 
     /* Cloud Utils */
     bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
     bool                addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
+
+    bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, bool shift = false);     // overload default color
+    bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift = false);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-    bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload
+    bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload default color
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);    
     
