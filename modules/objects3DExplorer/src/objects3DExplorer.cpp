@@ -1084,6 +1084,8 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     sor.setMeanK(cloud_rec->size()/2);
     sor.filter (*cloud_rec);
 
+    scaleCloud(cloud_rec,1.3);
+
     // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
     if (handFrame) {
         printf("Transforming cloud to hand reference frame \n");
@@ -1532,12 +1534,14 @@ bool Objects3DExplorer::scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
     if (!feature_extractor.getAABB(min_point_AABB, max_point_AABB))
         return false;
 
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*cloud, centroid);
     for (unsigned int i=0; i<cloud->points.size(); i++)
     {
         pcl::PointXYZRGB *point = &cloud->at(i);
-        point->x = (point->x - min_point_AABB.x) * scale + min_point_AABB.x;
-        point->y = (point->x - min_point_AABB.y) * scale + min_point_AABB.y;
-        point->z = (point->x - min_point_AABB.z) * scale + min_point_AABB.z;
+        point->x = (point->x - centroid[0]) * scale + centroid[0];
+        point->y = (point->y - centroid[1]) * scale + centroid[1];
+        point->z = (point->z - centroid[2]) * scale + centroid[2];
     }
     return true;
 }
