@@ -100,6 +100,8 @@ void VisThread::run()
                     viewer->removeAllShapes();
                     clearing = false;
                     normalsComputed = false;
+                    cloud->clear();
+                    cloud_normals->clear();
                 }
 
                 update = false;

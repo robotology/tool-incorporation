@@ -352,7 +352,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         if (ok) {            
             sendPointCloud(cloud_rec);
-            //CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, cloudName, numCloudsSaved);
             reply.addString(" [ack] 3D registration successfully completed.");            
         } else {
 		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
@@ -635,7 +634,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = setHandFrame(command.get(1).asString());
         if (ok){
             reply.addString(" [ack] Transformation to hand frame successfully set to ");
-            reply.addString(command.get(1).asString());
             return true;}
         else {
             fprintf(stdout,"Transformation to hand frame has to be set to ON or OFF. \n");
@@ -648,7 +646,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = setInitialAlignment(command.get(1).asString());
         if (ok){
             reply.addString(" [ack] Use of Point Features for initial alignment successfully set to ");
-            reply.addString(command.get(1).asString());
             return true;}
         else {
             fprintf(stdout,"FPFH based Initial Alignment has to be set to ON or OFF. \n");
@@ -686,7 +683,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = changeSaveName(save_name);
         if (ok){
             reply.addString(" [ack] Model name successfully changed to ");
-            reply.addString(command.get(1).asString());
             return true;
         }else {
             fprintf(stdout,"Couldnt change the name. \n");
@@ -698,7 +694,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 		bool ok = setVerbose(command.get(1).asString());
         if (ok){
             reply.addString(" [ack] Verbose successfully set to ");
-            reply.addString(command.get(1).asString());
             return true;
         }
 		else {
@@ -706,6 +701,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack] Verbose can only be set to ON or OFF.");
 		    return false;
 		}
+
+
+    }else if (receivedCmd == "saving"){
+        // changes whether the reconstructed clouds will be saved or not.
+        bool ok = setSaving(command.get(1).asString());
+        if (ok){
+            reply.addString(" [ack] Recorded clouds saved ");
+            return true;
+        }else {
+            fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
+            reply.addString("[nack] Verbose can only be set to ON or OFF.");
+            return false;
+        }
 
 	}else if (receivedCmd == "help"){
 		reply.addVocab(Vocab::encode("many"));
@@ -728,6 +736,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("icp (int)maxIt (double)maxCorr (double)ranORT (double)transEp - sets ICP parameters (default 100, 0.03, 0.05, 1e-6).");
         reply.addString("noise (double)mean (double)sigma - sets noise parameters (default 0.0, 0.003)");
         reply.addString("savename (string) - Changes the name with which the pointclouds will be saved.");
+        reply.addString("save (ON/OFF) - Controls whether recorded clouds are saved or not.");
         reply.addString("verbose (ON/OFF) - Sets ON/OFF printouts of the program, for debugging or visualization.");
         reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
@@ -1092,6 +1101,10 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     }
 
     if (verbose){ cout << " Cloud of size " << cloud_rec->points.size() << " obtained from 3D reconstruction" << endl;}
+
+    if (saving){
+        CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);}
+
     return true;
 }
 
@@ -1575,6 +1588,22 @@ bool Objects3DExplorer::setVerbose(const string& verb)
     }
     return false;
 }
+
+bool Objects3DExplorer::setSaving(const string& sav)
+{
+    if (verb == "ON"){
+        saving = true;
+        cout << "Recorded clouds are being saved at: " << cloudsPathTo <<"/" << saveName << "N" << endl;
+        return true;
+    } else if (verb == "OFF"){
+        saving = false;
+        cout << "Recorded clouds NOT being saved." << endl;
+        return true;
+    }
+    return false;
+}
+
+
 
 bool Objects3DExplorer::setHandFrame(const string& hf)
 {

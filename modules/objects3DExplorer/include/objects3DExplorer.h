@@ -90,6 +90,7 @@ protected:
     std::string                         cloudsPathFrom;
     std::string                         cloudsPathTo;
     std::string                         saveName;
+    bool                                saving;
     bool                                verbose;
     bool                                handFrame;
 
@@ -160,6 +161,7 @@ protected:
     /* Configuration commands */ 
     bool                changeSaveName(const std::string& fname);
     bool                setVerbose(const std::string& verb);
+    bool                setSaving(const std::string& sav);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
        
