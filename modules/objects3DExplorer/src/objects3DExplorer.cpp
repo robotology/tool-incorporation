@@ -594,7 +594,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 
         // Find cloud alignment
-        alignPointClouds(cloud_from, cloud_to, cloud_aligned, alignMatrix);
+        alignWithScale(cloud_from, cloud_to, cloud_aligned, alignMatrix, 0.7, 1.3);
+        //alignPointClouds(cloud_from, cloud_to, cloud_aligned, alignMatrix);
 
         // Compute pose matrix as inverse of alignment, and display model on view pose.
         poseMatrix = alignMatrix.inverse();
@@ -1092,6 +1093,8 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     sor.setMeanK(cloud_rec->size()/2);
     sor.filter (*cloud_rec);
 
+    scaleCloud(cloud_rec,1.3);
+
     // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
     if (handFrame) {
         printf("Transforming cloud to hand reference frame \n");
@@ -1176,7 +1179,9 @@ bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
      Eigen::Matrix4f alignMatrix;
      Eigen::Matrix4f poseMatrix;
      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
-     if (!alignPointClouds(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
+
+     if (!alignWithScale(cloud_rec, modelCloud, cloud_aligned, alignMatrix, 0.7, 1.3))
+     //if (!alignPointClouds(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
         return false;
 
      poseMatrix = alignMatrix.inverse();
@@ -1327,6 +1332,42 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
 
 
 /************************************************************************/
+bool Objects3DExplorer::alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat, double minScale, double maxScale, double stepSize)
+{
+    bool alignOK = false;
+    double scale = 1.0;
+    int tryI = 0;
+    double step = 0.1;
+    while (!alignOK)
+    {
+        cout << "Trying alignment, with scale "<< scale << endl;
+        alignOK = alignPointClouds(cloud_source, cloud_target, cloud_align, transfMat);
+        if (!alignOK){
+
+            step = -1*getSign(step)* stepSize* tryI;
+            scale = scale + step;
+            tryI += 1;
+            scaleCloud(cloud_source, scale);
+
+            if ((scale > maxScale) || (scale < minScale)){
+                cout << "Couldnt align clouds at any given scale"<<endl;
+                return false;
+            }
+
+        }
+    }
+    return true;
+}
+
+int Objects3DExplorer::getSign(const double x)
+{
+    if (x >= 0) return 1;
+    if (x < 0) return -1;
+    return 1;
+}
+
+
+/************************************************************************/
 bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat)
 {
     Eigen::Matrix4f initial_T;
@@ -1414,6 +1455,7 @@ bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>
     }else{
         transfMat = icp.getFinalTransformation();
     }
+    return true;
 }
 
 
@@ -1489,6 +1531,34 @@ bool Objects3DExplorer::addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, P
 }
 
 
+/************************************************************************/
+bool Objects3DExplorer::scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double scale)
+{
+    cout << "Changing scaling cloud with scale "<< scale << endl;
+
+    // Find the minimum point of the cloud to and use it to normalize cloud position,
+    // so that scaling does not drag towards or away from origin.
+    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
+    feature_extractor.setInputCloud(cloud);
+    feature_extractor.compute();
+
+    pcl::PointXYZRGB min_point_AABB;
+    pcl::PointXYZRGB max_point_AABB;
+    if (!feature_extractor.getAABB(min_point_AABB, max_point_AABB))
+        return false;
+
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*cloud, centroid);
+    for (unsigned int i=0; i<cloud->points.size(); i++)
+    {
+        pcl::PointXYZRGB *point = &cloud->at(i);
+        point->x = (point->x - centroid[0]) * scale + centroid[0];
+        point->y = (point->y - centroid[1]) * scale + centroid[1];
+        point->z = (point->z - centroid[2]) * scale + centroid[2];
+    }
+    return true;
+}
+
 
 /************************************************************************/
 bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -1500,7 +1570,7 @@ bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[])
 {
     cout << "Changing cloud color" << endl;
-    for (unsigned int i=0; i<cloud->width; i++)
+    for (unsigned int i=0; i<cloud->points.size(); i++)
     {
         pcl::PointXYZRGB *point = &cloud->at(i);
         point->r = color[0];
@@ -1525,7 +1595,7 @@ bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 bool Objects3DExplorer::addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma)
 {
     cout << "Adding noise to cloud" << endl;
-    for (unsigned int i=0; i<cloud->width; i++)
+    for (unsigned int i=0; i<cloud->points.size(); i++)
     {
         pcl::PointXYZRGB *point = &cloud->at(i);
         point->x = point->x + Random::normal(mean, sigma);

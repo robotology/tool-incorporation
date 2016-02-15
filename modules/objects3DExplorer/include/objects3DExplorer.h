@@ -135,6 +135,7 @@ protected:
     /* Object info from Cloud */
     bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec);
     bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat);
+    bool                alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat, double minScale = 1.0, double maxScale = 1.0, double step = 0.1);
     bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose);
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
     bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);
@@ -155,8 +156,10 @@ protected:
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift = false);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload default color
+    bool                scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double scale = 1.0);
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);    
+    int                 getSign(const double x);
     
     /* Configuration commands */ 
     bool                changeSaveName(const std::string& fname);
