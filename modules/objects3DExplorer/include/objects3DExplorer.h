@@ -136,6 +136,7 @@ protected:
     bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec);
     bool                alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat);
     bool                alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat, double minScale = 1.0, double maxScale = 1.0, double step = 0.1);
+    bool                checkGrasp(const yarp::sig::Matrix &pose);
     bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose);
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
     bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);

@@ -1190,60 +1190,81 @@ bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 /************************************************************************/
 bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose)
 {
-    // Set accumulator mode.
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Bottle cmdVis, replyVis;
-    cmdVis.clear();	replyVis.clear();
-    cmdVis.addString("clearVis");
-    rpcVisualizerPort.write(cmdVis,replyVis);
+    bool poseValid = false;
+    int trial = 0;
 
     cmdVis.clear();	replyVis.clear();
     cmdVis.addString("accumClouds");
     cmdVis.addInt(1);
     rpcVisualizerPort.write(cmdVis,replyVis);
 
-    Time::delay(1);
-    sendPointCloud(modelCloud);
-    Time::delay(1);
+    while (!poseValid){
 
-     // Get a registration
-     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
-     getPointCloud(cloud_rec);              // Registration get and normalized to hand-reference frame.
-     int blue[3] = {0,0,255};               // Plot oriented model green
-     changeCloudColor(cloud_rec, blue);
-     sendPointCloud(cloud_rec);
-     Time::delay(1);
+        // Set accumulator mode.
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("clearVis");
+        rpcVisualizerPort.write(cmdVis,replyVis);
 
-     // Align it to the canonical model
-     Eigen::Matrix4f alignMatrix;
-     Eigen::Matrix4f poseMatrix;
-     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        Time::delay(1);
+        sendPointCloud(modelCloud);
+        Time::delay(1);
 
-     if (!alignWithScale(cloud_rec, modelCloud, cloud_aligned, alignMatrix, 0.7, 1.3))
-     //if (!alignPointClouds(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
+        // Get a registration
+        getPointCloud(cloud_rec);              // Registration get and normalized to hand-reference frame.
+        int blue[3] = {0,0,255};               // Plot oriented model green
+        changeCloudColor(cloud_rec, blue);
+        sendPointCloud(cloud_rec);
+        Time::delay(1);
+
+        // Align it to the canonical model
+        Eigen::Matrix4f alignMatrix;
+        Eigen::Matrix4f poseMatrix;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+        if (!alignWithScale(cloud_rec, modelCloud, cloud_aligned, alignMatrix, 0.7, 1.3))
+        //if (!alignPointClouds(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
         return false;
 
-     poseMatrix = alignMatrix.inverse();
+        // Inverse the alignment to find tool pose
+        poseMatrix = alignMatrix.inverse();
 
-     // Inverse the alignment to find tool pose
-     poseCloud->clear();
-     pcl::transformPointCloud(*modelCloud, *poseCloud, poseMatrix);
+        // transform pose Eigen matrix to YARP Matrix
+        pose = CloudUtils::eigMat2yarpMat(poseMatrix);
+        cout << "Estimated Pose:" << endl << pose.toString() << endl;
 
-     int green[3] = {0,255,0};          // Plot oriented model green
-     changeCloudColor(poseCloud, green);
-     sendPointCloud(poseCloud);
-     Time::delay(1);
+        poseValid = checkGrasp(pose);
 
-     cmdVis.clear();	replyVis.clear();
-     cmdVis.addString("accumClouds");
-     cmdVis.addInt(0);
-     rpcVisualizerPort.write(cmdVis,replyVis);
 
-     // return the alineation matrix as toolPose YARP Matrix
-     pose = CloudUtils::eigMat2yarpMat(poseMatrix);
-     cout << "Estimated Pose:" << endl << pose.toString() << endl;
+        poseCloud->clear();
+        pcl::transformPointCloud(*modelCloud, *poseCloud, poseMatrix);
 
-     poseFound = true;
-     return true;
+        int green[3] = {0,255,0};          // Plot oriented model green
+        changeCloudColor(poseCloud, green);
+        sendPointCloud(poseCloud);
+        Time::delay(1);
+
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("accumClouds");
+        cmdVis.addInt(0);
+        rpcVisualizerPort.write(cmdVis,replyVis);
+
+
+        if (!poseValid) {
+            cout << "The estimated grasp is not possible, retry with a new pointcloud" << endl;
+        }
+
+        trial++;  // to limit number of trials
+        if (trial > 10){
+            cout << "Could not find a valid grasp in 10 trials" << endl;
+            return false;
+        }
+
+    }
+
+    poseFound = true;
+    return true;
 }
 
 bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D& ttCanon)
@@ -1605,7 +1626,7 @@ bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>
 
     //ICP algorithm
     // Carefully clean NaNs, as otherwise they make the alignment crash horribly.
-    std::vector <int> nanInd;
+    //std::vector <int> nanInd;
 
     //removeNaNs(cloud_source,cloud_source, nanInd);
     //cout << "Found " << nanInd.size() << " NaNs on source cloud." <<endl;
@@ -1652,6 +1673,47 @@ void Objects3DExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZ
     fpfh_est.setSearchMethod(tree);
     fpfh_est.setRadiusSearch(0.01f);
     fpfh_est.compute(*features);
+}
+
+bool Objects3DExplorer::checkGrasp(const Matrix &pose)
+{
+    if(!handFrame) {
+        cout << "Grasp can only be checked with cloud referred to hand frame" << endl;
+    }
+
+    Matrix R = pose.submatrix(0,2,0,2); // Get the rotation matrix
+    double rotZ = atan2(R(1,0), R(0,0)) * 180.0/M_PI;                                  // tilt
+    double rotY = (atan2(-R(2,0),sqrt(pow(R(2,1),2) + pow(R(2,2),2))))*180.0/M_PI;      // orientation
+    double rotX = atan2(R(2,1),R(2,2))*180.0/M_PI;                                      // rotX
+
+    double transX = pose(0,3) * 100.0;      // Displacement along X axis in cm
+    double transY = pose(1,3) * 100.0;      // Displacement along Y axis in cm
+    double transZ = pose(2,3) * 100.0;      // Displacement along Z axis in cm
+
+    if ((transX > 10) || (transY > 10) || (transZ > 10)){
+        cout << "Detected translation is over possible grasp" << endl;
+        return false;
+    }
+
+
+    // Limit rotX to -45, 45 (there should be none);
+    if ((rotX < -45) || (rotX > 45)){
+        cout << "Too much rotation on X" << endl;
+        return false;
+    }
+
+    // Limit rotY to -135, 135 (should be from -90 to 90)
+    if ((rotY < -135) || (rotY > 135)){
+        cout << "Too much rotation on Y" << endl;
+        return false;
+    }
+
+    // Limit rotZ to -15, 105 (should be around 45).
+    if ((rotZ < -15) || (rotZ > 105)){
+        cout << "Too much rotation on Z" << endl;
+        return false;
+    }
+    return true;
 }
 
 
