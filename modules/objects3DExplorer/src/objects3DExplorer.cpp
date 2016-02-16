@@ -80,6 +80,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     cloudLoaded = false;
     poseFound  = false;
     initAlignment = true;
+    saving = true;
 
     toolPose = eye(4);
     //tooltip = Vector(4,0.0);
@@ -1248,12 +1249,6 @@ bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
         sendPointCloud(poseCloud);
         Time::delay(1);
 
-        cmdVis.clear();	replyVis.clear();
-        cmdVis.addString("accumClouds");
-        cmdVis.addInt(0);
-        rpcVisualizerPort.write(cmdVis,replyVis);
-
-
         if (!poseValid) {
             cout << "The estimated grasp is not possible, retry with a new pointcloud" << endl;
         }
@@ -1265,6 +1260,11 @@ bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
         }
 
     }
+
+    cmdVis.clear();	replyVis.clear();
+    cmdVis.addString("accumClouds");
+    cmdVis.addInt(0);
+    rpcVisualizerPort.write(cmdVis,replyVis);
 
     poseFound = true;
     return true;
@@ -1696,7 +1696,7 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
         return false;
     }
 
-
+    /*
     // Limit rotX to -70, 70 (there should be none);
     if ((rotX < -70) || (rotX > 70)){
         cout << "Too much rotation on X" << endl;
@@ -1714,6 +1714,7 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
         cout << "Too much rotation on Z" << endl;
         return false;
     }
+    */
     return true;
 }
 
