@@ -709,14 +709,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             cout << "Noise Parameters set to mean:" <<  noise_mean << ", sigma: " << noise_sigma << endl;
             return true;
 
-    }else if (receivedCmd == "verbose"){
+    }else if (receivedCmd == "setSeg"){
         bool ok = setSeg(command.get(1).asString());
         if (ok){
             reply.addString(" [ack] Segmentation successfully set to ");
             return true;
         }
         else {
-            fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
+            fprintf(stdout,"2DSegmentation can only be set to ON or OFF. \n");
             reply.addString("[nack] Verbose can only be set to ON or OFF.");
             return false;
         }
