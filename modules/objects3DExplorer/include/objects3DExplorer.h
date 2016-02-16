@@ -147,7 +147,7 @@ protected:
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     bool                poseFromParam(const double ori, const double displ, const double tilt, const double shift, yarp::sig::Matrix &pose);
-    bool                paramFromPose(const yarp::sig::Matrix &pose, double ori, double displ, double tilt, double shift);
+    bool                paramFromPose(const yarp::sig::Matrix &pose, double &ori, double &displ, double &tilt, double &shift);
     bool                setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose);
 
     /* Cloud Utils */

@@ -524,17 +524,38 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addDouble(tooltip.y);
         reply.addDouble(tooltip.z);
 
-        double ori, pose, tilt, shift;
-        paramFromPose(toolPose, ori, pose, tilt, shift);
+        double ori, displ, tilt, shift;
+        paramFromPose(toolPose, ori, displ, tilt, shift);
 
+        cout << "Param returned from paramFromPose = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
         reply.addDouble(ori);
-        reply.addDouble(pose);
+        reply.addDouble(displ);
         reply.addDouble(tilt);
         reply.addDouble(shift);
 
         return true;
 
+    }else if (receivedCmd == "getAffordance"){
+
+        if (!(poseFound)&&(cloudLoaded))
+        {
+            cout << "Tool and pose need to estimate affordance of tool-pose. Load tool and find pose." << endl;
+            reply.addString("[nack] Tool-pose must be known to predict affordances.");
+            return false;
+        }
+
+        bool ok;
+        Bottle aff;
+        ok = getAffordances(aff);
+        reply = aff;
+        if (ok){
+            return true;
+        } else {
+            fprintf(stdout,"Affordance could not be obtained or was not present. \n");
+            reply.addString("[nack] Affordance could not be obtained or was not present. ");
+            return false;
+        }
 
     }else if (receivedCmd == "extractFeats"){
         if(!extractFeats()){
@@ -746,6 +767,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("setPose (double)orientation (double)displacement (double)tilt (double)shift - Set the tool pose given the grasp parameters.");
         reply.addString("findTooltip - Computes the tooltip by rotating the canonical toolpose with the estimated tool pose.");
         reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' loaded from .ply or .pcd files.");
+        reply.addString("getAffordance - returns the pre-learnt affordances for the loaded tool-pose.");
 
         reply.addString("---------- SET PARAMETERS ------------");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame. (default ON).");
@@ -1297,7 +1319,7 @@ bool Objects3DExplorer::findTipAndPose(const Point3D &tooltipCanon, const double
 
 
 /************************************************************************/
-bool Objects3DExplorer::paramFromPose(const Matrix &pose, double ori, double displ, double tilt, double shift)
+bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
 {
 
     cout << "Computing grasp parameters from pose"<< endl;
@@ -1360,7 +1382,7 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
 }
 
 /************************************************************************/
-bool Objects3DExplorer::getAffordances(yarp::os::Bottle &tpAff)
+bool Objects3DExplorer::getAffordances(Bottle &tpAff)
 {
     cout << "Computing affordances of the tool-pose in hand " << endl;
     Matrix affMatrix(12,3);
@@ -1371,49 +1393,67 @@ bool Objects3DExplorer::getAffordances(yarp::os::Bottle &tpAff)
 
     //    Drag Left           Drag Diagonal left        Drag down
     // Tool 1 -> hoe
-    affMatrix(0,0) = 0.0;   affMatrix(0,1) = 0.0;   affMatrix(0,2) = 0.0;  // Pose left (90)
-    affMatrix(1,0) = 0.0;   affMatrix(1,1) = 0.0;   affMatrix(1,2) = 0.0;  // Pose front (0)
-    affMatrix(2,0) = 0.0;   affMatrix(2,1) = 0.0;   affMatrix(2,2) = 0.0;  // Pose right (-90)
+    affMatrix(0,0) = 0.0;   affMatrix(0,1) = 0.0;   affMatrix(0,2) = 1.0;  // Pose left (90)
+    affMatrix(1,0) = 0.0;   affMatrix(1,1) = 1.0;   affMatrix(1,2) = 0.0;  // Pose front (0)
+    affMatrix(2,0) = 1.0;   affMatrix(2,1) = 0.0;   affMatrix(2,2) = 0.0;  // Pose right (-90)
 
     // Tool 2 -> hook
-    affMatrix(3,0) = 0.0;   affMatrix(3,1) = 0.0;   affMatrix(3,2) = 0.0;  // Pose left  (90)
+    affMatrix(3,0) = 1.0;   affMatrix(3,1) = 0.0;   affMatrix(3,2) = 0.0;  // Pose left  (90)
     affMatrix(4,0) = 0.0;   affMatrix(4,1) = 0.0;   affMatrix(4,2) = 0.0;  // Pose front (0)
-    affMatrix(5,0) = 0.0;   affMatrix(5,1) = 0.0;   affMatrix(5,2) = 0.0;  // Pose right (-90)
+    affMatrix(5,0) = 0.0;   affMatrix(5,1) = 1.0;   affMatrix(5,2) = 0.0;  // Pose right (-90)
 
     // Tool 3 -> rake
-    affMatrix(6,0) = 0.0;   affMatrix(6,1) = 0.0;   affMatrix(6,2) = 0.0;  // Pose left  (90)
-    affMatrix(7,0) = 0.0;   affMatrix(7,1) = 0.0;   affMatrix(7,2) = 0.0;  // Pose front (0)
-    affMatrix(8,0) = 0.0;   affMatrix(8,1) = 0.0;   affMatrix(8,2) = 0.0;  // Pose right (-90)
+    affMatrix(6,0) = 0.0;   affMatrix(6,1) = 0.0;   affMatrix(6,2) = 1.0;  // Pose left  (90)
+    affMatrix(7,0) = 0.0;   affMatrix(7,1) = 1.0;   affMatrix(7,2) = 0.0;  // Pose front (0)
+    affMatrix(8,0) = 1.0;   affMatrix(8,1) = 0.0;   affMatrix(8,2) = 0.0;  // Pose right (-90)
 
     // Tool 4 -> stick
-    affMatrix(9,0) = 0.0;   affMatrix(9,1) = 0.0;   affMatrix(9,2) = 0.0;  // Pose left  (90)
-    affMatrix(10,0) = 0.0;  affMatrix(10,1) = 0.0;  affMatrix(10,2) = 0.0; // Pose front (0)
-    affMatrix(11,0) = 0.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0; // Pose right (-90)
+    affMatrix(9,0) = 0.0;   affMatrix(9,1) = 1.0;   affMatrix(9,2) = 0.0;  // Pose left  (90)
+    affMatrix(10,0) = 0.0;  affMatrix(10,1) = 1.0;  affMatrix(10,2) = 1.0; // Pose front (0)
+    affMatrix(11,0) = 1.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0; // Pose right (-90)
 
 
     int toolposeI = getAffTP(saveName, toolPose);
     Vector affVector = affMatrix.getRow(toolposeI);
 
+    cout << "Aff vector for tool-pose " << toolposeI << " =  " << affVector.toString() << endl;
+
     tpAff.clear();
+    bool affOK  = false;
     if (affVector[0] > 0.0){
+        cout << "drag_left affordable " << endl;
         tpAff.addString("drag_left");
+        affOK = true;
     }
 
     if (affVector[1] > 0.0){
+        cout << "drag_diag affordable " << endl;
         tpAff.addString("drag_diag");
+        affOK = true;
     }
 
-    if (affVector[0] > 0.0){
+    if (affVector[2] > 0.0){
+        cout << "drag_down affordable " << endl;
         tpAff.addString("drag_down");
+        affOK = true;
     }
 
-    return true;
+    if (!affOK){
+        cout << "This tool-pose does not afford any of the possible actions." << endl;
+        tpAff.addString("no_aff");
+    }
+
+
+    cout << "Affordance bottle is: "<< tpAff.toString() <<endl;
+
+    return affOK;
 }
 
 int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix &pose)
 {
     double ori, displ, tilt, shift;
     paramFromPose(pose, ori, displ, tilt, shift);
+    cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
     double toolI = 0, poseI = 0;
     if (tool == "pipeHoe3"){
         toolI = 0;
@@ -1428,13 +1468,18 @@ int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix
         toolI = 3;
     }
 
+    cout << "Tool index is: "<< toolI << endl;
+
     if (ori > 45.0){                        // oriented left
         poseI = 0;
+        cout << "Tool oriented left " << endl;
     }else if ((ori < 45.0) && (ori > -45.0)) // oriented front
     {
         poseI = 1;
-    }else if (ori < -45.0)
+        cout << "Tool oriented front " << endl;
+    }else if (ori < -45.0)                  // oriented right
     {
+        cout << "Tool oriented right" << endl;
         poseI = 2;
     }else {
         cout << "Pose out of limits" << endl;
@@ -1442,6 +1487,7 @@ int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix
     }
 
     int tpi = toolI*3 + poseI; // tool-pose index
+    cout << "Tool-Pose index is: "<< toolI << endl;
 
     return tpi;
 }
