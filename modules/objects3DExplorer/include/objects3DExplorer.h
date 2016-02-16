@@ -108,6 +108,7 @@ protected:
     bool                                cloudLoaded;
     bool                                poseFound;
     bool                                initAlignment;
+    bool                                seg2D;
     bool                                closing;    
     int                                 numCloudsSaved;
     int                                 NO_FILENUM;
@@ -167,6 +168,7 @@ protected:
     /* Configuration commands */ 
     bool                changeSaveName(const std::string& fname);
     bool                setVerbose(const std::string& verb);
+    bool                setSeg(const std::string& seg);
     bool                setSaving(const std::string& sav);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);

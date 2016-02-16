@@ -79,6 +79,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     handFrame = rf.check("handFrame", Value(true)).asBool();
     cloudLoaded = false;
     poseFound  = false;
+    seg2D = true;
     initAlignment = true;
     saving = true;
 
@@ -708,6 +709,18 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             cout << "Noise Parameters set to mean:" <<  noise_mean << ", sigma: " << noise_sigma << endl;
             return true;
 
+    }else if (receivedCmd == "verbose"){
+        bool ok = setSeg(command.get(1).asString());
+        if (ok){
+            reply.addString(" [ack] Segmentation successfully set to ");
+            return true;
+        }
+        else {
+            fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
+            reply.addString("[nack] Verbose can only be set to ON or OFF.");
+            return false;
+        }
+
     }else if (receivedCmd == "savename"){
         // changes the name with which files will be saved by the object-reconstruction module
         string save_name;
@@ -775,6 +788,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("FPFH (ON/OFF) - Activates/deactivates fast local features (FPFH) based Initial alignment for registration. (default ON).");
         reply.addString("icp (int)maxIt (double)maxCorr (double)ranORT (double)transEp - sets ICP parameters (default 100, 0.03, 0.05, 1e-6).");
         reply.addString("noise (double)mean (double)sigma - sets noise parameters (default 0.0, 0.003)");
+        reply.addString("seg2D (ON/OFF) - Set the segmentation to 2D (ON) from graphBasedSegmentation, or 3D (OFF), from 'flood3d' .");
         reply.addString("savename (string) - Changes the name with which the pointclouds will be saved.");
         reply.addString("save (ON/OFF) - Controls whether recorded clouds are saved or not.");
         reply.addString("verbose (ON/OFF) - Sets ON/OFF printouts of the program, for debugging or visualization.");
@@ -1096,11 +1110,15 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     // requests 3D reconstruction to objectReconst module
     Bottle cmdOR, replyOR;
     cmdOR.clear();	replyOR.clear();
-    cmdOR.addString("seg");
+    if (seg2D){
+        cmdOR.addString("seg");
+        if (verbose){printf("Please click on seed point from the Disparity or Segmentation images. \n");}
+    } else {
+        cmdOR.addString("flood3d");
+        if (verbose){printf("Please click on seed point from the Disparity image. \n");}
+    }
     rpcObjRecPort.write(cmdOR,replyOR);
 
-    // read coordinates from yarpview
-    if (verbose){printf("Please click on seed point from the Disparity or Segmentation images. \n");}
 
     // read the cloud from the objectReconst output port
     Bottle *cloudBottle = cloudsInPort.read(true);
@@ -1565,6 +1583,10 @@ int Objects3DExplorer::getSign(const double x)
 /************************************************************************/
 bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat)
 {
+    Matrix guess;
+    poseFromParam(0,0,45,0,guess); // Initial guess to no orientation and tilted 45 degree.
+    Eigen::Matrix4f guessEig = CloudUtils::yarpMat2eigMat(guess);
+
     Eigen::Matrix4f initial_T;
     cloud_align->clear();
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_IA (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -1598,10 +1620,12 @@ bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>
         sac_ia.setSourceFeatures(features_source);
 
         if (verbose){printf("Aligning clouds\n");}
-        sac_ia.align(*cloud_IA);
+        sac_ia.align(*cloud_IA, guessEig);
 
-        if (!sac_ia.hasConverged())
+        if (!sac_ia.hasConverged()){
+            printf("SAC_IA could not align clouds \n");
             return false;
+        }
 
         cout << "FPFH has converged:" << sac_ia.hasConverged() << " score: " << sac_ia.getFitnessScore() << endl;
 
@@ -1638,9 +1662,8 @@ bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>
     icp.setInputTarget(cloud_target);
     printf("Aligning... \n");
     icp.align(*cloud_align);
-    printf("Alignment attept done\n");
     if (!icp.hasConverged()){
-        printf("Clouds not aligned \n");
+        printf("ICP could not fine align clouds \n");
         return false;
     }
     printf("Clouds Aligned! \n");
@@ -1881,6 +1904,20 @@ bool Objects3DExplorer::setVerbose(const string& verb)
     } else if (verb == "OFF"){
         verbose = false;
         fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+        return true;
+    }
+    return false;
+}
+
+bool Objects3DExplorer::setSeg(const string& seg)
+{
+    if (seg == "ON"){
+        seg2D = true;
+        fprintf(stdout,"Segmentation is 2D");
+        return true;
+    } else if (seg == "OFF"){
+        seg2D = false;
+        fprintf(stdout,"Segmentation is 3D");
         return true;
     }
     return false;
