@@ -1234,8 +1234,11 @@ bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
         pose = CloudUtils::eigMat2yarpMat(poseMatrix);
         cout << "Estimated Pose:" << endl << pose.toString() << endl;
 
-        poseValid = checkGrasp(pose);
+        double ori,displ, tilt, shift;
+        paramFromPose(pose, ori, displ, tilt, shift);
+        //cout << "Corresponds to parameters: or= " << ori << ", disp= " << displ << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
+        poseValid = checkGrasp(pose);
 
         poseCloud->clear();
         pcl::transformPointCloud(*modelCloud, *poseCloud, poseMatrix);
@@ -1342,26 +1345,18 @@ bool Objects3DExplorer::findTipAndPose(const Point3D &tooltipCanon, const double
 /************************************************************************/
 bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
 {
-
-    cout << "Computing grasp parameters from pose"<< endl;
-    cout << "pose is =" <<  pose.toString() << endl;
-    cout << "Getting rotation matrix"<< endl;
     Matrix R = pose.submatrix(0,2,0,2); // Get the rotation matrix
-    cout << "R is =" <<  R.toString() << endl;
 
     double rotZ = atan2(R(1,0), R(0,0));
-    cout << "Computed rot on Z= " << rotZ << endl;
     double rotY = atan2(-R(2,0),sqrt(pow(R(2,1),2) + pow(R(2,2),2)));
-    cout << "Computed rot on Y= " << rotY << endl;
     double rotX = atan2(R(2,1),R(2,2));
-    cout << "Computed rot on X= " << rotX << endl;
 
     ori = -rotY* 180.0/M_PI;        // Orientation in degrees
     displ = -pose(1,3) * 100.0;     // Displacement along -Y axis in cm
     tilt = rotZ* 180.0/M_PI;        // Tilt in degrees
     shift = pose(2,3) * 100.0;      // Displacement along Z axis in cm
 
-    cout << "Parameters computed: or= " << ori << ", disp= " << displ << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
+    //cout << "Parameters computed: or= " << ori << ", disp= " << displ << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
     return true;
 }
@@ -1679,6 +1674,7 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
 {
     if(!handFrame) {
         cout << "Grasp can only be checked with cloud referred to hand frame" << endl;
+        return false;
     }
 
     Matrix R = pose.submatrix(0,2,0,2); // Get the rotation matrix
@@ -1686,18 +1682,23 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
     double rotY = (atan2(-R(2,0),sqrt(pow(R(2,1),2) + pow(R(2,2),2))))*180.0/M_PI;      // orientation
     double rotX = atan2(R(2,1),R(2,2))*180.0/M_PI;                                      // rotX
 
+    cout << " Rotations estimated: " << endl << "RotX= " << rotX << "RotY= " << rotY << "RotZ= " << rotZ << endl;
+
     double transX = pose(0,3) * 100.0;      // Displacement along X axis in cm
     double transY = pose(1,3) * 100.0;      // Displacement along Y axis in cm
     double transZ = pose(2,3) * 100.0;      // Displacement along Z axis in cm
 
-    if ((transX > 10) || (transY > 10) || (transZ > 10)){
+
+    cout << " Translations estimated: " << endl << "TransX= " << transX << "TransY= " << transY << "TransZ= " << transZ << endl;
+
+    if ((fabs(transX) > 10) || (fabs(transY) > 10) || (fabs(transZ) > 10)){
         cout << "Detected translation is over possible grasp" << endl;
         return false;
     }
 
 
-    // Limit rotX to -45, 45 (there should be none);
-    if ((rotX < -45) || (rotX > 45)){
+    // Limit rotX to -70, 70 (there should be none);
+    if ((rotX < -70) || (rotX > 70)){
         cout << "Too much rotation on X" << endl;
         return false;
     }
