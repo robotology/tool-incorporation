@@ -1136,7 +1136,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
     // Apply some filtering to clean the cloud
     // Process the cloud by removing distant points ...
-    const float depth_limit = 0.5;
+    const float depth_limit = 0.4;
     pcl::PassThrough<pcl::PointXYZRGB> pass;
     pass.setInputCloud (cloud_rec);
     pass.setFilterFieldName ("z");

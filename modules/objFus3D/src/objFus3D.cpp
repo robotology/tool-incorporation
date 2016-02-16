@@ -17,6 +17,8 @@
 */
 
 
+// XXX check this for plane segmentation: http://pointclouds.org/documentation/tutorials/planar_segmentation.php#planar-segmentation
+
 #include "objFus3D.h"
 
 using namespace std;
