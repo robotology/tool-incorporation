@@ -79,7 +79,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     handFrame = rf.check("handFrame", Value(true)).asBool();
     cloudLoaded = false;
     poseFound  = false;
-    seg2D = true;
+    seg2D = false;
     initAlignment = true;
     saving = true;
 
@@ -282,7 +282,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
         bool ok = exploreAutomatic();
         if (ok){
-            reply.addString(" [ack] Exploration successfully finished.");
+            reply.addString("[ack]");
             return true;
         } else {
             fprintf(stdout,"Couldnt obtain 3D model successfully. \n");
@@ -294,7 +294,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
         bool ok = exploreInteractive();
         if (ok){
-            reply.addString(" [ack] Interactive exploration successfully finished.");
+            reply.addString("[ack]");
             return true;
         } else {
             fprintf(stdout,"There was an error during the interactive exploration. \n");
@@ -315,7 +315,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         bool ok = turnHand(rotDegX, rotDegY);
         if (ok){
-            reply.addString(" [ack] Hand successfully turned.");
+            reply.addString("[ack]");
             return true;
         } else {
             fprintf(stdout,"Couldnt go to the desired position. \n");
@@ -341,7 +341,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         // Display the merged cloud
         sendPointCloud(cloud_model);
-        reply.addString(" [ack] Cloud successfully displayed");
+        reply.addString("[ack]");
         return true;
 
 
@@ -353,7 +353,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         if (ok) {            
             sendPointCloud(cloud_rec);
-            reply.addString(" [ack] 3D registration successfully completed.");            
+            reply.addString("[ack]");
         } else {
 		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
             reply.addString("[nack] Couldnt reconstruct pointcloud. ");
@@ -671,7 +671,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // activates the normalization of the pointcloud to the hand reference frame.
         bool ok = setHandFrame(command.get(1).asString());
         if (ok){
-            reply.addString(" [ack] Transformation to hand frame successfully set to ");
+            reply.addString("[ack]");
             return true;}
         else {
             fprintf(stdout,"Transformation to hand frame has to be set to ON or OFF. \n");
@@ -683,11 +683,12 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // activates the normalization of the pointcloud to the hand reference frame.
         bool ok = setInitialAlignment(command.get(1).asString());
         if (ok){
-            reply.addString(" [ack] Use of Point Features for initial alignment successfully set to ");
+            reply.addString("[ack]");
             return true;}
         else {
             fprintf(stdout,"FPFH based Initial Alignment has to be set to ON or OFF. \n");
             reply.addString("[nack] FPFH based Initial Alignment has to be set to ON or OFF. ");
+            reply.addString("[ack]");
             return false;
         }
 
@@ -699,6 +700,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             icp_ranORT = command.get(3).asDouble();
             icp_transEp = command.get(4).asDouble();
             cout << " icp Parameters set to " <<  icp_maxIt << ", " << icp_maxCorr << ", " << icp_ranORT<< ", " << icp_transEp << endl;
+            reply.addString("[ack]");
             return true;
 
     }else if (receivedCmd == "noise"){
@@ -707,12 +709,13 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             noise_mean = command.get(1).asDouble();
             noise_sigma = command.get(2).asDouble();
             cout << "Noise Parameters set to mean:" <<  noise_mean << ", sigma: " << noise_sigma << endl;
+            reply.addString("[ack]");
             return true;
 
     }else if (receivedCmd == "setSeg"){
         bool ok = setSeg(command.get(1).asString());
         if (ok){
-            reply.addString(" [ack] Segmentation successfully set to ");
+            reply.addString("[ack]");
             return true;
         }
         else {
@@ -732,7 +735,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         bool ok = changeSaveName(save_name);
         if (ok){
-            reply.addString(" [ack] Model name successfully changed to ");
+            reply.addString("[ack]");
             return true;
         }else {
             fprintf(stdout,"Couldnt change the name. \n");
@@ -743,7 +746,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 	}else if (receivedCmd == "verbose"){
 		bool ok = setVerbose(command.get(1).asString());
         if (ok){
-            reply.addString(" [ack] Verbose successfully set to ");
+            reply.addString("[ack]");
             return true;
         }
 		else {
@@ -757,7 +760,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // changes whether the reconstructed clouds will be saved or not.
         bool ok = setSaving(command.get(1).asString());
         if (ok){
-            reply.addString(" [ack] Recorded clouds saved ");
+            reply.addString("[ack]");
             return true;
         }else {
             fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
@@ -1274,6 +1277,13 @@ bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
         trial++;  // to limit number of trials
         if (trial > 10){
             cout << "Could not find a valid grasp in 10 trials" << endl;
+
+
+            cmdVis.clear();	replyVis.clear();
+            cmdVis.addString("accumClouds");
+            cmdVis.addInt(0);
+            rpcVisualizerPort.write(cmdVis,replyVis);
+
             return false;
         }
 
@@ -1388,29 +1398,29 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
     double radOr = ori*M_PI/180.0; // converse deg into rads
     double radTilt = tilt*M_PI/180.0; // converse deg into rads
 
-    cout << "Ori: rotation of "<< ori << " around -Y: " << radOr << "Rad." << endl;
+    //cout << "Ori: rotation of "<< ori << " around -Y: " << radOr << "Rad." << endl;
     Vector oy(4);   // define the rotation over the -Y axis or effector orientation
     oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= radOr; // tool is along the -Y axis!!
     Matrix R_ori = axis2dcm(oy);          // from axis/angle to rotation matrix notation
-    cout << endl << "R_ori = "<< endl << R_ori.toString() << endl;
+    //cout << endl << "R_ori = "<< endl << R_ori.toString() << endl;
 
-    cout << "Tilt: rotation of "<< tilt << " around Z: "<< radTilt << "Rad." << endl;
+    //cout << "Tilt: rotation of "<< tilt << " around Z: "<< radTilt << "Rad." << endl;
     Vector oz(4);   // define the rotation over the Z axis for tilt.
     oz[0]=0.0; oz[1]=0.0; oz[2]=1.0; oz[3]= radTilt; // tilt around the Z axis!!
     Matrix R_tilt = axis2dcm(oz);
-    cout << endl <<"R_tilt = "<< endl << R_tilt.toString() << endl;
+    //cout << endl <<"R_tilt = "<< endl << R_tilt.toString() << endl;
 
     pose = R_tilt*R_ori;         // Compose matrices in order, first rotate around -Y (R_ori), then around Z
-    cout << "Combined rotation matrix R = R_tilt*R_ori" << endl;
-    cout << endl << "R = "<< endl << pose.toString() << endl;
+    //cout << "Combined rotation matrix R = R_tilt*R_ori" << endl;
+    //cout << endl << "R = "<< endl << pose.toString() << endl;
 
     pose(1,3) = -disp /100.0;   // This accounts for the traslation of 'disp' in the -Y axis in the hand coord system along the extended thumb).
-    cout << "Disp: Translation of "<< disp << " along -Y " << endl;
+    //cout << "Disp: Translation of "<< disp << " along -Y " << endl;
 
     pose(2,3) = shift/100.0;   // This accounts for the Z translation to match the tooltip    
-    cout << "Shift: Translation of "<< shift << " along Z " << endl;
+    //cout << "Shift: Translation of "<< shift << " along Z " << endl;
 
-    cout << "pose = "<< endl << pose.toString() << endl;
+    //cout << "pose = "<< endl << pose.toString() << endl;
 
     return true;
 }
@@ -1705,14 +1715,14 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
     double rotY = (atan2(-R(2,0),sqrt(pow(R(2,1),2) + pow(R(2,2),2))))*180.0/M_PI;      // orientation
     double rotX = atan2(R(2,1),R(2,2))*180.0/M_PI;                                      // rotX
 
-    cout << " Rotations estimated: " << endl << "RotX= " << rotX << "RotY= " << rotY << "RotZ= " << rotZ << endl;
+    cout << " Rotations estimated: " << endl << "RotX = " << rotX << ". RotY= " << rotY << ". RotZ= " << rotZ << endl;
 
     double transX = pose(0,3) * 100.0;      // Displacement along X axis in cm
     double transY = pose(1,3) * 100.0;      // Displacement along Y axis in cm
     double transZ = pose(2,3) * 100.0;      // Displacement along Z axis in cm
 
 
-    cout << " Translations estimated: " << endl << "TransX= " << transX << "TransY= " << transY << "TransZ= " << transZ << endl;
+    cout << " Translations estimated: " << endl << "TransX= " << transX << ". TransY= " << transY << ". TransZ= " << transZ << endl;
 
     if ((fabs(transX) > 10) || (fabs(transY) > 10) || (fabs(transZ) > 10)){
         cout << "Detected translation is over possible grasp" << endl;
@@ -1778,7 +1788,7 @@ bool Objects3DExplorer::addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, P
 
 bool Objects3DExplorer::addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift)
 {
-    cout << "Addint point at " << coords.x << ", " << coords.y << ", " << coords.z << ") " << endl;
+    //cout << "Addint point at (" << coords.x << ", " << coords.y << ", " << coords.z << ") " << endl;
 
     pcl::PointXYZRGB point;
     point.x = coords.x;
@@ -1850,7 +1860,7 @@ bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 /************************************************************************/
 bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
 {
-    cout << "Setting cloud to pose " << endl << pose.toString() << endl;
+    //cout << "Setting cloud to pose " << endl << pose.toString() << endl;
     Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
     pcl::transformPointCloud(*cloud, *cloudInPose, TM);
     poseFound = true;
