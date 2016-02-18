@@ -1141,14 +1141,33 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     cmdOR.addString("clear");
     rpcObjRecPort.write(cmdOR,replyOR);
 
+    // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
+    if (handFrame) {
+        printf("Transforming cloud to hand reference frame \n");
+        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
+        frame2Hand(cloud_rec, cloud_rec);
+        printf("Cloud transformed to hand reference frame \n");
+    }
+
     // Apply some filtering to clean the cloud
     // Process the cloud by removing distant points ...
-    const float depth_limit = 0.4;
-    pcl::PassThrough<pcl::PointXYZRGB> pass;
-    pass.setInputCloud (cloud_rec);
-    pass.setFilterFieldName ("z");
-    pass.setFilterLimits (0, depth_limit);
-    pass.filter (*cloud_rec);
+    pcl::PassThrough<pcl::PointXYZRGB> passX;
+    passX.setInputCloud (cloud_rec);
+    passX.setFilterFieldName ("x");
+    passX.setFilterLimits (0.0, 0.35);
+    passX.filter (*cloud_rec);
+
+    pcl::PassThrough<pcl::PointXYZRGB> passY;
+    passY.setInputCloud (cloud_rec);
+    passY.setFilterFieldName ("y");
+    passY.setFilterLimits (-0.3, 0.0);
+    passY.filter (*cloud_rec);
+
+    pcl::PassThrough<pcl::PointXYZRGB> passZ;
+    passZ.setInputCloud (cloud_rec);
+    passZ.setFilterFieldName ("z");
+    passZ.setFilterLimits (-0.1, 0.1);
+    passZ.filter (*cloud_rec);
 
      // ... and removing outliers
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; //filter to remove outliers
@@ -1157,15 +1176,29 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     sor.setMeanK(cloud_rec->size()/2);
     sor.filter (*cloud_rec);
 
+    /*
+    // Remove hand (all points within 4 cm from origin)
+    double handRad = 0.04;
+    pcl::IndicesPtr pointsNotHand;
+    //vector<int> pointsNotHand;
+    for (int p = 0; p < cloud_rec->size();p++){
+        double px = cloud_rec->points[p].x;
+        double py = cloud_rec->points[p].y;
+        double pz = cloud_rec->points[p].z;
+        double distP = sqrt(pow(px,2)+pow(py,2)+pow(pz,2));
+        if (distP > handRad){
+            pointsNotHand->push_back(p);
+        }
+    }
+    pcl::ExtractIndices<pcl::PointXYZRGB> eifilter (true); // Initializing with true will allow us to extract the removed indices
+    eifilter.setInputCloud (cloud_rec);
+    eifilter.setIndices(pointsNotHand);
+    eifilter.filter (*cloud_rec);
+    */
+
+
     scaleCloud(cloud_rec,1.1);
 
-    // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
-    if (handFrame) {
-        printf("Transforming cloud to hand reference frame \n");
-        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-        frame2Hand(cloud_rec, cloud_rec);
-        printf("Cloud transformed to hand reference frame \n");
-    }
 
     if (verbose){ cout << " Cloud of size " << cloud_rec->points.size() << " obtained from 3D reconstruction" << endl;}
 
@@ -1433,32 +1466,32 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
 bool Objects3DExplorer::getAffordances(Bottle &tpAff)
 {
     cout << "Computing affordances of the tool-pose in hand " << endl;
-    Matrix affMatrix(12,3);
+    Matrix affMatrix(12,4);
     // affMatrix contains the pre-learnt affordances of the 4 possible tools. (can be easily extended for new tools).
     // each row is corresponds to a tool-pose, each column (p) to a possible action (a).
     // Thus, tools are represented in groups of 3 rows, corresponding to poses : left, front, right.
     // The value on (p,a) represents if the action 'a' can be achieved with tool-pose 'p', and therfore is boolean (could also be extended to percentage).
 
-    //    Drag Left           Drag Diagonal left        Drag down
-    // Tool 1 -> hoe
-    affMatrix(0,0) = 1.0;   affMatrix(0,1) = 1.0;   affMatrix(0,2) = 0.0;  // Pose left (90)
-    affMatrix(1,0) = 0.0;   affMatrix(1,1) = 0.0;   affMatrix(1,2) = 1.0;  // Pose front (0)
-    affMatrix(2,0) = 1.0;   affMatrix(2,1) = 0.0;   affMatrix(2,2) = 0.0;  // Pose right (-90)
+    //    Drag Left           Drag Diagonal left        Drag down            Drag diagonal right
+    // Tool 0 -> hoe
+    affMatrix(0,0) = 1.0;   affMatrix(0,1) = 1.0;   affMatrix(0,2) = 0.0;   affMatrix(0,3) = 0.0;  // Pose left (90)
+    affMatrix(1,0) = 0.0;   affMatrix(1,1) = 0.0;   affMatrix(1,2) = 1.0;   affMatrix(1,3) = 0.0;  // Pose front (0)
+    affMatrix(2,0) = 1.0;   affMatrix(2,1) = 0.0;   affMatrix(2,2) = 0.0;   affMatrix(2,3) = 1.0;  // Pose right (-90)
 
-    // Tool 2 -> hook
-    affMatrix(3,0) = 1.0;   affMatrix(3,1) = 1.0;   affMatrix(3,2) = 1.0;  // Pose left  (90)
-    affMatrix(4,0) = 0.0;   affMatrix(4,1) = 0.0;   affMatrix(4,2) = 0.0;  // Pose front (0)
-    affMatrix(5,0) = 1.0;   affMatrix(5,1) = 1.0;   affMatrix(5,2) = 1.0;  // Pose right (-90)
+    // Tool 1 -> hook
+    affMatrix(3,0) = 1.0;   affMatrix(3,1) = 1.0;   affMatrix(3,2) = 1.0;   affMatrix(3,3) = 1.0;  // Pose left  (90)
+    affMatrix(4,0) = 0.0;   affMatrix(4,1) = 0.0;   affMatrix(4,2) = 0.0;   affMatrix(4,3) = 0.0;  // Pose front (0)
+    affMatrix(5,0) = 1.0;   affMatrix(5,1) = 1.0;   affMatrix(5,2) = 1.0;   affMatrix(5,3) = 1.0;  // Pose right (-90)
 
-    // Tool 3 -> rake
-    affMatrix(6,0) = 1.0;   affMatrix(6,1) = 1.0;   affMatrix(6,2) = 0.0;  // Pose left  (90)
-    affMatrix(7,0) = 0.0;   affMatrix(7,1) = 1.0;   affMatrix(7,2) = 1.0;  // Pose front (0)
-    affMatrix(8,0) = 1.0;   affMatrix(8,1) = 0.0;   affMatrix(8,2) = 0.0;  // Pose right (-90)
+    // Tool 2 -> rake
+    affMatrix(6,0) = 1.0;   affMatrix(6,1) = 1.0;   affMatrix(6,2) = 0.0;   affMatrix(6,3) = 0.0;  // Pose left  (90)
+    affMatrix(7,0) = 0.0;   affMatrix(7,1) = 1.0;   affMatrix(7,2) = 1.0;   affMatrix(7,3) = 1.0;  // Pose front (0)
+    affMatrix(8,0) = 1.0;   affMatrix(8,1) = 0.0;   affMatrix(8,2) = 0.0;   affMatrix(8,3) = 1.0;  // Pose right (-90)
 
-    // Tool 4 -> stick
-    affMatrix(9,0) = 1.0;   affMatrix(9,1) = 0.0;   affMatrix(9,2) = 0.0;  // Pose left  (90)
-    affMatrix(10,0) = 1.0;  affMatrix(10,1) = 0.0;  affMatrix(10,2) = 0.0; // Pose front (0)
-    affMatrix(11,0) = 1.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0; // Pose right (-90)
+    // Tool 3 -> stick
+    affMatrix(9,0) = 1.0;   affMatrix(9,1) = 0.0;   affMatrix(9,2) = 0.0;   affMatrix(9,3) = 0.0;  // Pose left  (90)
+    affMatrix(10,0) = 1.0;  affMatrix(10,1) = 0.0;  affMatrix(10,2) = 0.0;  affMatrix(10,3) = 0.0; // Pose front (0)
+    affMatrix(11,0) = 1.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0;  affMatrix(11,3) = 0.0; // Pose right (-90)
 
 
     int toolposeI = getAffTP(saveName, toolPose);
@@ -1475,14 +1508,20 @@ bool Objects3DExplorer::getAffordances(Bottle &tpAff)
     }
 
     if (affVector[1] > 0.0){
-        cout << "drag_diag affordable " << endl;
-        tpAff.addString("drag_diag");
+        cout << "drag_diag_left affordable " << endl;
+        tpAff.addString("drag_diagl");
         affOK = true;
     }
 
     if (affVector[2] > 0.0){
         cout << "drag_down affordable " << endl;
         tpAff.addString("drag_down");
+        affOK = true;
+    }
+
+    if (affVector[3] > 0.0){
+        cout << "drag_diag_right affordable " << endl;
+        tpAff.addString("drag_diagr");
         affOK = true;
     }
 
@@ -1509,7 +1548,7 @@ int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix
     if (tool == "pipeHook3"){
         toolI = 1;
     }
-    if (tool == "rakeGreen"){
+    if (tool == "rakeBlue"){
         toolI = 2;
     }
     if (tool == "realStick1"){

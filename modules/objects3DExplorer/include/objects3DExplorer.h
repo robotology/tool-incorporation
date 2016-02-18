@@ -53,6 +53,7 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
+#include <pcl/filters/extract_indices.h>
 
 
 
