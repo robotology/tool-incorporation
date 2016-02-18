@@ -353,7 +353,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         if (ok) {            
             sendPointCloud(cloud_rec);
-            reply.addString("[ack]");
+
         } else {
 		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
             reply.addString("[nack] Couldnt reconstruct pointcloud. ");
@@ -364,6 +364,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             cloud_model = cloud_rec;
         }
 
+        reply.addString("[ack]");
         return true;
 
 
@@ -380,6 +381,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         bool ok = findToolPose(cloud_model, cloud_pose, toolPose);
 
         if (ok){
+            reply.addString("[ack]");
             reply.addList().read(toolPose);
             return true;
         }else {
@@ -445,6 +447,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+        reply.addString("[ack]");
         reply.addDouble(tooltipCanon.x);
         reply.addDouble(tooltipCanon.y);
         reply.addDouble(tooltipCanon.z);
@@ -521,7 +524,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         Time::delay(1.0);
         sendPointCloud(cloud_pose);
 
-
+        reply.addString("[ack]");
         reply.addDouble(tooltip.x);
         reply.addDouble(tooltip.y);
         reply.addDouble(tooltip.z);
@@ -802,8 +805,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 		return true;
 
 	} else if (receivedCmd == "quit"){
-		responseCode = Vocab::encode("ack");
-		reply.addVocab(responseCode);
+        //responseCode = Vocab::encode("ack");
+        //reply.addVocab(responseCode);
+        reply.addString("[ack]");
 		closing = true;
 		return true;
 	}
@@ -1437,23 +1441,23 @@ bool Objects3DExplorer::getAffordances(Bottle &tpAff)
 
     //    Drag Left           Drag Diagonal left        Drag down
     // Tool 1 -> hoe
-    affMatrix(0,0) = 0.0;   affMatrix(0,1) = 0.0;   affMatrix(0,2) = 1.0;  // Pose left (90)
-    affMatrix(1,0) = 0.0;   affMatrix(1,1) = 1.0;   affMatrix(1,2) = 0.0;  // Pose front (0)
+    affMatrix(0,0) = 1.0;   affMatrix(0,1) = 1.0;   affMatrix(0,2) = 0.0;  // Pose left (90)
+    affMatrix(1,0) = 0.0;   affMatrix(1,1) = 0.0;   affMatrix(1,2) = 1.0;  // Pose front (0)
     affMatrix(2,0) = 1.0;   affMatrix(2,1) = 0.0;   affMatrix(2,2) = 0.0;  // Pose right (-90)
 
     // Tool 2 -> hook
-    affMatrix(3,0) = 1.0;   affMatrix(3,1) = 0.0;   affMatrix(3,2) = 0.0;  // Pose left  (90)
+    affMatrix(3,0) = 1.0;   affMatrix(3,1) = 1.0;   affMatrix(3,2) = 1.0;  // Pose left  (90)
     affMatrix(4,0) = 0.0;   affMatrix(4,1) = 0.0;   affMatrix(4,2) = 0.0;  // Pose front (0)
-    affMatrix(5,0) = 0.0;   affMatrix(5,1) = 1.0;   affMatrix(5,2) = 0.0;  // Pose right (-90)
+    affMatrix(5,0) = 1.0;   affMatrix(5,1) = 1.0;   affMatrix(5,2) = 1.0;  // Pose right (-90)
 
     // Tool 3 -> rake
-    affMatrix(6,0) = 0.0;   affMatrix(6,1) = 0.0;   affMatrix(6,2) = 1.0;  // Pose left  (90)
-    affMatrix(7,0) = 0.0;   affMatrix(7,1) = 1.0;   affMatrix(7,2) = 0.0;  // Pose front (0)
+    affMatrix(6,0) = 1.0;   affMatrix(6,1) = 1.0;   affMatrix(6,2) = 0.0;  // Pose left  (90)
+    affMatrix(7,0) = 0.0;   affMatrix(7,1) = 1.0;   affMatrix(7,2) = 1.0;  // Pose front (0)
     affMatrix(8,0) = 1.0;   affMatrix(8,1) = 0.0;   affMatrix(8,2) = 0.0;  // Pose right (-90)
 
     // Tool 4 -> stick
-    affMatrix(9,0) = 0.0;   affMatrix(9,1) = 1.0;   affMatrix(9,2) = 0.0;  // Pose left  (90)
-    affMatrix(10,0) = 0.0;  affMatrix(10,1) = 1.0;  affMatrix(10,2) = 1.0; // Pose front (0)
+    affMatrix(9,0) = 1.0;   affMatrix(9,1) = 0.0;   affMatrix(9,2) = 0.0;  // Pose left  (90)
+    affMatrix(10,0) = 1.0;  affMatrix(10,1) = 0.0;  affMatrix(10,2) = 0.0; // Pose front (0)
     affMatrix(11,0) = 1.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0; // Pose right (-90)
 
 
