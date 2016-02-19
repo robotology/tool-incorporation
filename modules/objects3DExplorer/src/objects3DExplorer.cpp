@@ -1495,6 +1495,13 @@ bool Objects3DExplorer::getAffordances(Bottle &tpAff)
 
 
     int toolposeI = getAffTP(saveName, toolPose);
+    if (toolposeI < 0){
+        cout << "No tool loaded " << endl;
+        tpAff.addString("no_aff");
+        return false;
+    }
+
+
     Vector affVector = affMatrix.getRow(toolposeI);
 
     cout << "Aff vector for tool-pose " << toolposeI << " =  " << affVector.toString() << endl;
@@ -1541,7 +1548,7 @@ int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix
     double ori, displ, tilt, shift;
     paramFromPose(pose, ori, displ, tilt, shift);
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
-    double toolI = 0, poseI = 0;
+    double toolI = -1, poseI = 0;
     if (tool == "pipeHoe3"){
         toolI = 0;
     }
@@ -1551,8 +1558,12 @@ int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix
     if (tool == "rakeBlue"){
         toolI = 2;
     }
-    if (tool == "realStick1"){
+    if (tool == "realStick3"){
         toolI = 3;
+    }
+    if (toolI == -1){
+        cout << "No tool is loaded" << endl;
+        return -1;
     }
 
     cout << "Tool index is: "<< toolI << endl;
