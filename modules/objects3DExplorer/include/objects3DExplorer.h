@@ -145,8 +145,9 @@ protected:
     bool                findTipAndPose(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans, yarp::sig::Matrix &pose);
 
     bool                extractFeats();
-    bool                getAffordances(yarp::os::Bottle &tpAff);
-    int                 getAffTP(const std::string &tool, const yarp::sig::Matrix &pose);
+    bool                getAffordances(yarp::os::Bottle &affBottle, bool allAffs = false);
+    int                 getTPindex(const std::string &tool, const yarp::sig::Matrix &pose);
+    bool                getAffProps(const yarp::sig::Matrix &affMatrix, yarp::os::Property &affProps);
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     bool                poseFromParam(const double ori, const double displ, const double tilt, const double shift, yarp::sig::Matrix &pose);

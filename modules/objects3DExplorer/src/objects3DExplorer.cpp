@@ -336,7 +336,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         cout << "cloud of size "<< cloud_model->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
 
-        saveName = cloud_file_name.substr(5);
+        saveName = cloud_file_name;
         cloudLoaded = true;        
 
         // Display the merged cloud
@@ -550,9 +550,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-        bool ok;
         Bottle aff;
-        ok = getAffordances(aff);
+        bool all = false;
+        if (command.size() > 1){
+            all =  command.get(1).asBool();
+        }
+
+        bool ok;
+        ok = getAffordances(aff, all);
         reply = aff;
         if (ok){
             return true;
@@ -1463,10 +1468,12 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
 }
 
 /************************************************************************/
-bool Objects3DExplorer::getAffordances(Bottle &tpAff)
+bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 {
     cout << "Computing affordances of the tool-pose in hand " << endl;
-    Matrix affMatrix(12,4);
+    int rows = 12;
+    int cols = 4;
+    Matrix affMatrix(rows,cols);
     // affMatrix contains the pre-learnt affordances of the 4 possible tools. (can be easily extended for new tools).
     // each row is corresponds to a tool-pose, each column (p) to a possible action (a).
     // Thus, tools are represented in groups of 3 rows, corresponding to poses : left, front, right.
@@ -1494,71 +1501,127 @@ bool Objects3DExplorer::getAffordances(Bottle &tpAff)
     affMatrix(11,0) = 1.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0;  affMatrix(11,3) = 0.0; // Pose right (-90)
 
 
-    int toolposeI = getAffTP(saveName, toolPose);
-    if (toolposeI < 0){
-        cout << "No tool loaded " << endl;
-        tpAff.addString("no_aff");
-        return false;
+    affBottle.clear();
+
+    Matrix toolAffMat;
+    if (allAffs){
+        int toolI = 0;
+        string toolName;
+        for (int toolVecInd = 0; toolVecInd < affMatrix.rows()/3; toolVecInd + 3){
+
+            // Select the tool
+            if (toolI == 0){
+                toolName = "real/pipeHoe3";
+            }
+            if (toolI == 1){
+                toolName = "real/pipeHook3";
+            }
+            if (toolI = 2){
+                toolName = "real/rakeBlue";
+            }
+            if (toolI = 3){
+                toolName = "real/realStick3";
+            }
+            Bottle &toolAffBot = affBottle.addList();
+            toolAffBot.addString(toolName);
+            Property &affProps = toolAffBot.addDict();
+
+            // Get all affordances corresponding to that tool
+            toolAffMat = affMatrix.submatrix(toolVecInd, toolVecInd + 2, 0, cols-1);
+
+            getAffProps(toolAffMat, affProps);
+        }
+    }else{
+
+        // Write the name of the tool in the bottle
+        // Get index of tool pose in hand
+        int toolposeI = getTPindex(saveName, toolPose);
+        if (toolposeI < 0){
+            cout << "No tool loaded " << endl;
+            affBottle.addString("no_aff");
+            return false;
+        }
+
+        // Get name of tool in hand
+        Bottle &toolAffBot = affBottle.addList();
+        toolAffBot.addString(saveName);
+        Property &affProps = toolAffBot.addDict();
+
+        toolAffMat = affMatrix.submatrix(toolposeI, toolposeI, 0 , cols-1);
+
+        // get the tool-pose affordances
+        getAffProps(toolAffMat, affProps);
     }
 
+    return true;
+}
 
-    Vector affVector = affMatrix.getRow(toolposeI);
+bool Objects3DExplorer::getAffProps(const Matrix &affMatrix, Property &affProps)
+{
 
-    cout << "Aff vector for tool-pose " << toolposeI << " =  " << affVector.toString() << endl;
+    int rows = affMatrix.rows();
+    int cols = affMatrix.cols();
+    Vector affVector(cols, 0.0);
+    if (rows > 1){
+        // Sum all vectors into one.
+        for (int r = 0; r < rows; r++){
+            affVector = affVector + affMatrix.getRow(r);
+        }
+    }
 
-    tpAff.clear();
+    affProps.clear();
     bool affOK  = false;
     if (affVector[0] > 0.0){
         cout << "drag_left affordable " << endl;
-        tpAff.addString("drag_left");
+        affProps.put("drag_left",affVector[0]);
         affOK = true;
     }
 
     if (affVector[1] > 0.0){
         cout << "drag_diag_left affordable " << endl;
-        tpAff.addString("drag_diagl");
+        affProps.put("drag_diag_left",affVector[1]);
         affOK = true;
     }
 
     if (affVector[2] > 0.0){
         cout << "drag_down affordable " << endl;
-        tpAff.addString("drag_down");
+        affProps.put("drag_down",affVector[2]);
         affOK = true;
     }
 
     if (affVector[3] > 0.0){
         cout << "drag_diag_right affordable " << endl;
-        tpAff.addString("drag_diagr");
+        affProps.put("drag_diag_right",affVector[3]);
         affOK = true;
     }
 
     if (!affOK){
         cout << "This tool-pose does not afford any of the possible actions." << endl;
-        tpAff.addString("no_aff");
+        affProps.put("no_aff", 0.0);
     }
 
-
-    cout << "Affordance bottle is: "<< tpAff.toString() <<endl;
+    cout << "Tool (pose) affordances are " << affProps.toString() << endl;
 
     return affOK;
 }
 
-int Objects3DExplorer::getAffTP(const std::string &tool, const yarp::sig::Matrix &pose)
+int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matrix &pose)
 {
     double ori, displ, tilt, shift;
     paramFromPose(pose, ori, displ, tilt, shift);
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
+
     double toolI = -1, poseI = 0;
-    if (tool == "pipeHoe3"){
+    if (tool == "real/pipeHoe3"){
         toolI = 0;
     }
-    if (tool == "pipeHook3"){
+    if (tool == "real/pipeHook3"){
         toolI = 1;
     }
-    if (tool == "rakeBlue"){
+    if (tool == "real/rakeBlue"){
         toolI = 2;
     }
-    if (tool == "realStick3"){
+    if (tool == "real/realStick3"){
         toolI = 3;
     }
     if (toolI == -1){
