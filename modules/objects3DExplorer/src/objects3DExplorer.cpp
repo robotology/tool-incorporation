@@ -339,6 +339,13 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         saveName = cloud_file_name;
         cloudLoaded = true;        
 
+        // XXX test XXX
+
+        Point3D tt;
+        tooltipFromOBB(cloud_model, tt);
+
+        cout << "Tool tip extracted from OBB" << endl;
+
         // Display the merged cloud
         sendPointCloud(cloud_model);
         reply.addString("[ack]");
@@ -1409,6 +1416,123 @@ bool Objects3DExplorer::findTipAndPose(const Point3D &tooltipCanon, const double
     findTooltip(tooltipCanon, pose, tooltipTrans);                      // Rotate tooltip with pose
 
     return true;
+}
+
+
+/************************************************************************/
+bool Objects3DExplorer::findTipNoModel(Point3D &tooltip)
+{
+
+    // XXX
+
+
+    // * Rotate tool in hand
+    for (int degY = 0; degY<=60; degY += 15)
+    {
+        turnHand(-60,degY);
+        //getPointCloud(cloud_rec);
+
+        //feature_extractor.setInputCloud(cloud_rec);
+
+       // feature_extractor.compute();
+
+    }
+
+    //   - get partial pointcloud
+    //   - get OBB (http://pointclouds.org/documentation/tutorials/moment_of_inertia.php#moment-of-inertia)
+    // do it around for at least 5 prespectives, rotating the hand with the tool.
+    //
+    // * Get an average of the OBB (maybe just averaging top-left-front corner and bottom-right-back points)
+    //
+    // * Find the closest middle cube-side point to the hand, and select the tool-tip as the opposite one.
+
+
+    //cout << "Transformed tooltip at ( " << tooltipTrans.x << ", " << tooltipTrans.y << ", " << tooltipTrans.z <<")." << endl;
+
+    return true;
+}
+
+bool Objects3DExplorer::tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D& ttOBB)
+{
+    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
+    feature_extractor.setInputCloud(cloud);
+    feature_extractor.compute();
+
+    pcl::PointXYZRGB min_point_OBB, max_point_OBB;
+    pcl::PointXYZRGB position_OBB;
+    Eigen::Matrix3f rotmat_OBB;
+    feature_extractor.getOBB(min_point_OBB, max_point_OBB, position_OBB, rotmat_OBB);
+
+    // Find middle point of OBB edges:
+    // - find corner points and orient them
+    Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
+    Eigen::Vector3f p1 (min_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p1 = rotmat_OBB * p1 + position;
+    Eigen::Vector3f p2 (min_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p2 = rotmat_OBB * p2 + position;
+    Eigen::Vector3f p3 (max_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p3 = rotmat_OBB * p3 + position;
+    Eigen::Vector3f p4 (max_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p4 = rotmat_OBB * p4 + position;
+    Eigen::Vector3f p5 (min_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p5 = rotmat_OBB * p5 + position;
+    Eigen::Vector3f p6 (min_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p6 = rotmat_OBB * p6 + position;
+    Eigen::Vector3f p7 (max_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p7 = rotmat_OBB * p7 + position;
+    Eigen::Vector3f p8 (max_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p8 = rotmat_OBB * p8 + position;
+
+    // - find edges between points and their middle points
+    int green[3] = {0,255,0};
+    int red[3] = {255,0,0};
+    int blue[3] = {0,0,255};
+
+    vector<pcl::PointXYZ> edgePoints; edgePoints.clear();
+    Eigen::Vector3f ec1 = (p1 + p2) / 2;     pcl::PointXYZRGB ect1 (ec1 (0), ec1 (1), ec1 (2));     cloud->push_back(ect1);  // Edge center 1
+    Eigen::Vector3f ec2 = (p1 + p4) / 2;     pcl::PointXYZRGB ect2 (ec2 (0), ec2 (1), ec2 (2));     cloud->push_back(ect2);  // Edge center 2
+    Eigen::Vector3f ec3 = (p1 + p5) / 2;     pcl::PointXYZRGB ect3 (ec3 (0), ec3 (1), ec3 (2));     cloud->push_back(ect3);  // Edge center 3
+    Eigen::Vector3f ec4 = (p5 + p6) / 2;     pcl::PointXYZRGB ect4 (ec4 (0), ec4 (1), ec4 (2));     cloud->push_back(ect4);  // Edge center 4
+    Eigen::Vector3f ec5 = (p5 + p8) / 2;     pcl::PointXYZRGB ect5 (ec5 (0), ec5 (1), ec5 (2));        cloud->push_back(ect5);  // Edge center 5
+    Eigen::Vector3f ec6 = (p2 + p6) / 2;     pcl::PointXYZRGB ect6 (ec6 (0), ec6 (1), ec6 (2));        cloud->push_back(ect6);  // Edge center 6
+    Eigen::Vector3f ec8 = (p7 + p8) / 2;     pcl::PointXYZRGB ect8 (ec8 (0), ec8 (1), ec8 (2));        cloud->push_back(ect8);  // Edge center 8
+    Eigen::Vector3f ec7 = (p6 + p7) / 2;     pcl::PointXYZRGB ect7 (ec7 (0), ec7 (1), ec7 (2));        cloud->push_back(ect7);  // Edge center 7
+    Eigen::Vector3f ec9 = (p2 + p3) / 2;     pcl::PointXYZRGB ect9 (ec9 (0), ec9 (1), ec9 (2));           cloud->push_back(ect9);  // Edge center 9
+    Eigen::Vector3f ec10= (p4 + p8) / 2;     pcl::PointXYZRGB ect10 (ec10 (0), ec10 (1), ec10(2));       cloud->push_back(ect10); // Edge center 10
+    Eigen::Vector3f ec11= (p3 + p4) / 2;     pcl::PointXYZRGB ect11 (ec11 (0), ec11 (1), ec11(2));       cloud->push_back(ect11); // Edge center 11
+    Eigen::Vector3f ec12= (p3 + p7) / 2;     pcl::PointXYZRGB ect12 (ec12 (0), ec12 (1), ec12(2));       cloud->push_back(ect12); // Edge center 12
+
+    /*
+    edgePoints.push_back(ect1);
+    edgePoints.push_back(ect2);
+    edgePoints.push_back(ect3);
+    edgePoints.push_back(ect4);
+    edgePoints.push_back(ect5);
+    edgePoints.push_back(ect6);
+    edgePoints.push_back(ect7);
+    edgePoints.push_back(ect8);
+    edgePoints.push_back(ect9);
+    edgePoints.push_back(ect10);
+    edgePoints.push_back(ect11);
+    edgePoints.push_back(ect12);
+    */
+
+    // Find closer point to hand
+    double d_min = 1000;
+    int p_i = -1;
+    for (int p = 0; p<edgePoints.size(); p++){
+        pcl::PointXYZ pt = edgePoints[p];
+        double d = sqrt(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
+        if (d<d_min){
+            p_i = p;
+            d_min = d;
+        }
+    }
+
+    cout << "point " << p_i << " at minimum distance = " << d_min << endl;
+
+    if (p_i == -1){
+        return false;}
+
+    // Tooltip is (defined as) the edge center opposite to the closest one to the hand.
+
+    // XXX
+
+    return true;
+
+
 }
 
 

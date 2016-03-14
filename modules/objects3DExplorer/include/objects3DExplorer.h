@@ -142,6 +142,8 @@ protected:
     bool                findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose);
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
     bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);
+    bool                findTipNoModel(Point3D &tooltipTrans);
+    bool                tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point3D& ttOBB);
     bool                findTipAndPose(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans, yarp::sig::Matrix &pose);
 
     bool                extractFeats();
@@ -157,7 +159,6 @@ protected:
     /* Cloud Utils */
     bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
     bool                addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
-
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, bool shift = false);     // overload default color
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift = false);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
