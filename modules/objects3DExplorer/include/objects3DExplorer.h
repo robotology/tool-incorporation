@@ -47,6 +47,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/registration/icp.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/features/normal_3d.h>
@@ -116,6 +117,7 @@ protected:
 
 
     struct                              Point3D {double x;double y; double z;};
+    struct                              Plane3D {double a;double b; double c; double d;};
 
     yarp::sig::Matrix                           toolPose;
     Point3D                                     tooltip, tooltipCanon;
@@ -144,6 +146,7 @@ protected:
     bool                findTooltip(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);
     bool                findTipNoModel(Point3D &tooltipTrans);
     bool                tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point3D& ttOBB);
+    bool                tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point3D& ttSym, int K = 5);
     bool                findTipAndPose(const Point3D &ttCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans, yarp::sig::Matrix &pose);
 
     bool                extractFeats();

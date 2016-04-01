@@ -339,13 +339,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         saveName = cloud_file_name;
         cloudLoaded = true;        
 
-        // XXX test XXX
-
-        Point3D tt;
-        tooltipFromOBB(cloud_model, tt);
-
-        cout << "Tool tip extracted from OBB" << endl;
-
         // Display the merged cloud
         sendPointCloud(cloud_model);
         reply.addString("[ack]");
@@ -428,6 +421,13 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         // Set the oriented cloud by transforming model accordign to pose.
         bool ok = setToolPose(cloud_model, toolPose, cloud_pose);
+
+        // find tooltip  and add it to vis
+        Point3D ttSym;
+        tooltipFromSym(cloud_pose, ttSym);
+        int green[3] = {0,255,0};
+        addPoint(cloud_pose, ttSym,green);
+
         sendPointCloud(cloud_pose);
 
         if (ok){
@@ -509,7 +509,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
                 return false;
             }
 
-        }else{          // grasp parameters are given by command
+        }else{          // grasp parameters are not given by command
             // Check if pose has been found, else return false
             if (!poseFound){
                 cout << "Pose needed to estimate tooltip, please call  'findToolPose' first." << endl;
@@ -678,6 +678,49 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         //CloudUtils::savePointsPly(cloud_to, cloudsPathTo,cloudName,numCloudsSaved);
 
         return true;
+    }
+
+    else if (receivedCmd == "toolTipNoModel" ){
+        // Clear visualizer
+        Bottle cmdVis, replyVis;
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("clearVis");
+        rpcVisualizerPort.write(cmdVis,replyVis);
+
+        string cloud_from_name = command.get(1).asString();
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        cloud_1->clear();
+
+        // load cloud 1
+        cout << "Attempting to load " << (cloudsPathFrom + cloud_from_name).c_str() << "... "<< endl;
+        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_from_name, cloud_1))  {
+            cout << "cloud of size "<< cloud_1->points.size() << " points loaded from "<< cloud_from_name.c_str() << endl;
+        } else{
+            std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;
+            return false;
+        }
+
+        int K;
+        if (command.size()>2){
+            K = command.get(2).asInt();}
+        else { K = 1; }
+
+        cout << "Finding tooltip based on Symmetry with K "<< K << endl;
+        Point3D ttSym;
+        tooltipFromSym(cloud_1, ttSym, K );
+
+        cout << "Tooltip found at ( " << ttSym.x <<  ", " << ttSym.y <<  ", "<< ttSym.z <<  "). " << endl;
+
+        // Add tooltip in purple
+        cout << "Painting tooltip based on OBB " << endl;
+        cloud_1->erase(cloud_1->end()); // Remove last point
+        int green[3] = {0,255,0};
+        addPoint(cloud_1, ttSym,green);
+
+        //Display oriented cloud.
+        sendPointCloud(cloud_1);
+
+        //   return true;
     }
 
     /****   Parameter Setting calls ***/
@@ -1452,6 +1495,232 @@ bool Objects3DExplorer::findTipNoModel(Point3D &tooltip)
     return true;
 }
 
+bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,  Point3D& ttSym, int K)
+{
+
+    // XXX Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
+
+
+    // 1- Find the Major axes of the cloud -> Find major planes as normal to those vectors
+    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
+    feature_extractor.setInputCloud(cloud);
+    feature_extractor.compute();
+
+    // Find major axes as eigenVectors
+    vector< Eigen::Vector3f> eigenVectors(3);              // Normals to the 3 main planes
+    Eigen::Vector3f mc;                                 // Center of mass
+    feature_extractor.getEigenVectors(eigenVectors[0], eigenVectors[1], eigenVectors[2]);
+    feature_extractor.getMassCenter(mc);
+
+    int symPlane_i= -1;
+    //Plane3D symPlane;
+    vector<Plane3D> mainPlanes;
+    vector<Plane3D> unitPlanes;
+    float minSymDist = 1e9;
+    // Find major planes as normal to those vectors
+    for (int plane_i = 0; plane_i < eigenVectors.size(); plane_i ++){
+        // Compute coefficients of plane equation ax + by + cz + d = 0
+        // float a, b, c, d;
+        Plane3D P;
+        P.a = eigenVectors[plane_i](0);
+        P.b = eigenVectors[plane_i](1);
+        P.c = eigenVectors[plane_i](2);
+        P.d = -P.a*mc(0)-P.b*mc(1)-P.c*mc(2);
+
+        mainPlanes.push_back(P);
+
+    // 2- Compute symmetry coeffcients w.r.t each of the planes -> Select symmetry plane as one with higher symCoeff
+        //std::vector<int> pointsA, pointsB;                              //Define the indices of the points to each side of the plane
+
+        pcl::PointIndices::Ptr pointsA (new pcl::PointIndices ());
+        pcl::PointIndices::Ptr pointsB (new pcl::PointIndices ());
+        // Loop through all the points in the cloud and select which side of the plane they belong to.
+        for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloud->at(ptI);
+            if (P.a*pt->x + P.b*pt->y + P.c*pt->z + P.d > 0){
+                pointsA->indices.push_back(ptI);
+            } else {
+                pointsB->indices.push_back(ptI);
+            }
+        }
+
+        // Split cloud into 2 point vectors (at each side of the plane_i).
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudA (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudMirror (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::ExtractIndices<pcl::PointXYZRGB> eifilter (true); // Initializing with true will allow us to extract the removed indices
+        eifilter.setInputCloud (cloud);
+        eifilter.setIndices(pointsA);
+        eifilter.filter(*cloudA);
+
+        eifilter.setIndices(pointsB);
+        eifilter.filter(*cloudB);
+
+        cout << "The original cloud of size " << cloud->size() << " is divided in two clouds of size " << cloudA->size() << " and " << cloudB->size() << ". "<< endl;
+
+        // Mirror one of the vectors wrt the plane_i.
+        Plane3D uP;     // Unit plane
+        //float a_, b_, c_, d_,
+        double M = sqrt(P.a*P.a+P.b*P.b+P.c*P.c);    // Elements of normal unit vector
+        uP.a = P.a/M;
+        uP.b = P.b/M;
+        uP.c = P.c/M;
+        uP.d = P.d/M;
+        unitPlanes.push_back(uP);
+        cloudMirror->clear();
+
+        for (unsigned int ptI=0; ptI<cloudB->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloudB->at(ptI);
+            pcl::PointXYZRGB ptMirror;
+            float dn = uP.a*pt->x + uP.b*pt->y + uP.c*pt->z + uP.d;   // Normalized signed distance of point to plane_i
+            ptMirror.x = pt->x - 2*(uP.a*dn);
+            ptMirror.y = pt->y - 2*(uP.b*dn);
+            ptMirror.z = pt->z - 2*(uP.c*dn);
+            cloudMirror->push_back(ptMirror);
+        }
+
+        // compute avg distance between mirrored vector and the other one.
+        pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
+        kdtree.setInputCloud(cloudA);
+        //int K = 1;
+        std::vector<int> pointIdxNKNSearch(K);
+        std::vector<float> pointNKNSquaredDistance(K);
+        float accumCloudKNNdist = 0.0;
+        float avgCloudKNNdist = 0.0;
+        int valPt = 0;
+        for (unsigned int ptI=0; ptI<cloudMirror->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloudMirror->at(ptI);
+
+            // compute NN in cloudA to each point in cloudMirror and average.
+            float avgPointKNNdist = 0.0;
+            if ( kdtree.nearestKSearch (*pt, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
+            {
+                float accumPointKNNdist = 0.0;
+                for (size_t i = 0; i < pointIdxNKNSearch.size(); ++i){
+                    accumPointKNNdist += pointNKNSquaredDistance[i];
+                }
+                avgPointKNNdist = accumPointKNNdist/ pointIdxNKNSearch.size();
+                valPt ++;
+            }
+            accumCloudKNNdist += avgPointKNNdist;
+        }
+
+        // normalize
+        avgCloudKNNdist = accumCloudKNNdist/valPt;
+
+        // sendPointCloud(cloudA);
+        // Time::delay(1.0);
+
+        // int blue[3] = {0,0,255};
+        // changeCloudColor(cloudB, blue );
+        // sendPointCloud(cloudB);
+        // Time::delay(1.0);
+
+        // int green[3] = {0,255,0};
+        // changeCloudColor(cloudMirror, green);
+        // sendPointCloud(cloudMirror);
+
+        // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudMirrorAndA (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        // *cloudMirrorAndA = *cloudA;
+        // *cloudMirrorAndA += *cloudMirror;
+        // sendPointCloud(cloudMirrorAndA);
+        // Time::delay(3.0);
+        cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
+
+
+        if (sqrt(avgCloudKNNdist) < minSymDist){
+            //symPlane = P;
+            symPlane_i = plane_i;
+            minSymDist = sqrt(avgCloudKNNdist);
+        }
+    }
+    // Check that a symmetry plane has been found
+    if (symPlane_i <0 ){
+        cout << "The symmetry plane could not be found" << endl;
+        return false;
+    }
+    cout << "The symmetry plane is plane " << symPlane_i << endl;
+
+
+    int modeTT = 2;
+    if (modeTT == 1){
+    // 3- Mode 1: Tooltip is the projection on the symmetry plane of the point in the cloud furthest away from the origin.
+
+        // Find furthest away point:
+        double maxDist = 0.0;
+        int maxPtI = -1;
+        for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloud->at(ptI);
+            double dist_aux = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z); // Distance from the origin.
+            if (dist_aux > maxDist){
+                maxDist = dist_aux;
+                maxPtI = ptI;
+            }
+        }
+
+        if (maxPtI < 0 ){
+            cout << "There was some error finding furthest point" << endl;
+            return false;
+        }
+
+        // Project point on symmetry plane
+
+        pcl::PointXYZRGB *maxPt = &cloud->at(maxPtI);
+        Plane3D sP = unitPlanes[symPlane_i];
+        float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
+        ttSym.x = maxPt->x - (sP.a*dn);
+        ttSym.y = maxPt->y - (sP.b*dn);
+        ttSym.z = maxPt->z - (sP.c*dn);
+
+
+    }else{          // mode 2
+    // 3- Mode 2: Tooltip is the point on the cloud on the symmetry plane further away from the origin.
+    // Project all points to the plane
+        Plane3D sP = unitPlanes[symPlane_i];
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudFlat (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloud->at(ptI);
+            pcl::PointXYZRGB ptFlat;
+            float dn = sP.a*pt->x + sP.b*pt->y + sP.c*pt->z + sP.d;   // Normalized signed distance of point to plane_i
+            ptFlat.x = pt->x - (sP.a*dn);
+            ptFlat.y = pt->y - (sP.b*dn);
+            ptFlat.z = pt->z - (sP.c*dn);
+            cloudFlat->push_back(ptFlat);
+        }
+
+        //int purple[3] = {255,0,255};
+        //changeCloudColor(cloudFlat, purple );
+        //sendPointCloud(cloudFlat);
+        //Time::delay(3.0);
+
+        // Find furthest away point:
+        double maxDist = 0.0;
+        int maxPtI = -1;
+        for (unsigned int ptI=0; ptI<cloudFlat->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloudFlat->at(ptI);
+            double dist_aux = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z); // Distance from the origin.
+            if (dist_aux > maxDist){
+                maxDist = dist_aux;
+                maxPtI = ptI;
+            }
+        }
+        pcl::PointXYZRGB *maxPt = &cloudFlat->at(maxPtI);
+        ttSym.x = maxPt->x;
+        ttSym.y = maxPt->y;
+        ttSym.z = maxPt->z;
+
+    }
+
+    return true;
+
+}
+
 bool Objects3DExplorer::tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D& ttOBB)
 {
     pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
@@ -1463,58 +1732,55 @@ bool Objects3DExplorer::tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::
     Eigen::Matrix3f rotmat_OBB;
     feature_extractor.getOBB(min_point_OBB, max_point_OBB, position_OBB, rotmat_OBB);
 
+    cout << "Found OBB with min (" << min_point_OBB.x << " , " << min_point_OBB.y << " , " << min_point_OBB.z << ") and max (" << max_point_OBB.x << " , " << max_point_OBB.y << " , " << max_point_OBB.z << " )." << endl;
+
     // Find middle point of OBB edges:
     // - find corner points and orient them
     Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
-    Eigen::Vector3f p1 (min_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p1 = rotmat_OBB * p1 + position;
-    Eigen::Vector3f p2 (min_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p2 = rotmat_OBB * p2 + position;
-    Eigen::Vector3f p3 (max_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p3 = rotmat_OBB * p3 + position;
-    Eigen::Vector3f p4 (max_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p4 = rotmat_OBB * p4 + position;
-    Eigen::Vector3f p5 (min_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p5 = rotmat_OBB * p5 + position;
-    Eigen::Vector3f p6 (min_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p6 = rotmat_OBB * p6 + position;
-    Eigen::Vector3f p7 (max_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p7 = rotmat_OBB * p7 + position;
-    Eigen::Vector3f p8 (max_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p8 = rotmat_OBB * p8 + position;
+    Eigen::Vector3f p1 (min_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p1 = rotmat_OBB * p1 + position; cout << "P1: "<< p1(0) << ", " << p1(1) << ", " << p1(2) <<  ". " << endl;
+    Eigen::Vector3f p2 (min_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p2 = rotmat_OBB * p2 + position; cout << "P2: "<< p2(0) << ", " << p2(1) << ", " << p2(2) <<  ". " << endl;
+    Eigen::Vector3f p3 (max_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p3 = rotmat_OBB * p3 + position; cout << "P3: "<< p3(0) << ", " << p3(1) << ", " << p3(2) <<  ". " << endl;
+    Eigen::Vector3f p4 (max_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p4 = rotmat_OBB * p4 + position; cout << "P4: "<< p4(0) << ", " << p4(1) << ", " << p4(2) <<  ". " << endl;
+    Eigen::Vector3f p5 (min_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p5 = rotmat_OBB * p5 + position; cout << "P5: "<< p5(0) << ", " << p5(1) << ", " << p5(2) <<  ". " << endl;
+    Eigen::Vector3f p6 (min_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p6 = rotmat_OBB * p6 + position; cout << "P6: "<< p6(0) << ", " << p6(1) << ", " << p6(2) <<  ". " << endl;
+    Eigen::Vector3f p7 (max_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p7 = rotmat_OBB * p7 + position; cout << "P7: "<< p7(0) << ", " << p7(1) << ", " << p7(2) <<  ". " << endl;
+    Eigen::Vector3f p8 (max_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p8 = rotmat_OBB * p8 + position; cout << "P8: "<< p8(0) << ", " << p8(1) << ", " << p8(2) <<  ". " << endl;
 
     // - find edges between points and their middle points
     int green[3] = {0,255,0};
     int red[3] = {255,0,0};
     int blue[3] = {0,0,255};
 
-    vector<pcl::PointXYZ> edgePoints; edgePoints.clear();
-    Eigen::Vector3f ec1 = (p1 + p2) / 2;     pcl::PointXYZRGB ect1 (ec1 (0), ec1 (1), ec1 (2));     cloud->push_back(ect1);  // Edge center 1
-    Eigen::Vector3f ec2 = (p1 + p4) / 2;     pcl::PointXYZRGB ect2 (ec2 (0), ec2 (1), ec2 (2));     cloud->push_back(ect2);  // Edge center 2
-    Eigen::Vector3f ec3 = (p1 + p5) / 2;     pcl::PointXYZRGB ect3 (ec3 (0), ec3 (1), ec3 (2));     cloud->push_back(ect3);  // Edge center 3
-    Eigen::Vector3f ec4 = (p5 + p6) / 2;     pcl::PointXYZRGB ect4 (ec4 (0), ec4 (1), ec4 (2));     cloud->push_back(ect4);  // Edge center 4
-    Eigen::Vector3f ec5 = (p5 + p8) / 2;     pcl::PointXYZRGB ect5 (ec5 (0), ec5 (1), ec5 (2));        cloud->push_back(ect5);  // Edge center 5
-    Eigen::Vector3f ec6 = (p2 + p6) / 2;     pcl::PointXYZRGB ect6 (ec6 (0), ec6 (1), ec6 (2));        cloud->push_back(ect6);  // Edge center 6
-    Eigen::Vector3f ec8 = (p7 + p8) / 2;     pcl::PointXYZRGB ect8 (ec8 (0), ec8 (1), ec8 (2));        cloud->push_back(ect8);  // Edge center 8
-    Eigen::Vector3f ec7 = (p6 + p7) / 2;     pcl::PointXYZRGB ect7 (ec7 (0), ec7 (1), ec7 (2));        cloud->push_back(ect7);  // Edge center 7
-    Eigen::Vector3f ec9 = (p2 + p3) / 2;     pcl::PointXYZRGB ect9 (ec9 (0), ec9 (1), ec9 (2));           cloud->push_back(ect9);  // Edge center 9
-    Eigen::Vector3f ec10= (p4 + p8) / 2;     pcl::PointXYZRGB ect10 (ec10 (0), ec10 (1), ec10(2));       cloud->push_back(ect10); // Edge center 10
-    Eigen::Vector3f ec11= (p3 + p4) / 2;     pcl::PointXYZRGB ect11 (ec11 (0), ec11 (1), ec11(2));       cloud->push_back(ect11); // Edge center 11
-    Eigen::Vector3f ec12= (p3 + p7) / 2;     pcl::PointXYZRGB ect12 (ec12 (0), ec12 (1), ec12(2));       cloud->push_back(ect12); // Edge center 12
+    //vector<pcl::PointXYZRGB> edgePoints; edgePoints.clear();
+    vector<Eigen::Vector3f> edgePoints;  edgePoints.clear();
+    Eigen::Vector3f ec1 = (p1 + p2) / 2;         edgePoints.push_back(ec1);
+    Eigen::Vector3f ec2 = (p1 + p4) / 2;         edgePoints.push_back(ec2);
+    Eigen::Vector3f ec3 = (p1 + p5) / 2;         edgePoints.push_back(ec3);
+    Eigen::Vector3f ec4 = (p5 + p6) / 2;         edgePoints.push_back(ec4);
+    Eigen::Vector3f ec5 = (p5 + p8) / 2;         edgePoints.push_back(ec5);
+    Eigen::Vector3f ec6 = (p2 + p6) / 2;         edgePoints.push_back(ec6);
+    Eigen::Vector3f ec7 = (p7 + p8) / 2;         edgePoints.push_back(ec7);
+    Eigen::Vector3f ec8 = (p6 + p7) / 2;         edgePoints.push_back(ec8);
+    Eigen::Vector3f ec9 = (p2 + p3) / 2;         edgePoints.push_back(ec9);
+    Eigen::Vector3f ec10= (p4 + p8) / 2;         edgePoints.push_back(ec10);
+    Eigen::Vector3f ec11= (p3 + p4) / 2;         edgePoints.push_back(ec11);
+    Eigen::Vector3f ec12= (p3 + p7) / 2;         edgePoints.push_back(ec12);
 
-    /*
-    edgePoints.push_back(ect1);
-    edgePoints.push_back(ect2);
-    edgePoints.push_back(ect3);
-    edgePoints.push_back(ect4);
-    edgePoints.push_back(ect5);
-    edgePoints.push_back(ect6);
-    edgePoints.push_back(ect7);
-    edgePoints.push_back(ect8);
-    edgePoints.push_back(ect9);
-    edgePoints.push_back(ect10);
-    edgePoints.push_back(ect11);
-    edgePoints.push_back(ect12);
-    */
+
 
     // Find closer point to hand
     double d_min = 1000;
     int p_i = -1;
-    for (int p = 0; p<edgePoints.size(); p++){
-        pcl::PointXYZ pt = edgePoints[p];
-        double d = sqrt(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
+    for (int p = 0; p<edgePoints.size(); p++){        
+        //pcl::PointXYZRGB pt = edgePoints[p];
+        Eigen::Vector3f pt = edgePoints[p];
+        cout << "Edge " << p << " center at (" << pt[0] << ", " << pt[1] << ", " << pt[2] << "). " << endl;
+        //double d = sqrt(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
+        Point3D edgeP;
+        edgeP.x = pt[0];    edgeP.y = pt[1];    edgeP.z = pt[2];
+        int color[3] = {0, p*20,255-p*20};
+        addPoint(cloud,edgeP,color);
+        double d = sqrt(pt[0]*pt[0] + pt[1]*pt[1] + pt[2]*pt[2]);
         if (d<d_min){
             p_i = p;
             d_min = d;
@@ -2014,7 +2280,7 @@ bool Objects3DExplorer::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::
     
     CloudUtils::cloud2bottle(cloud, cloudBottleOut);    
        
-    if (verbose){printf("Sending out cloud. \n");}
+    if (verbose){cout << "Sending out cloud of size " << cloud->size()<< endl;}
     cloudsOutPort.write();
     return true;
 
