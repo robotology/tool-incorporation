@@ -23,6 +23,7 @@
 #include <time.h>
 #include <string>
 #include <algorithm>
+#include <numeric>
 
 //YARP libs
 #include <yarp/os/all.h>

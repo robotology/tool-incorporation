@@ -1507,8 +1507,12 @@ bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     feature_extractor.compute();
 
     // Find major axes as eigenVectors
-    vector< Eigen::Vector3f> eigenVectors(3);              // Normals to the 3 main planes
-    Eigen::Vector3f mc;                                 // Center of mass
+    vector< Eigen::Vector3f> eigenVectors(3);               // Normals to the 3 main planes
+    Eigen::Vector3f eigenValues(3);                            // Relative legth in each eigenVector direction.
+    yarp::sig::Vector eVs(3);
+    Eigen::Vector3f mc;                                    // Center of mass
+    feature_extractor.getEigenValues(eigenValues[0], eigenValues[1], eigenValues[2]);
+    eVs[0]= eigenValues[0];     eVs[1]= eigenValues[1];     eVs[2]= eigenValues[2];
     feature_extractor.getEigenVectors(eigenVectors[0], eigenVectors[1], eigenVectors[2]);
     feature_extractor.getMassCenter(mc);
 
@@ -1628,7 +1632,7 @@ bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         // *cloudMirrorAndA += *cloudMirror;
         // sendPointCloud(cloudMirrorAndA);
         // Time::delay(3.0);
-        cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
+        cout << "Average  distance between two sides of the symmetry plane " << plane_i << ", with eigenValue " <<  eigenValues[plane_i] << ", is " << sqrt(avgCloudKNNdist) << endl;
 
 
         if (sqrt(avgCloudKNNdist) < minSymDist){
@@ -1668,7 +1672,6 @@ bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         }
 
         // Project point on symmetry plane
-
         pcl::PointXYZRGB *maxPt = &cloud->at(maxPtI);
         Plane3D sP = unitPlanes[symPlane_i];
         float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
@@ -1678,42 +1681,50 @@ bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
 
     }else{          // mode 2
-    // 3- Mode 2: Tooltip is the point on the cloud on the symmetry plane further away from the origin.
-    // Project all points to the plane
-        Plane3D sP = unitPlanes[symPlane_i];
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudFlat (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    // 3- Mode 2: Tooltip is the furthest point from the plane perpendicular to the effector.
+        // which is given by the shortest not-symmetry-plane eigenVector. Assuming the tool is longer along the handle than along the effector
+
+        // find the shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
+        eVs[symPlane_i]= 1e09;          // Make the value of symmetrical plane huge;
+        float minEV = 1e08;
+        int minev_i = -1;
+        for (int eV = 0; eV< eVs.size();eV++){
+            if ((eVs[eV] < minEV) && (eV != symPlane_i)) {      // min egenvalue not of symmetry plane
+                minEV = eVs[eV];
+                minev_i = eV;
+            }
+        }
+        if (minev_i < 0 ){
+            cout << "There was some error finding shortest non-symmetry plane eigenVector" << endl;
+            return false;
+        }
+        cout << "The effector is perpendicular to plane " << minev_i << endl;
+
+        // Find furthest point along effector eigenvector.
+        Plane3D effP = unitPlanes[minev_i];
+        double maxDist = 0.0;
+        int maxPt_i = -1;
         for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
         {
             pcl::PointXYZRGB *pt = &cloud->at(ptI);
-            pcl::PointXYZRGB ptFlat;
-            float dn = sP.a*pt->x + sP.b*pt->y + sP.c*pt->z + sP.d;   // Normalized signed distance of point to plane_i
-            ptFlat.x = pt->x - (sP.a*dn);
-            ptFlat.y = pt->y - (sP.b*dn);
-            ptFlat.z = pt->z - (sP.c*dn);
-            cloudFlat->push_back(ptFlat);
-        }
-
-        //int purple[3] = {255,0,255};
-        //changeCloudColor(cloudFlat, purple );
-        //sendPointCloud(cloudFlat);
-        //Time::delay(3.0);
-
-        // Find furthest away point:
-        double maxDist = 0.0;
-        int maxPtI = -1;
-        for (unsigned int ptI=0; ptI<cloudFlat->points.size(); ptI++)
-        {
-            pcl::PointXYZRGB *pt = &cloudFlat->at(ptI);
-            double dist_aux = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z); // Distance from the origin.
+            float dist_aux = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);   // Normalized signed distance of point to eff plane
             if (dist_aux > maxDist){
                 maxDist = dist_aux;
-                maxPtI = ptI;
+                maxPt_i = ptI;
             }
         }
-        pcl::PointXYZRGB *maxPt = &cloudFlat->at(maxPtI);
-        ttSym.x = maxPt->x;
-        ttSym.y = maxPt->y;
-        ttSym.z = maxPt->z;
+        if (maxPt_i < 0 ){
+            cout << "There was some error finding furthest point" << endl;
+            return false;
+        }
+
+        // Project point on symmetry plane
+        pcl::PointXYZRGB *maxPt = &cloud->at(maxPt_i);
+        Plane3D sP = unitPlanes[symPlane_i];
+        float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
+        ttSym.x = maxPt->x - (sP.a*dn);
+        ttSym.y = maxPt->y - (sP.b*dn);
+        ttSym.z = maxPt->z - (sP.c*dn);
 
     }
 
@@ -1794,7 +1805,7 @@ bool Objects3DExplorer::tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::
 
     // Tooltip is (defined as) the edge center opposite to the closest one to the hand.
 
-    // XXX
+    // XXX   This method does not work!
 
     return true;
 
