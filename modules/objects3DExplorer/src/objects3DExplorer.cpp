@@ -1649,84 +1649,54 @@ bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     cout << "The symmetry plane is plane " << symPlane_i << endl;
 
 
-    int modeTT = 2;
-    if (modeTT == 1){
-    // 3- Mode 1: Tooltip is the projection on the symmetry plane of the point in the cloud furthest away from the origin.
+    // 3-  Tooltip is the furthest point on a weighted sum of distance to origin (small weight) and effector plane (large weight)
 
-        // Find furthest away point:
-        double maxDist = 0.0;
-        int maxPtI = -1;
-        for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
-        {
-            pcl::PointXYZRGB *pt = &cloud->at(ptI);
-            double dist_aux = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z); // Distance from the origin.
-            if (dist_aux > maxDist){
-                maxDist = dist_aux;
-                maxPtI = ptI;
-            }
+    // find the effector plane: shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
+    eVs[symPlane_i]= 1e09;          // Make the value of symmetrical plane huge;
+    float effEV = 1e08;
+    int effPlane_i= -1, hanPlane_i = -1;
+    for (int eV = 0; eV< eVs.size();eV++)
+    {
+        if ((eVs[eV] < effEV) && (eV != symPlane_i)) {      // min egenvalue not of symmetry plane
+            effEV = eVs[eV];
+            effPlane_i = eV;
         }
-
-        if (maxPtI < 0 ){
-            cout << "There was some error finding furthest point" << endl;
-            return false;
-        }
-
-        // Project point on symmetry plane
-        pcl::PointXYZRGB *maxPt = &cloud->at(maxPtI);
-        Plane3D sP = unitPlanes[symPlane_i];
-        float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
-        ttSym.x = maxPt->x - (sP.a*dn);
-        ttSym.y = maxPt->y - (sP.b*dn);
-        ttSym.z = maxPt->z - (sP.c*dn);
-
-
-    }else{          // mode 2
-    // 3- Mode 2: Tooltip is the furthest point from the plane perpendicular to the effector.
-        // which is given by the shortest not-symmetry-plane eigenVector. Assuming the tool is longer along the handle than along the effector
-
-        // find the shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
-        eVs[symPlane_i]= 1e09;          // Make the value of symmetrical plane huge;
-        float minEV = 1e08;
-        int minev_i = -1;
-        for (int eV = 0; eV< eVs.size();eV++){
-            if ((eVs[eV] < minEV) && (eV != symPlane_i)) {      // min egenvalue not of symmetry plane
-                minEV = eVs[eV];
-                minev_i = eV;
-            }
-        }
-        if (minev_i < 0 ){
-            cout << "There was some error finding shortest non-symmetry plane eigenVector" << endl;
-            return false;
-        }
-        cout << "The effector is perpendicular to plane " << minev_i << endl;
-
-        // Find furthest point along effector eigenvector.
-        Plane3D effP = unitPlanes[minev_i];
-        double maxDist = 0.0;
-        int maxPt_i = -1;
-        for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
-        {
-            pcl::PointXYZRGB *pt = &cloud->at(ptI);
-            float dist_aux = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);   // Normalized signed distance of point to eff plane
-            if (dist_aux > maxDist){
-                maxDist = dist_aux;
-                maxPt_i = ptI;
-            }
-        }
-        if (maxPt_i < 0 ){
-            cout << "There was some error finding furthest point" << endl;
-            return false;
-        }
-
-        // Project point on symmetry plane
-        pcl::PointXYZRGB *maxPt = &cloud->at(maxPt_i);
-        Plane3D sP = unitPlanes[symPlane_i];
-        float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
-        ttSym.x = maxPt->x - (sP.a*dn);
-        ttSym.y = maxPt->y - (sP.b*dn);
-        ttSym.z = maxPt->z - (sP.c*dn);
-
     }
+
+    if ((effPlane_i < 0 )) {
+        cout << "There was some error finding effector planes" << endl;
+        return false;
+    }
+    cout << "The effector is perpendicular to plane " << effPlane_i << endl;
+
+    // Find furthest point along effector eigenvector.
+    Plane3D effP = unitPlanes[effPlane_i];
+    double maxDist = 0.0;
+    int maxPt_i = -1;
+    double w = 0.8;     // Weight assigned to effector distance w.r.t. orig distance
+    for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
+    {
+        pcl::PointXYZRGB *pt = &cloud->at(ptI);
+        float dist_eff = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);   // Normalized signed distance of point to eff plane
+        float dist_orig = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z);              // Distance from the origin.
+        float dist_aux = w*dist_eff + (1-w)*dist_orig;
+        if (dist_aux > maxDist){
+            maxDist = dist_aux;
+            maxPt_i = ptI;
+        }
+    }
+    if (maxPt_i < 0 ){
+        cout << "There was some error finding furthest point" << endl;
+        return false;
+    }
+
+    // Project point on symmetry plane
+    pcl::PointXYZRGB *maxPt = &cloud->at(maxPt_i);
+    Plane3D sP = unitPlanes[symPlane_i];
+    float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
+    ttSym.x = maxPt->x - (sP.a*dn);
+    ttSym.y = maxPt->y - (sP.b*dn);
+    ttSym.z = maxPt->z - (sP.c*dn);
 
     return true;
 
