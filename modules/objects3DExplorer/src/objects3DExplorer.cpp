@@ -278,7 +278,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
     /****   FUNCTION CALLS   ***/
     /******************************************************************************/
-    if (receivedCmd == "exploreAuto"){
+    /*if (receivedCmd == "exploreAuto"){
         // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
         bool ok = exploreAutomatic();
         if (ok){
@@ -289,7 +289,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack] Couldnt obtain 3D model successfully.");
             return false;
         }
-
+    */
+    /*
     }else if (receivedCmd == "exploreInt"){
         // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
         bool ok = exploreInteractive();
@@ -302,15 +303,18 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-    }else if (receivedCmd == "turnHand"){
+    }else
+    */
+
+    if (receivedCmd == "turnHand"){
 		// Turn the hand 'int' degrees, or go to 0 if no parameter was given.
 		int rotDegX = 0;
 		int rotDegY = 0;
 		if (command.size() == 2){
 			rotDegY = command.get(1).asInt();
-		} else if  (command.size() == 3){
-			rotDegX = command.get(1).asInt();
-			rotDegY = command.get(2).asInt();
+		} else if  (command.size() == 3){			
+            rotDegY = command.get(1).asInt();
+            rotDegX = command.get(2).asInt();
 		}			
 
         bool ok = turnHand(rotDegX, rotDegY);
@@ -337,9 +341,11 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         cout << "cloud of size "<< cloud_model->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
 
         saveName = cloud_file_name;
-        cloudLoaded = true;        
+        cloudLoaded = true;
+        poseFound = false;
 
-        // Display the merged cloud
+
+        // Display the loaded cloud
         sendPointCloud(cloud_model);
         reply.addString("[ack]");
         return true;
@@ -361,7 +367,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
 
         if (!cloudLoaded){
-            cloud_model = cloud_rec;
+             cloud_model = cloud_rec;
         }
 
         reply.addString("[ack]");
@@ -369,7 +375,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 
 
-    }else if (receivedCmd == "findToolPose"){
+    }else if (receivedCmd == "findPoseAlign"){
         // Check if model is loaded, else return false
         if (!cloudLoaded){
             cout << "Model needed to find Pose. Load model" << endl;
@@ -378,7 +384,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
 
         // Find grasp by comparing partial view with model        
-        bool ok = findToolPose(cloud_model, cloud_pose, toolPose);
+        bool ok = findPoseAlign(cloud_model, cloud_pose, toolPose);
 
         if (ok){
             reply.addString("[ack]");
@@ -390,11 +396,126 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-    }else if (receivedCmd == "setPose"){
+        reply.addString("[ack]");
+        return true;
+
+
+    }else if (receivedCmd == "setPoseParam"){
+        // Setting default valules
+        double ori = 0.0;
+        double disp = 0.0;
+        double tilt = 45.0;
+        double shift = 0.0;
+
+        // Reading only the available parameters
+        if (command.size() > 1)
+            ori = command.get(1).asDouble();
+
+        if (command.size() > 2)
+            disp = command.get(2).asDouble();
+
+        if (command.size() > 3)
+            tilt = command.get(3).asDouble();
+
+        if (command.size() > 4)
+            shift = command.get(4).asDouble();
+
+        cout << "Computing pose matrix from params" << endl;
+
+        poseFromParam(ori, disp, tilt, shift, toolPose);     // Get the pose matrix from the parameters
+
+        cout << "Transforming cloud by pose matrix" << endl;
+        setToolPose(cloud_model, toolPose, cloud_pose);
+
+        cout << "Sending rotated cloud out of size " <<cloud_pose->size() << endl;
+        sendPointCloud(cloud_pose);
+
+        reply.addString("[ack]");
+
+        return true;
+
+
+    }else if (receivedCmd == "findTooltipCanon"){
         // Check if model is loaded, else return false
         if (!cloudLoaded){
-            cout << "Model needed to set a pose on. Load model" << endl;
-            reply.addString("[nack] Load model first to find grasp.");
+            cout << "Model needed to find tooltip. Load model" << endl;
+            reply.addString("[nack] Load model first to find tooltip.");
+            return false;
+        }
+
+        // Find grasp by comparing partial view with model
+        if(!findTooltipCanon(cloud_model, tooltipCanon)){
+            cout << "Could not compute canonical tooltip fom model" << endl;
+            reply.addString("[nack] Could not compute canonical tooltip.");
+            return false;
+        }
+
+        int green[3] = {0,255,0};
+        addPoint(cloud_model, tooltipCanon,green);
+        sendPointCloud(cloud_pose);
+
+        reply.addString("[ack]");
+        reply.addDouble(tooltipCanon.x);
+        reply.addDouble(tooltipCanon.y);
+        reply.addDouble(tooltipCanon.z);
+
+
+        return true;
+
+
+    }else if (receivedCmd == "findTooltipSym"){
+        // Check if model is loaded, else return false
+        if (!cloudLoaded){
+            cout << "Model needed to find tooltip. Load model" << endl;
+            reply.addString("[nack] Load model first to find tooltip.");
+            return false;
+        }
+
+        // Check if pose has been found, else return false
+        int green[3] = {0,255,0};
+        if (!poseFound){
+            if(!findTooltipSym(cloud_model, tooltip)){
+                cout << "Could not compute tooltip from canonical cloud" << endl;
+                reply.addString("[nack] Could not compute tooltip.");
+                return false;
+            }
+            addPoint(cloud_model, tooltip,green);
+            sendPointCloud(cloud_model);
+        }else {
+            if(!findTooltipSym(cloud_pose, tooltip)){
+                cout << "Could not compute tooltip from cloud in pose" << endl;
+                reply.addString("[nack] Could not compute tooltip.");
+                return false;
+            }
+            addPoint(cloud_pose, tooltip,green);
+            sendPointCloud(cloud_pose);
+        }
+
+        cout << "Tooltip found at ( " << tooltip.x <<  ", " << tooltip.y <<  ", "<< tooltip.z <<  "). " << endl;
+
+
+        reply.addString("[ack]");
+        reply.addDouble(tooltip.x);
+        reply.addDouble(tooltip.y);
+        reply.addDouble(tooltip.z);
+
+        return true;
+
+
+
+    }else if (receivedCmd == "findTooltipParam"){   // XXX Function only for simulation
+
+        // Check if model is loaded, else return false
+        if (!cloudLoaded){
+            cout << "Model needed to find tooltip. Load model" << endl;
+            reply.addString("[nack] Load model first to find tooltip.");
+            return false;
+        }
+
+        // Find tooltip of tool in canonical position
+        if(!findTooltipCanon(cloud_model, tooltipCanon)){
+            cout << "Could not compute canonical tooltip fom model" << endl;
+            reply.addString("[nack] Could not compute canonical tooltip.");
             return false;
         }
 
@@ -417,118 +538,15 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         if (command.size() > 4)
             shift = command.get(4).asDouble();
 
-        poseFromParam(ori, disp, tilt, shift, toolPose);
+        poseFromParam(ori, disp, tilt, shift, toolPose);     // Get the pose matrix from the parameters
 
-        // Set the oriented cloud by transforming model accordign to pose.
-        bool ok = setToolPose(cloud_model, toolPose, cloud_pose);
+        placeTipOnPose(tooltipCanon, toolPose, tooltip);                      // Rotate tooltip with pose
 
-        // find tooltip  and add it to vis
-        Point3D ttSym;
-        tooltipFromSym(cloud_pose, ttSym);
-        int green[3] = {0,255,0};
-        addPoint(cloud_pose, ttSym,green);
-
-        sendPointCloud(cloud_pose);
-
-        if (ok){
-            reply.addString("[ack]");
-            return true;
-        }else {
-            fprintf(stdout,"Grasp pose could not be obtained. \n");
-            reply.addString("[nack] Grasp pose could not be obtained");
-            return false;
-        }
-
-    }else if (receivedCmd == "findTooltipCanon"){
-        // Check if model is loaded, else return false
-        if (!cloudLoaded){
-            cout << "Model needed to find tooltip. Load model" << endl;
-            reply.addString("[nack] Load model first to find tooltip.");
-            return false;
-        }
-
-        // Find grasp by comparing partial view with model
-        if(!findTooltipCanon(cloud_model, tooltipCanon)){
-            cout << "Could not compute canonical tooltip fom model" << endl;
-            reply.addString("[nack] Could not compute canonical tooltip.");
-            return false;
-        }
-
-        reply.addString("[ack]");
-        reply.addDouble(tooltipCanon.x);
-        reply.addDouble(tooltipCanon.y);
-        reply.addDouble(tooltipCanon.z);
-
-        return true;
-
-
-    }else if (receivedCmd == "findTooltip"){
-        // Check if model is loaded, else return false
-        if (!cloudLoaded){
-            cout << "Model needed to find tooltip. Load model" << endl;
-            reply.addString("[nack] Load model first to find tooltip.");
-            return false;
-        }
-
-        // Find grasp by comparing partial view with model
-        if(!findTooltipCanon(cloud_model, tooltipCanon)){
-            cout << "Could not compute canonical tooltip fom model" << endl;
-            reply.addString("[nack] Could not compute canonical tooltip.");
-            return false;
-        }
-
-        int green[3] = {0,255,0};
-        addPoint(cloud_model, tooltipCanon, green);
-        sendPointCloud(cloud_model);
-
-        if (command.size() > 1)        // grasp parameters are given by command
-        {
-            // Setting default valules
-            double ori = 0.0;
-            double disp = 0.0;
-            double tilt = 45.0;
-            double shift = 0.0;
-
-            // Reading only the available parameters
-            if (command.size() > 1)
-                ori = command.get(1).asDouble();
-
-            if (command.size() > 2)
-                disp = command.get(2).asDouble();
-
-            if (command.size() > 3)
-                tilt = command.get(3).asDouble();
-
-            if (command.size() > 4)
-                shift = command.get(4).asDouble();
-
-
-            if(!findTipAndPose(tooltipCanon, ori, disp,tilt, shift, tooltip, toolPose)){
-                cout << "Could not compute tooltip from the canonical one and the pose parameters" << endl;
-                reply.addString("[nack] Could not compute tooltip. \n");
-                return false;
-            }
-
-        }else{          // grasp parameters are not given by command
-            // Check if pose has been found, else return false
-            if (!poseFound){
-                cout << "Pose needed to estimate tooltip, please call  'findToolPose' first." << endl;
-                reply.addString("[nack] Pose must be known first to find tooltip.");
-                return false;
-            }
-
-            if(!findTooltip(tooltipCanon, toolPose, tooltip)){
-                cout << "Could not compute tooltip from the canonical one and the pose matrix" << endl;
-                reply.addString("[nack] Could not compute tooltip.");
-                return false;
-            }
-        }
-
-        cout << "Transforming the model with pose" << endl;
         setToolPose(cloud_model, toolPose, cloud_pose);
-        cloud_pose->erase(cloud_pose->end()); // Remove last point
-        addPoint(cloud_pose, tooltip, true);
-        Time::delay(1.0);
+
+        // Display tooltip in oriented cloud
+        int green[3] = {0,255,0};
+        addPoint(cloud_pose, tooltip,green);
         sendPointCloud(cloud_pose);
 
         reply.addString("[ack]");
@@ -536,11 +554,59 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addDouble(tooltip.y);
         reply.addDouble(tooltip.z);
 
+        return true;
+
+    }else if (receivedCmd == "findTooltipAlign"){
+        // Check if model is loaded, else return false
+        if (!cloudLoaded){
+            cout << "Model needed to find tooltip. Load model" << endl;
+            reply.addString("[nack] Load model first to find tooltip.");
+            return false;
+        }
+
+        // Find tooltip of tool in canonical position
+        if(!findTooltipCanon(cloud_model, tooltipCanon)){
+            cout << "Could not compute canonical tooltip fom model" << endl;
+            reply.addString("[nack] Could not compute canonical tooltip.");
+            return false;
+        }
+
+        // Check if pose has been found, else return false
+        if (!poseFound){
+            cout << "Pose needed to estimate tooltip, please call 'findPoseAlign' or 'setPoseParam' first." << endl;
+            reply.addString("[nack] Pose must be known first to find tooltip.");
+            return false;
+        }
+
+        // Rotate tooltip to given toolPose
+        if(!placeTipOnPose(tooltipCanon, toolPose, tooltip)){
+            cout << "Could not compute tooltip from the canonical one and the pose matrix" << endl;
+            reply.addString("[nack] Could not compute tooltip.");
+            return false;
+        }
+
+        // Add point to indicate tooltip.
+        int green[3] = {0,255,0};
+        addPoint(cloud_model, tooltipCanon, green);
+        sendPointCloud(cloud_model);
+
+        // Rotate canonical cloud to found pose
+        cout << "Transforming the model with pose" << endl;
+        setToolPose(cloud_model, toolPose, cloud_pose);
+        cloud_pose->erase(cloud_pose->end()); // Remove last point
+        addPoint(cloud_pose, tooltip, true);
+        Time::delay(1.0);
+        sendPointCloud(cloud_pose);
+
         double ori, displ, tilt, shift;
         paramFromPose(toolPose, ori, displ, tilt, shift);
 
         cout << "Param returned from paramFromPose = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
+        reply.addString("[ack]");
+        reply.addDouble(tooltip.x);
+        reply.addDouble(tooltip.y);
+        reply.addDouble(tooltip.z);
         reply.addDouble(ori);
         reply.addDouble(displ);
         reply.addDouble(tilt);
@@ -585,6 +651,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
 
+    // ------------------- Functions for testing methods -----------------
     }else if (receivedCmd == "alignFromFiles"){
 
         // Clear visualizer
@@ -659,7 +726,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         poseFound = true;
 
         // Add tooltip in purple
-        findTooltip(tooltipCanon, poseMatYARP, tooltip);
+        placeTipOnPose(tooltipCanon, poseMatYARP, tooltip);
         cloud_pose->erase(cloud_pose->end()); // Remove last point
         addPoint(cloud_pose, tooltip, true);
 
@@ -680,48 +747,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
     }
 
-    else if (receivedCmd == "toolTipNoModel" ){
-        // Clear visualizer
-        Bottle cmdVis, replyVis;
-        cmdVis.clear();	replyVis.clear();
-        cmdVis.addString("clearVis");
-        rpcVisualizerPort.write(cmdVis,replyVis);
-
-        string cloud_from_name = command.get(1).asString();
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_1 (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        cloud_1->clear();
-
-        // load cloud 1
-        cout << "Attempting to load " << (cloudsPathFrom + cloud_from_name).c_str() << "... "<< endl;
-        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_from_name, cloud_1))  {
-            cout << "cloud of size "<< cloud_1->points.size() << " points loaded from "<< cloud_from_name.c_str() << endl;
-        } else{
-            std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;
-            return false;
-        }
-
-        int K;
-        if (command.size()>2){
-            K = command.get(2).asInt();}
-        else { K = 1; }
-
-        cout << "Finding tooltip based on Symmetry with K "<< K << endl;
-        Point3D ttSym;
-        tooltipFromSym(cloud_1, ttSym, K );
-
-        cout << "Tooltip found at ( " << ttSym.x <<  ", " << ttSym.y <<  ", "<< ttSym.z <<  "). " << endl;
-
-        // Add tooltip in purple
-        cout << "Painting tooltip based on OBB " << endl;
-        cloud_1->erase(cloud_1->end()); // Remove last point
-        int green[3] = {0,255,0};
-        addPoint(cloud_1, ttSym,green);
-
-        //Display oriented cloud.
-        sendPointCloud(cloud_1);
-
-        //   return true;
-    }
 
     /****   Parameter Setting calls ***/
     /******************************************************************************/
@@ -831,18 +856,27 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 		responseCode = Vocab::encode("ack");
 		reply.addString("Available commands are:");
         reply.addString("-------------EXPLORATIVE ACTIONS-----------");
-        reply.addString("exploreAuto - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
-        reply.addString("exploreInt - interactively explores the tool and asks for confirmation on each registration until a proper 3D model is built.");
+        //reply.addString("exploreAuto - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
+        //reply.addString("exploreInt - interactively explores the tool and asks for confirmation on each registration until a proper 3D model is built.");
+
+
+        reply.addString("---------- GET MODEL -----------");
+        reply.addString("loadCloud - Loads a cloud from a file (.ply or .pcd).");
+        reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
+        reply.addString("exploreTool - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
         reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
 
-        reply.addString("-----------CLOUD INFO -----------");
-        reply.addString("loadCloud - Loads a cloud from a file (.ply or .pcd).");
-		reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");            
-        reply.addString("findToolPose - Find the actual grasp by comparing the actual registration to the given model of the tool.");
-        reply.addString("setPose (double)orientation (double)displacement (double)tilt (double)shift - Set the tool pose given the grasp parameters.");
-        reply.addString("findTooltip - Computes the tooltip by rotating the canonical toolpose with the estimated tool pose.");
-        reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' loaded from .ply or .pcd files.");
+        reply.addString("---------- GET POSE -----------");
+        reply.addString("findPoseAlign - Find the actual grasp by comparing the actual registration to the given model of the tool.");
+        reply.addString("setPoseParam [ori][disp][tilt][shift] - Set the tool pose given the grasp parameters.");
+
+        reply.addString("---------- GET TOOLTIP -----------");
+        reply.addString("findTooltipCanon - Finds the tooltip of the tool in its canonical position -MODEL REQUIRED-.");
+        reply.addString("findTooltipParam [ori][disp][tilt][shift]- Finds the tooltip of the tool in the position given by the parameters -MODEL REQUIRED-.");
+        reply.addString("findTooltipSym - Finds the tooltip of the tool in any position based on symmetry planes.");
+
         reply.addString("getAffordance - returns the pre-learnt affordances for the loaded tool-pose.");
+        reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' loaded from .ply or .pcd files.");   
 
         reply.addString("---------- SET PARAMETERS ------------");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame. (default ON).");
@@ -880,7 +914,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 /*  EXPLORATIVE ACTIONS  */
 /************************************************************************/
-
+/*
 bool Objects3DExplorer::exploreAutomatic()
 {
     // Explore the tool from different angles and save pointclouds
@@ -948,8 +982,11 @@ bool Objects3DExplorer::exploreAutomatic()
     printf("Exploration finished, returning control. \n");
     return true;
 }
+*/
+
 
 /************************************************************************/
+/*
 bool Objects3DExplorer::exploreInteractive()
 {   // Explore the tool and incrementally check registration and add merge pointclouds if correct
 
@@ -1074,6 +1111,7 @@ bool Objects3DExplorer::exploreInteractive()
     printf("Exploration finished, returning control. \n");
     return true;
 }
+*/
 
 /************************************************************************/
 bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
@@ -1141,6 +1179,34 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
 }
 
 /************************************************************************/
+bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
+{   // XXX Finish this function
+    // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
+
+    // Rotate tool in hand
+    for (int degY = -30; degY<=60; degY += 15)
+    {
+        turnHand(-60,degY);
+        //getPointCloud(cloud_rec);
+
+        //feature_extractor.setInputCloud(cloud_rec);
+
+       // feature_extractor.compute();
+
+    }
+
+    //   - get partial pointcloud
+    // do it around for at least 5 prespectives, rotating the hand with the tool.
+
+    //  Add them all toghether and filter/downsample big time
+    //cout << "Transformed tooltip at ( " << tooltipTrans.x << ", " << tooltipTrans.y << ", " << tooltipTrans.z <<")." << endl;
+
+    return true;
+}
+
+
+/************************************************************************/
+/*
 bool Objects3DExplorer::lookAround()
 {
     Vector fp,fp_aux(3,0.0);
@@ -1159,7 +1225,7 @@ bool Objects3DExplorer::lookAround()
 
     return true;
 }
-
+*/
 
 
 /* CLOUD INFO */
@@ -1265,44 +1331,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
 
 /************************************************************************/
-bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
-{   // Normalizes the frame of the point cloud from the robot frame (as acquired) to the hand frame.
-
-    if (hand=="left")
-        iCartCtrl=iCartCtrlL;
-    else if (hand=="right")
-        iCartCtrl=iCartCtrlR;
-    else
-        return false;
-
-    // Transform (translate-rotate) the pointcloud by inverting the hand pose
-    Vector H2Rpos, H2Ror;
-    iCartCtrl->getPose(H2Rpos,H2Ror);
-    Matrix H2R = axis2dcm(H2Ror);   // from axis/angle to rotation matrix notation
-
-    // Include translation
-    H2R(0,3)= H2Rpos[0];
-    H2R(1,3)= H2Rpos[1];
-    H2R(2,3)= H2Rpos[2];
-    if (verbose){ printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());}
-
-    Matrix R2H = SE3inv(H2R);    //inverse the affine transformation matrix from robot to hand
-    if (verbose){printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());}
-
-    // Put Transformation matrix into Eigen Format
-    Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(R2H);
-    //cout << TM.matrix() << endl;
-
-    // Executing the transformation
-    pcl::transformPointCloud(*cloud_orig, *cloud_trans, TM);
-
-    if (verbose){	printf("Transformation done \n");	}
-
-    return true;
-}
-
-/************************************************************************/
-bool Objects3DExplorer::findToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose)
+bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Bottle cmdVis, replyVis;
@@ -1426,7 +1455,7 @@ bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>
 }
 
 
-bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const Matrix &pose, Point3D &tooltipTrans)
+bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pose, Point3D &tooltipTrans)
 {
 
     Vector ttCanonVec(4,0.0), tooltipVec(4);
@@ -1447,55 +1476,8 @@ bool Objects3DExplorer::findTooltip(const Point3D &ttCanon, const Matrix &pose, 
     return true;
 }
 
-
-bool Objects3DExplorer::findTipAndPose(const Point3D &tooltipCanon, const double graspOr, const double graspDisp, const double graspTilt, const double graspShift, Point3D &tooltipTrans, Matrix &pose)
-{
-
-    cout << "Transforming Canonical tooltip (" << tooltipCanon.x << ", " << tooltipCanon.y << ", " << tooltipCanon.z << ")" << endl;
-    cout << "With parameters: or= " << graspOr << ", disp= " << graspDisp << ", tilt= " << graspTilt << ", shift= " << graspShift << "." <<endl;
-
-    poseFromParam(graspOr, graspDisp, graspTilt, graspShift, pose);     // Get the pose matrix from the parameters
-
-    findTooltip(tooltipCanon, pose, tooltipTrans);                      // Rotate tooltip with pose
-
-    return true;
-}
-
-
-/************************************************************************/
-bool Objects3DExplorer::findTipNoModel(Point3D &tooltip)
-{
-
-    // XXX
-
-
-    // * Rotate tool in hand
-    for (int degY = 0; degY<=60; degY += 15)
-    {
-        turnHand(-60,degY);
-        //getPointCloud(cloud_rec);
-
-        //feature_extractor.setInputCloud(cloud_rec);
-
-       // feature_extractor.compute();
-
-    }
-
-    //   - get partial pointcloud
-    //   - get OBB (http://pointclouds.org/documentation/tutorials/moment_of_inertia.php#moment-of-inertia)
-    // do it around for at least 5 prespectives, rotating the hand with the tool.
-    //
-    // * Get an average of the OBB (maybe just averaging top-left-front corner and bottom-right-back points)
-    //
-    // * Find the closest middle cube-side point to the hand, and select the tool-tip as the opposite one.
-
-
-    //cout << "Transformed tooltip at ( " << tooltipTrans.x << ", " << tooltipTrans.y << ", " << tooltipTrans.z <<")." << endl;
-
-    return true;
-}
-
-bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,  Point3D& ttSym, int K)
+/*************************************************************************/
+bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,  Point3D& ttSym, int K)
 {
 
     // XXX Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
@@ -1702,87 +1684,6 @@ bool Objects3DExplorer::tooltipFromSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
 }
 
-bool Objects3DExplorer::tooltipFromOBB(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D& ttOBB)
-{
-    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
-    feature_extractor.setInputCloud(cloud);
-    feature_extractor.compute();
-
-    pcl::PointXYZRGB min_point_OBB, max_point_OBB;
-    pcl::PointXYZRGB position_OBB;
-    Eigen::Matrix3f rotmat_OBB;
-    feature_extractor.getOBB(min_point_OBB, max_point_OBB, position_OBB, rotmat_OBB);
-
-    cout << "Found OBB with min (" << min_point_OBB.x << " , " << min_point_OBB.y << " , " << min_point_OBB.z << ") and max (" << max_point_OBB.x << " , " << max_point_OBB.y << " , " << max_point_OBB.z << " )." << endl;
-
-    // Find middle point of OBB edges:
-    // - find corner points and orient them
-    Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
-    Eigen::Vector3f p1 (min_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p1 = rotmat_OBB * p1 + position; cout << "P1: "<< p1(0) << ", " << p1(1) << ", " << p1(2) <<  ". " << endl;
-    Eigen::Vector3f p2 (min_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p2 = rotmat_OBB * p2 + position; cout << "P2: "<< p2(0) << ", " << p2(1) << ", " << p2(2) <<  ". " << endl;
-    Eigen::Vector3f p3 (max_point_OBB.x, min_point_OBB.y, max_point_OBB.z);     p3 = rotmat_OBB * p3 + position; cout << "P3: "<< p3(0) << ", " << p3(1) << ", " << p3(2) <<  ". " << endl;
-    Eigen::Vector3f p4 (max_point_OBB.x, min_point_OBB.y, min_point_OBB.z);     p4 = rotmat_OBB * p4 + position; cout << "P4: "<< p4(0) << ", " << p4(1) << ", " << p4(2) <<  ". " << endl;
-    Eigen::Vector3f p5 (min_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p5 = rotmat_OBB * p5 + position; cout << "P5: "<< p5(0) << ", " << p5(1) << ", " << p5(2) <<  ". " << endl;
-    Eigen::Vector3f p6 (min_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p6 = rotmat_OBB * p6 + position; cout << "P6: "<< p6(0) << ", " << p6(1) << ", " << p6(2) <<  ". " << endl;
-    Eigen::Vector3f p7 (max_point_OBB.x, max_point_OBB.y, max_point_OBB.z);     p7 = rotmat_OBB * p7 + position; cout << "P7: "<< p7(0) << ", " << p7(1) << ", " << p7(2) <<  ". " << endl;
-    Eigen::Vector3f p8 (max_point_OBB.x, max_point_OBB.y, min_point_OBB.z);     p8 = rotmat_OBB * p8 + position; cout << "P8: "<< p8(0) << ", " << p8(1) << ", " << p8(2) <<  ". " << endl;
-
-    // - find edges between points and their middle points
-    int green[3] = {0,255,0};
-    int red[3] = {255,0,0};
-    int blue[3] = {0,0,255};
-
-    //vector<pcl::PointXYZRGB> edgePoints; edgePoints.clear();
-    vector<Eigen::Vector3f> edgePoints;  edgePoints.clear();
-    Eigen::Vector3f ec1 = (p1 + p2) / 2;         edgePoints.push_back(ec1);
-    Eigen::Vector3f ec2 = (p1 + p4) / 2;         edgePoints.push_back(ec2);
-    Eigen::Vector3f ec3 = (p1 + p5) / 2;         edgePoints.push_back(ec3);
-    Eigen::Vector3f ec4 = (p5 + p6) / 2;         edgePoints.push_back(ec4);
-    Eigen::Vector3f ec5 = (p5 + p8) / 2;         edgePoints.push_back(ec5);
-    Eigen::Vector3f ec6 = (p2 + p6) / 2;         edgePoints.push_back(ec6);
-    Eigen::Vector3f ec7 = (p7 + p8) / 2;         edgePoints.push_back(ec7);
-    Eigen::Vector3f ec8 = (p6 + p7) / 2;         edgePoints.push_back(ec8);
-    Eigen::Vector3f ec9 = (p2 + p3) / 2;         edgePoints.push_back(ec9);
-    Eigen::Vector3f ec10= (p4 + p8) / 2;         edgePoints.push_back(ec10);
-    Eigen::Vector3f ec11= (p3 + p4) / 2;         edgePoints.push_back(ec11);
-    Eigen::Vector3f ec12= (p3 + p7) / 2;         edgePoints.push_back(ec12);
-
-
-
-    // Find closer point to hand
-    double d_min = 1000;
-    int p_i = -1;
-    for (int p = 0; p<edgePoints.size(); p++){        
-        //pcl::PointXYZRGB pt = edgePoints[p];
-        Eigen::Vector3f pt = edgePoints[p];
-        cout << "Edge " << p << " center at (" << pt[0] << ", " << pt[1] << ", " << pt[2] << "). " << endl;
-        //double d = sqrt(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
-        Point3D edgeP;
-        edgeP.x = pt[0];    edgeP.y = pt[1];    edgeP.z = pt[2];
-        int color[3] = {0, p*20,255-p*20};
-        addPoint(cloud,edgeP,color);
-        double d = sqrt(pt[0]*pt[0] + pt[1]*pt[1] + pt[2]*pt[2]);
-        if (d<d_min){
-            p_i = p;
-            d_min = d;
-        }
-    }
-
-    cout << "point " << p_i << " at minimum distance = " << d_min << endl;
-
-    if (p_i == -1){
-        return false;}
-
-    // Tooltip is (defined as) the edge center opposite to the closest one to the hand.
-
-    // XXX   This method does not work!
-
-    return true;
-
-
-}
-
-
 /************************************************************************/
 bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
 {
@@ -1811,29 +1712,18 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
     double radOr = ori*M_PI/180.0; // converse deg into rads
     double radTilt = tilt*M_PI/180.0; // converse deg into rads
 
-    //cout << "Ori: rotation of "<< ori << " around -Y: " << radOr << "Rad." << endl;
     Vector oy(4);   // define the rotation over the -Y axis or effector orientation
     oy[0]=0.0; oy[1]=-1.0; oy[2]=0.0; oy[3]= radOr; // tool is along the -Y axis!!
     Matrix R_ori = axis2dcm(oy);          // from axis/angle to rotation matrix notation
-    //cout << endl << "R_ori = "<< endl << R_ori.toString() << endl;
-
-    //cout << "Tilt: rotation of "<< tilt << " around Z: "<< radTilt << "Rad." << endl;
     Vector oz(4);   // define the rotation over the Z axis for tilt.
     oz[0]=0.0; oz[1]=0.0; oz[2]=1.0; oz[3]= radTilt; // tilt around the Z axis!!
     Matrix R_tilt = axis2dcm(oz);
-    //cout << endl <<"R_tilt = "<< endl << R_tilt.toString() << endl;
 
     pose = R_tilt*R_ori;         // Compose matrices in order, first rotate around -Y (R_ori), then around Z
-    //cout << "Combined rotation matrix R = R_tilt*R_ori" << endl;
-    //cout << endl << "R = "<< endl << pose.toString() << endl;
 
     pose(1,3) = -disp /100.0;   // This accounts for the traslation of 'disp' in the -Y axis in the hand coord system along the extended thumb).
-    //cout << "Disp: Translation of "<< disp << " along -Y " << endl;
+    pose(2,3) = shift/100.0;   // This accounts for the Z translation to match the tooltip
 
-    pose(2,3) = shift/100.0;   // This accounts for the Z translation to match the tooltip    
-    //cout << "Shift: Translation of "<< shift << " along Z " << endl;
-
-    //cout << "pose = "<< endl << pose.toString() << endl;
 
     return true;
 }
@@ -2254,6 +2144,43 @@ void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointX
 
 
 /************************************************************************/
+bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
+{   // Normalizes the frame of the point cloud from the robot frame (as acquired) to the hand frame.
+
+    if (hand=="left")
+        iCartCtrl=iCartCtrlL;
+    else if (hand=="right")
+        iCartCtrl=iCartCtrlR;
+    else
+        return false;
+
+    // Transform (translate-rotate) the pointcloud by inverting the hand pose
+    Vector H2Rpos, H2Ror;
+    iCartCtrl->getPose(H2Rpos,H2Ror);
+    Matrix H2R = axis2dcm(H2Ror);   // from axis/angle to rotation matrix notation
+
+    // Include translation
+    H2R(0,3)= H2Rpos[0];
+    H2R(1,3)= H2Rpos[1];
+    H2R(2,3)= H2Rpos[2];
+    if (verbose){ printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());}
+
+    Matrix R2H = SE3inv(H2R);    //inverse the affine transformation matrix from robot to hand
+    if (verbose){printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());}
+
+    // Put Transformation matrix into Eigen Format
+    Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(R2H);
+    //cout << TM.matrix() << endl;
+
+    // Executing the transformation
+    pcl::transformPointCloud(*cloud_orig, *cloud_trans, TM);
+
+    if (verbose){	printf("Transformation done \n");	}
+
+    return true;
+}
+
+/************************************************************************/
 bool Objects3DExplorer::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
     Bottle &cloudBottleOut = cloudsOutPort.prepare();
@@ -2348,7 +2275,7 @@ bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 /************************************************************************/
 bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
 {
-    //cout << "Setting cloud to pose " << endl << pose.toString() << endl;
+    cout << "Setting cloud to pose " << endl << pose.toString() << endl;
     Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
     pcl::transformPointCloud(*cloud, *cloudInPose, TM);
     poseFound = true;
