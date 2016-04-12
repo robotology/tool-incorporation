@@ -45,17 +45,12 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
-    ResourceFinder cloudsRF;
-    cloudsRF.setContext("objects3DModeler");
-    cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
-    cloudsRF.configure(0,NULL);
-
     // Set the path that contains previously saved pointclouds
     if (rf.check("clouds_path")){
         cloudsPathFrom = rf.find("clouds_path").asString().c_str();
     }else{
         string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
-        string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
+        string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
         cloudsPathFrom  = icubContribEnvPath + localModelsPath;
     }
@@ -452,7 +447,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         int green[3] = {0,255,0};
         addPoint(cloud_model, tooltipCanon,green);
-        sendPointCloud(cloud_pose);
+        sendPointCloud(cloud_model);
 
         reply.addString("[ack]");
         reply.addDouble(tooltipCanon.x);
