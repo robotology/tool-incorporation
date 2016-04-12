@@ -34,11 +34,6 @@
 #include <yarp/os/RFModule.h>
 #include <yarp/os/BufferedPort.h>
 
-//ICUB libs
-//#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
-//#include <iCub/data3D/minBoundBox.h>
-//#include <iCub/data3D/RGBA.h>
-
 #include "iCub/YarpCloud/CloudUtils.h" 
 
 //PCL libs
@@ -51,6 +46,7 @@
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/fpfh.h>
 #include <pcl/registration/ia_ransac.h>
@@ -171,17 +167,18 @@ protected:
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload default color
     bool                scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double scale = 1.0);
+    bool                downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, double res = 0.001);
     void                computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features);
     void                computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals);    
     int                 getSign(const double x);
     
     /* Configuration commands */ 
-    bool                changeSaveName(const std::string& fname);
     bool                setVerbose(const std::string& verb);
-    bool                setSeg(const std::string& seg);
-    bool                setSaving(const std::string& sav);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
+    bool                setSeg(const std::string& seg);
+    bool                setSaving(const std::string& sav);
+    bool                changeSaveName(const std::string& fname);
        
 public:
 

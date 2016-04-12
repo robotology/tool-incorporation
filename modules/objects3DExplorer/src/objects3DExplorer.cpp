@@ -25,6 +25,15 @@ using namespace yarp::math;
 
 using namespace iCub::YarpCloud;
 
+/**
+ *
+@ingroup icub_module
+\defgroup icub_objects3DExplorer objects3DExplorer
+
+Finish doxygen docu: Use this as examples/templates:
+https://github.com/robotology/icub-main/blob/master/src/modules/actionsRenderingEngine/src/main.cpp
+https://github.com/robotology/icub-main/blob/master/src/libraries/actionPrimitives/include/iCub/action/actionPrimitives.h
+http://wiki.icub.org/iCub/main/dox/html/module_documentation.html
 
 // XXX XXX This module deals with 3D object/tool exploration, partial reconstruction extraction, alignment, pose estimation, etc.
 // - Provides some functions to explore an object in hand.
@@ -32,7 +41,7 @@ using namespace iCub::YarpCloud;
 // - Automatizes partial object recosntruction (communicating with obj3Drec), and alignment
 // - Performs pose estimation from model using alignment.
 // - Computes tooltip from model and estimated pose
-
+**/
   
 /**********************************************************
                     PUBLIC METHODS
@@ -42,7 +51,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 {
     string name = rf.check("name",Value("objects3DExplorer")).asString().c_str();
     robot = rf.check("robot",Value("icub")).asString().c_str();
-    string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
+    string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
     // Set the path that contains previously saved pointclouds
@@ -67,17 +76,20 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
     printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
 
-    saveName = rf.check("saveName", Value("cloud")).asString();
+    // External variables -- Modifieable by command line or ini file
     hand = rf.check("hand", Value("right")).asString();
-    camera = rf.check("camera", Value("left")).asString();
+    camera = rf.check("camera", Value("left")).asString();    
     verbose = rf.check("verbose", Value(true)).asBool();
-    handFrame = rf.check("handFrame", Value(true)).asBool();
+
+    handFrame = rf.check("handFrame", Value(true)).asBool();            // Sets whether the recorded cloud is automatically transformed w.r.t the hand reference frame
+    initAlignment = rf.check("initAlign", Value(true)).asBool();        // Sets whether FPFH initial alignment is used for cloud alignment
+    seg2D = rf.check("seg2D", Value(false)).asBool();                   // Sets whether segmentation would be doen in 2D (true) or 3D (false)
+    saving = rf.check("saving", Value(true)).asBool();                  // Sets whether recorded pointlcouds are saved or not.
+    saveName = rf.check("saveName", Value("cloud")).asString();         // Sets the root name to save recorded clouds
+
+    // Flow control variables
     cloudLoaded = false;
     poseFound  = false;
-    seg2D = false;
-    initAlignment = true;
-    saving = true;
-
     toolPose = eye(4);
     //tooltip = Vector(4,0.0);
 
@@ -368,6 +380,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("[ack]");
         return true;
 
+    }else if (receivedCmd == "exploreTool"){
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_merged (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        bool ok = getPointCloud(cloud_merged);
+
+        if (ok) {
+            sendPointCloud(cloud_merged);
+        }
+
+        cloud_model = cloud_merged;
+
+        reply.addString("[ack]");
+        return true;
 
 
     }else if (receivedCmd == "findPoseAlign"){
@@ -1175,26 +1200,32 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
 
 /************************************************************************/
 bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
-{   // XXX Finish this function
+{
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
+    cloud_rec_merged->points.clear();
 
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     // Rotate tool in hand
     for (int degY = -30; degY<=60; degY += 15)
     {
+        // Move hand to new position
         turnHand(-60,degY);
-        //getPointCloud(cloud_rec);
 
-        //feature_extractor.setInputCloud(cloud_rec);
+        // Get partial reconstruction
+        cloud_rec->points.clear();
+        cloud_rec->clear();
+        getPointCloud(cloud_rec);
 
-       // feature_extractor.compute();
+        // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
+        *cloud_rec_merged += *cloud_rec;
 
+        // Downsample to reduce size and fasten computation
+        downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+
+        sendPointCloud(cloud_rec_merged);
     }
 
-    //   - get partial pointcloud
-    // do it around for at least 5 prespectives, rotating the hand with the tool.
-
-    //  Add them all toghether and filter/downsample big time
-    //cout << "Transformed tooltip at ( " << tooltipTrans.x << ", " << tooltipTrans.y << ", " << tooltipTrans.z <<")." << endl;
+    cout << "Reconstructed cloud of size " << cloud_rec_merged->size() << endl;
 
     return true;
 }
@@ -1292,25 +1323,28 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     sor.setMeanK(cloud_rec->size()/2);
     sor.filter (*cloud_rec);
 
-    /*
     // Remove hand (all points within 4 cm from origin)
-    double handRad = 0.04;
-    pcl::IndicesPtr pointsNotHand;
-    //vector<int> pointsNotHand;
-    for (int p = 0; p < cloud_rec->size();p++){
-        double px = cloud_rec->points[p].x;
-        double py = cloud_rec->points[p].y;
-        double pz = cloud_rec->points[p].z;
-        double distP = sqrt(pow(px,2)+pow(py,2)+pow(pz,2));
-        if (distP > handRad){
-            pointsNotHand->push_back(p);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_nohand (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    if (handFrame) {
+        double handRad = 0.04;
+        pcl::PointIndices::Ptr pointsTool (new pcl::PointIndices ());
+        for (unsigned int ptI=0; ptI<cloud_rec->points.size(); ptI++)
+        {
+            pcl::PointXYZRGB *pt = &cloud_rec->at(ptI);
+            double distP = sqrt(pt->x*pt->x+pt->y*pt->y+pt->z*pt->z);           // Compute distance around hand reference frame
+            if (distP > handRad){
+                pointsTool->indices.push_back(ptI);
+            }
         }
+
+        pcl::ExtractIndices<pcl::PointXYZRGB> eifilter (true);
+        eifilter.setInputCloud (cloud_rec);
+        eifilter.setIndices(pointsTool);
+        eifilter.filter(*cloud_nohand);
+
+        cloud_rec->points.clear();
+        *cloud_rec = *cloud_nohand;          //overwrite cloud with filtered one with no points fo hand.
     }
-    pcl::ExtractIndices<pcl::PointXYZRGB> eifilter (true); // Initializing with true will allow us to extract the removed indices
-    eifilter.setInputCloud (cloud_rec);
-    eifilter.setIndices(pointsNotHand);
-    eifilter.filter (*cloud_rec);
-    */
 
 
     scaleCloud(cloud_rec,1.1);
@@ -1441,7 +1475,7 @@ bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>
     // cout << "Max AABB z: " << max_point_AABB.z << ". Min AABB z: " << min_point_AABB.z << endl;
 
     double effLength = fabs(max_point_AABB.x- min_point_AABB.x);        //Length of the effector
-    ttCanon.x = max_point_AABB.x-effLength/3;                           // tooltip not on the extreme, but sligthly in  -  x coord of ttCanon
+    ttCanon.x = max_point_AABB.x;//-effLength/3;                        // tooltip not on the extreme, but sligthly in  -  x coord of ttCanon
     ttCanon.y = min_point_AABB.y;                                       // y coord of ttCanon
     ttCanon.z = (max_point_AABB.z + min_point_AABB.z)/2;                // z coord of ttCanon
 
@@ -1720,6 +1754,16 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
     pose(2,3) = shift/100.0;   // This accounts for the Z translation to match the tooltip
 
 
+    return true;
+}
+
+/************************************************************************/
+bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
+{
+    cout << "Setting cloud to pose " << endl << pose.toString() << endl;
+    Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
+    pcl::transformPointCloud(*cloud, *cloudInPose, TM);
+    poseFound = true;
     return true;
 }
 
@@ -2076,6 +2120,18 @@ void Objects3DExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZ
     fpfh_est.compute(*features);
 }
 
+void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
+{
+    printf("Computing Surface Normals\n");
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+    pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
+
+    norm_est.setInputCloud(cloud);
+    norm_est.setSearchMethod(tree);
+    norm_est.setRadiusSearch(0.01f);
+    norm_est.compute(*normals);
+}
+
 bool Objects3DExplorer::checkGrasp(const Matrix &pose)
 {
     if(!handFrame) {
@@ -2102,39 +2158,7 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
         return false;
     }
 
-    /*
-    // Limit rotX to -70, 70 (there should be none);
-    if ((rotX < -70) || (rotX > 70)){
-        cout << "Too much rotation on X" << endl;
-        return false;
-    }
-
-    // Limit rotY to -135, 135 (should be from -90 to 90)
-    if ((rotY < -135) || (rotY > 135)){
-        cout << "Too much rotation on Y" << endl;
-        return false;
-    }
-
-    // Limit rotZ to -15, 105 (should be around 45).
-    if ((rotZ < -15) || (rotZ > 105)){
-        cout << "Too much rotation on Z" << endl;
-        return false;
-    }
-    */
     return true;
-}
-
-
-void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
-{
-    printf("Computing Surface Normals\n");
-    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
-    pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
-
-    norm_est.setInputCloud(cloud);
-    norm_est.setSearchMethod(tree);
-    norm_est.setRadiusSearch(0.01f);
-    norm_est.compute(*normals);
 }
 
 
@@ -2245,6 +2269,25 @@ bool Objects3DExplorer::scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
     return true;
 }
 
+/************************************************************************/
+bool Objects3DExplorer::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, double res)
+{
+    //if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
+    cout << "== Size before downsampling: " << cloud_orig->size () << endl;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+    vg.setInputCloud(cloud_orig);
+    vg.setLeafSize(res, res, res);
+    vg.filter (*cloud_fil);
+    cloud_ds->points.clear();
+    cloud_ds->clear();
+    copyPointCloud(*cloud_fil, *cloud_ds);
+
+    if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
+
+    return true;
+}
 
 /************************************************************************/
 bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -2264,16 +2307,6 @@ bool Objects3DExplorer::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
         point->b = color[2];
 
     }
-    return true;
-}
-
-/************************************************************************/
-bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
-{
-    cout << "Setting cloud to pose " << endl << pose.toString() << endl;
-    Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
-    pcl::transformPointCloud(*cloud, *cloudInPose, TM);
-    poseFound = true;
     return true;
 }
 
@@ -2406,6 +2439,28 @@ int main(int argc, char *argv[])
     rf.setDefaultConfigFile("objects3DExplorer.ini");
     rf.setVerbose(true);
     rf.configure(argc,argv);
+
+    if (rf.check("help"))
+        {
+            yInfo(" ");
+            yInfo("Options:");
+            yInfo("  --context    path:     where to find the called resource (default objects3DModeler).");
+            yInfo("  --from       from:     the name of the .ini file (default objects3DExplorer.ini).");
+            yInfo("  --name       name:     the name of the module (default objects3DExplorer).");
+            yInfo("  --robot      robot:    the name of the robot. Default icub.");
+            yInfo("  --hand       string:   the default hand that the robot will use (default 'right')");
+            yInfo("  --camera     string:   the default camera that the robot will use (default 'left')");
+            yInfo("  --verbose    bool:     verbosity (default false).");
+
+            yInfo("  --handFrame  bool:     Sets whether the recorded cloud is automatically transformed w.r.t the hand reference frame. (default true)");
+            yInfo("  --initAlign  bool:     Sets whether FPFH initial alignment is used for cloud alignment. (default true)");
+            yInfo("  --seg2D      bool:     Sets whether segmentation would be doen in 2D (true) or 3D (false) (default false)");
+            yInfo("  --saving     bool:     Sets whether recorded pointlcouds are saved or not. (default true)");
+            yInfo("  --saveName   string:   Sets the root name to save recorded clouds. Defaults:  'cloud'");
+            yInfo(" ");
+            return 0;
+        }
+
 
     Objects3DExplorer objects3DExplorer;
 
