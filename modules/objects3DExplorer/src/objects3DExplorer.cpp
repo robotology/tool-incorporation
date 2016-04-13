@@ -383,7 +383,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     }else if (receivedCmd == "exploreTool"){
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_merged (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        bool ok = getPointCloud(cloud_merged);
+        bool ok = exploreTool(cloud_merged);
 
         if (ok) {
             sendPointCloud(cloud_merged);
@@ -1211,11 +1211,12 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         // Move hand to new position
         turnHand(-60,degY);
 
-        // Get partial reconstruction
-        cloud_rec->points.clear();
-        cloud_rec->clear();
-        getPointCloud(cloud_rec);
-
+        if (robot == "icub"){
+            // Get partial reconstruction
+            cloud_rec->points.clear();
+            cloud_rec->clear();
+            getPointCloud(cloud_rec);
+        }
         // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
         *cloud_rec_merged += *cloud_rec;
 
@@ -2444,19 +2445,19 @@ int main(int argc, char *argv[])
         {
             yInfo(" ");
             yInfo("Options:");
-            yInfo("  --context    path:     where to find the called resource (default objects3DModeler).");
-            yInfo("  --from       from:     the name of the .ini file (default objects3DExplorer.ini).");
-            yInfo("  --name       name:     the name of the module (default objects3DExplorer).");
-            yInfo("  --robot      robot:    the name of the robot. Default icub.");
-            yInfo("  --hand       string:   the default hand that the robot will use (default 'right')");
-            yInfo("  --camera     string:   the default camera that the robot will use (default 'left')");
-            yInfo("  --verbose    bool:     verbosity (default false).");
+            yInfo("  --context    path:        where to find the called resource (default objects3DModeler).");
+            yInfo("  --from       from:        the name of the .ini file (default objects3DExplorer.ini).");
+            yInfo("  --name       name:        the name of the module (default objects3DExplorer).");
+            yInfo("  --robot      robot:       the name of the robot. Default icub.");
+            yInfo("  --hand       left/right:  the default hand that the robot will use (default 'right')");
+            yInfo("  --camera     left/right:  the default camera that the robot will use (default 'left')");
+            yInfo("  --verbose    bool:        verbosity (default false).");
 
-            yInfo("  --handFrame  bool:     Sets whether the recorded cloud is automatically transformed w.r.t the hand reference frame. (default true)");
-            yInfo("  --initAlign  bool:     Sets whether FPFH initial alignment is used for cloud alignment. (default true)");
-            yInfo("  --seg2D      bool:     Sets whether segmentation would be doen in 2D (true) or 3D (false) (default false)");
-            yInfo("  --saving     bool:     Sets whether recorded pointlcouds are saved or not. (default true)");
-            yInfo("  --saveName   string:   Sets the root name to save recorded clouds. Defaults:  'cloud'");
+            yInfo("  --handFrame  bool:      Sets whether the recorded cloud is automatically transformed w.r.t the hand reference frame. (default true)");
+            yInfo("  --initAlign  bool:      Sets whether FPFH initial alignment is used for cloud alignment. (default true)");
+            yInfo("  --seg2D      bool:      Sets whether segmentation would be doen in 2D (true) or 3D (false) (default false)");
+            yInfo("  --saving     bool:      Sets whether recorded pointlcouds are saved or not. (default true)");
+            yInfo("  --saveName   string:    Sets the root name to save recorded clouds. Defaults:  'cloud'");
             yInfo(" ");
             return 0;
         }
