@@ -25,7 +25,7 @@
 
 #include <yarp/os/RFModule.h>
 #include <yarp/os/Network.h>
-#include <yarp/os/Module.h>
+#include <yarp/os/RFModule.h>
 #include <yarp/os/Vocab.h>
 #include <yarp/os/RateThread.h>
 #include <yarp/os/all.h>

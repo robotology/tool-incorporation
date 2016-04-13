@@ -1270,7 +1270,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         if (verbose){printf("Please click on seed point from the Disparity or Segmentation images. \n");}
     } else {
         cmdOR.addString("flood3d");
-        if (verbose){printf("Please click on seed point from the Disparity image. \n");}
+        //if (verbose){printf("Please click on seed point from the Disparity image. \n");}
     }
     rpcObjRecPort.write(cmdOR,replyOR);
 
