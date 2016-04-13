@@ -375,6 +375,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         if (!cloudLoaded){
              cloud_model = cloud_rec;
+             cloudLoaded = true;
         }
 
         reply.addString("[ack]");
@@ -1162,9 +1163,9 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
     Vector offset(3,0.0);;
 
     // set base position
-    xd[0]=-0.30;
+    xd[0]=-0.25;
     xd[1]=(hand=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand
-    xd[2]= 0.1;
+    xd[2]= 0.05;
 
     offset[0]=0;
     offset[1]=(hand=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
@@ -1209,21 +1210,22 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     for (int degY = -30; degY<=60; degY += 15)
     {
         // Move hand to new position
-        turnHand(-60,degY);
+        turnHand(0,degY);
 
-        if (robot == "icub"){
-            // Get partial reconstruction
-            cloud_rec->points.clear();
-            cloud_rec->clear();
-            getPointCloud(cloud_rec);
+       // Get partial reconstruction
+        cloud_rec->points.clear();
+        cloud_rec->clear();
+        if(getPointCloud(cloud_rec)){
+            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
+            *cloud_rec_merged += *cloud_rec;
+
+            // Downsample to reduce size and fasten computation
+            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+
+            sendPointCloud(cloud_rec_merged);
+        }else{
+            cout << " Cloud at angle " << degY << " couldnt be reconstructed properly" << endl;
         }
-        // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
-        *cloud_rec_merged += *cloud_rec;
-
-        // Downsample to reduce size and fasten computation
-        downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-
-        sendPointCloud(cloud_rec_merged);
     }
 
     cout << "Reconstructed cloud of size " << cloud_rec_merged->size() << endl;
@@ -1327,7 +1329,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     // Remove hand (all points within 4 cm from origin)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_nohand (new pcl::PointCloud<pcl::PointXYZRGB> ());
     if (handFrame) {
-        double handRad = 0.04;
+        double handRad = 0.06;
         pcl::PointIndices::Ptr pointsTool (new pcl::PointIndices ());
         for (unsigned int ptI=0; ptI<cloud_rec->points.size(); ptI++)
         {
@@ -1348,7 +1350,12 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     }
 
 
-    scaleCloud(cloud_rec,1.1);
+    //scaleCloud(cloud_rec,1.1);
+
+    if (cloud_rec->size() < 100){
+        cout << " Not enough points left after filtering. Something must have happened on reconstruction" << endl;
+        return false;
+    }
 
 
     if (verbose){ cout << " Cloud of size " << cloud_rec->points.size() << " obtained from 3D reconstruction" << endl;}
@@ -1385,7 +1392,11 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         Time::delay(1);
 
         // Get a registration
-        getPointCloud(cloud_rec);              // Registration get and normalized to hand-reference frame.
+        if(!getPointCloud(cloud_rec))          // Registration get and normalized to hand-reference frame.
+        {
+            cout << " Cloud not valid" << endl;
+            continue;
+        }
         int blue[3] = {0,0,255};               // Plot oriented model green
         changeCloudColor(cloud_rec, blue);
         sendPointCloud(cloud_rec);
