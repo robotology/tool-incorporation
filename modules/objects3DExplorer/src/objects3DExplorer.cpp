@@ -324,7 +324,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             rotDegX = command.get(2).asInt();
 		}			
 
-        bool ok = turnHand(rotDegX, rotDegY);
+        bool ok = turnHand(rotDegX, rotDegY, true);
         if (ok){
             reply.addString("[ack]");
             return true;
@@ -507,6 +507,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
                 reply.addString("[nack] Could not compute tooltip.");
                 return false;
             }
+            Time::delay(0.5);
             addPoint(cloud_model, tooltip,green);
             sendPointCloud(cloud_model);
         }else {
@@ -515,6 +516,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
                 reply.addString("[nack] Could not compute tooltip.");
                 return false;
             }
+            Time::delay(0.5);
             addPoint(cloud_pose, tooltip,green);
             sendPointCloud(cloud_pose);
         }
@@ -1147,7 +1149,7 @@ bool Objects3DExplorer::exploreInteractive()
 */
 
 /************************************************************************/
-bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
+bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const bool followTool)
 {
     if (hand=="left")
         iCartCtrl=iCartCtrlL;
@@ -1161,11 +1163,9 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
         return false;
     }
 
-    int context_arm,context_gaze;
-    //iGaze->restoreContext(0);
+    int context_arm;
 
     iCartCtrl->storeContext(&context_arm);
-    iGaze->storeContext(&context_gaze);
 
     // intialize position and orientation matrices
     Matrix Rh(4,4);
@@ -1180,7 +1180,7 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
     xd[2]= 0.05;
 
     offset[0]=0;
-    offset[1]=(hand=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.05 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
+    offset[1]=(hand=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.0 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
     offset[2]= 0.15 - 0.01*abs(rotDegX)/5;
 
     // Rotate the hand to observe the tool from different positions
@@ -1196,17 +1196,18 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
 
     if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
 
+
     // move!
-    //iGaze->setTrackingMode(true);
-    //iGaze->lookAtFixationPoint(xd+offset);
+    if (followTool){
+        iGaze->setTrackingMode(true);
+        iGaze->lookAtFixationPoint(xd+offset);
+    }
+
     iCartCtrl->goToPoseSync(xd,od,1.0);
     iCartCtrl->waitMotionDone(0.1);
 
     iCartCtrl->restoreContext(context_arm);
     iCartCtrl->deleteContext(context_arm);
-
-    iGaze->restoreContext(context_gaze);
-    iGaze->deleteContext(context_gaze);
 
     return true;
 }
@@ -1217,13 +1218,63 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
     cloud_rec_merged->points.clear();
 
+
+    int minX = -70;
+    int maxX = 70;
+
+    int minY = -40;
+    int maxY = 60;
+
+    turnHand(minX,minY,true);
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Point2D seed;
+
     // Rotate tool in hand
-    for (int degY = -30; degY<=60; degY += 15)
+    for (int degX = minX; degX<=maxX; degX += 20)
+    {
+        // Move hand to new position
+        turnHand(degX,minY);
+        Time::delay(1.0);
+
+       // Get partial reconstruction
+        cloud_rec->points.clear();
+        cloud_rec->clear();
+        if(getPointCloud(cloud_rec, seed)){
+            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
+            *cloud_rec_merged += *cloud_rec;
+
+            // Downsample to reduce size and fasten computation
+            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+            cout << " Cloud at angle " << degX << " reconstructed properly" << endl;
+            sendPointCloud(cloud_rec_merged);
+            if ((seed.u>0)&&(seed.v>0)){
+                Vector fixP(2);                 // Choose point slightly over the seed point, to keep gaze up
+                if (seed.u>20)
+                    fixP[0]= seed.u- 20;
+                else
+                    fixP[0]= seed.u;
+
+                if (seed.v>20)
+                    fixP[1]= seed.v- 20;
+                else
+                    fixP[1]= seed.v;
+                iGaze->lookAtMonoPixel(0,fixP,0.5);
+            }
+
+        }else{
+            cout << " Cloud at angle X " << degX << " couldnt be reconstructed properly" << endl;
+            turnHand(degX,minY,true);
+        }
+    }
+
+
+    // Rotate tool in hand
+    for (int degY = minY; degY<=maxY; degY += 20)
     {
         // Move hand to new position
         turnHand(0,degY);
+        Time::delay(1.0);
 
        // Get partial reconstruction
         cloud_rec->points.clear();
@@ -1236,13 +1287,23 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
             cout << " Cloud at angle " << degY << " reconstructed properly" << endl;
             sendPointCloud(cloud_rec_merged);
+            if ((seed.u>0)&&(seed.v>0)){
+                Vector fixP(2);                 // Choose point slightly over the seed point, to keep gaze up
+                if (seed.u>20)
+                    fixP[0]= seed.u- 20;
+                else
+                    fixP[0]= seed.u;
 
-            Vector seedV(2);
-            seedV[0]= seed.u;
-            seedV[1]= seed.v;
-            iGaze->lookAtMonoPixel(0,seedV,0.5);
+                if (seed.v>20)
+                    fixP[1]= seed.v- 20;
+                else
+                    fixP[1]= seed.v;
+                iGaze->lookAtMonoPixel(0,fixP,0.5);
+            }
+
         }else{
-            cout << " Cloud at angle " << degY << " couldnt be reconstructed properly" << endl;
+            cout << " Cloud at angle Y " << degY << " couldnt be reconstructed properly" << endl;
+            turnHand(0,degY,true);
         }
     }
 
@@ -1293,15 +1354,10 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         //if (verbose){printf("Please click on seed point from the Disparity image. \n");}
     }
     rpcObjRecPort.write(cmdOR,replyOR);
-    cout<< "obj3Drec replied" <<replyOR.toString() <<endl;
+    cout<< "obj3Drec replied: " <<replyOR.toString() <<endl;
 
     seed.u= replyOR.get(1).asInt();
     seed.v= replyOR.get(2).asInt();
-    if ((seed.u<0) && (seed.v<0)){
-        cout<< "Seed needed to be clicked, assuming center. "<<endl;
-        seed.u = 100;
-        seed.v = 100;
-    }
 
     cout<< "object segmented from seed (" <<seed.u << ", " << seed.v << "). " <<endl;
 
@@ -1315,9 +1371,9 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         return false;
     }
 
-    cmdOR.clear();	replyOR.clear();
-    cmdOR.addString("clear");
-    rpcObjRecPort.write(cmdOR,replyOR);
+    //cmdOR.clear();	replyOR.clear();
+    //cmdOR.addString("clear");
+    //rpcObjRecPort.write(cmdOR,replyOR);
 
     // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
     if (handFrame) {
@@ -1668,16 +1724,16 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         avgCloudKNNdist = accumCloudKNNdist/valPt;
 
         sendPointCloud(cloudA);
-        Time::delay(1.0);
+        Time::delay(1.5);
 
         int blue[3] = {0,0,255};
         changeCloudColor(cloudB, blue );
         sendPointCloud(cloudB);
-        Time::delay(1.0);
+        Time::delay(1.5);
 
-        int green[3] = {0,255,0};
-        changeCloudColor(cloudMirror, green);
-        sendPointCloud(cloudMirror);
+        //int green[3] = {0,255,0};
+        //changeCloudColor(cloudMirror, green);
+        //sendPointCloud(cloudMirror);
 
         // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudMirrorAndA (new pcl::PointCloud<pcl::PointXYZRGB> ());
         // *cloudMirrorAndA = *cloudA;

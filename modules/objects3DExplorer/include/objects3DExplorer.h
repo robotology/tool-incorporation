@@ -129,7 +129,7 @@ protected:
     /* Actions */
     // bool                exploreAutomatic();
     // bool                exploreInteractive();
-    bool                turnHand(const int rotDegX = 0, const int rotDegY = 0);
+    bool                turnHand(const int rotDegX = 0, const int rotDegY = 0, const bool followTool = false);
     bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged);
     //bool                lookAround();
 
