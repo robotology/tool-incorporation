@@ -10,9 +10,6 @@
 class show3D_IDLServer;
 
 
-/**
- * show3D_IDLServer Interface.
- */
 class show3D_IDLServer : public yarp::os::Wire {
 public:
   show3D_IDLServer();
@@ -54,6 +51,13 @@ public:
    */
   virtual bool addBoundingBox(const int32_t typeBB = 0);
   /**
+   * @brief addArrow - Plots arrow with given start and end coords and color
+   * @param coords - sphere coords
+   * @param color - color rgb
+   * @return true/false on displaying the sphere
+   */
+  virtual bool addSphere(const std::vector<double> & coords, const std::vector<int32_t> & color);
+  /**
    * @brief filter - Function to apply and show different filtering processes to the displayed cloud.
    * @param ror - bool: Activates RadiusOutlierRemoval (rad = 0.05, minNeigh = 5).
    * @param sor - bool: Activates StatisticalOutlierRemoval (meanK = 20).
@@ -72,4 +76,3 @@ public:
 };
 
 #endif
-

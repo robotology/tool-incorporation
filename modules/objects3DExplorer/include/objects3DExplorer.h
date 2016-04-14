@@ -112,7 +112,7 @@ protected:
     int                                 numCloudsSaved;
     int                                 NO_FILENUM;
 
-
+    struct                              Point2D {int u; int v;};
     struct                              Point3D {double x;double y; double z;};
     struct                              Plane3D {double a;double b; double c; double d;};
 
@@ -135,7 +135,7 @@ protected:
 
 
     /* Object info from Cloud */
-    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec);
+    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point2D& seed);
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     bool                findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose);
@@ -164,6 +164,7 @@ protected:
     bool                addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, bool shift = false);     // overload default color
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift = false);
+    bool                showTooltip(Point3D coords, int color[]);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload default color
     bool                scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double scale = 1.0);

@@ -29,6 +29,7 @@ bool VisThread::threadInit()
     displayNormals = false;
     displayOMSEGI = false;    
     displayFilt = false;
+    displaySphere = false;
 
     normalsComputed = false;
 
@@ -69,6 +70,13 @@ void VisThread::run()
                 {
                     plotBB(dBBstyle);
                     displayBB = false;
+                }
+
+                // Dislpay sphere
+                if (displaySphere)
+                {
+                    plotSphere(sphCoords,sphColor);
+                    displaySphere = false;
                 }
 
                 // Compute and add normals to display
@@ -209,6 +217,7 @@ void VisThread::addNormals(double rS, bool normAsRGB)
         dNcolored = normAsRGB;
         dNradSearch = rS;
         updateVis();
+        cout << "Normals added" << endl;
     }else{
         printf("Please load a cloud before trying to compute the normals\n");
     }
@@ -508,6 +517,36 @@ void VisThread::plotBB(int typeBB)
 }
 
 
+// addArrow interface
+void VisThread::addSphere(const std::vector<double> &coords, const std::vector<int> &color )
+{
+
+    displaySphere = true;
+    sphColor[0] = color[0]; sphColor[1] = color[1]; sphColor[2] = color[2];
+    sphCoords = coords;
+    updateVis();
+
+    cout << "Sphere added" << endl;
+    return;
+}
+
+// Displays sphere
+void VisThread::plotSphere(const std::vector<double> &coords, const int color[])
+{
+    pcl::PointXYZRGB center;
+    center.x = coords[0];
+    center.y = coords[1];
+    center.z = coords[2];
+    double rad = 0.005;
+
+
+    viewer->addSphere(center,rad,color[0], color[1], color[2]);
+    return;
+}
+
+
+
+
 // Filter cloud interface
 void VisThread::filter(bool ror, bool sor , bool mls, bool ds)
 {
@@ -548,7 +587,7 @@ void VisThread::filterCloud(bool rorF, bool sorF , bool mlsF, bool dsF)
         cout << "--Size after Stat outrem: " << cloud->points.size() << "." << endl;
     }
 
-    if (mlsF)
+    if (mlsF)                                                // -- use moving least squares
     {
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>);
@@ -574,9 +613,8 @@ void VisThread::filterCloud(bool rorF, bool sorF , bool mlsF, bool dsF)
 
     }
 
-    if (dsF)
+    if (dsF)                                                    // --Apply downsampling
     {
-        pcl::PointCloud<int> sampled_indices;
         //if (verbose){cout << "Model total points: " << cloud->size () << endl;}
         cout << "== Size before downsampling: " << cloud->size () << endl;
 

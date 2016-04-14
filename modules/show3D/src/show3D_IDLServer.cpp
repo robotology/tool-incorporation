@@ -61,6 +61,16 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class show3D_IDLServer_addSphere : public yarp::os::Portable {
+public:
+  std::vector<double>  coords;
+  std::vector<int32_t>  color;
+  bool _return;
+  void init(const std::vector<double> & coords, const std::vector<int32_t> & color);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class show3D_IDLServer_filter : public yarp::os::Portable {
 public:
   bool ror;
@@ -221,6 +231,47 @@ void show3D_IDLServer_addBoundingBox::init(const int32_t typeBB) {
   this->typeBB = typeBB;
 }
 
+bool show3D_IDLServer_addSphere::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(3)) return false;
+  if (!writer.writeTag("addSphere",1,1)) return false;
+  {
+    if (!writer.writeListBegin(BOTTLE_TAG_DOUBLE, static_cast<uint32_t>(coords.size()))) return false;
+    std::vector<double> ::iterator _iter0;
+    for (_iter0 = coords.begin(); _iter0 != coords.end(); ++_iter0)
+    {
+      if (!writer.writeDouble((*_iter0))) return false;
+    }
+    if (!writer.writeListEnd()) return false;
+  }
+  {
+    if (!writer.writeListBegin(BOTTLE_TAG_INT, static_cast<uint32_t>(color.size()))) return false;
+    std::vector<int32_t> ::iterator _iter1;
+    for (_iter1 = color.begin(); _iter1 != color.end(); ++_iter1)
+    {
+      if (!writer.writeI32((*_iter1))) return false;
+    }
+    if (!writer.writeListEnd()) return false;
+  }
+  return true;
+}
+
+bool show3D_IDLServer_addSphere::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void show3D_IDLServer_addSphere::init(const std::vector<double> & coords, const std::vector<int32_t> & color) {
+  _return = false;
+  this->coords = coords;
+  this->color = color;
+}
+
 bool show3D_IDLServer_filter::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(5)) return false;
@@ -330,6 +381,16 @@ bool show3D_IDLServer::addBoundingBox(const int32_t typeBB) {
   helper.init(typeBB);
   if (!yarp().canWrite()) {
     yError("Missing server method '%s'?","bool show3D_IDLServer::addBoundingBox(const int32_t typeBB)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool show3D_IDLServer::addSphere(const std::vector<double> & coords, const std::vector<int32_t> & color) {
+  bool _return = false;
+  show3D_IDLServer_addSphere helper;
+  helper.init(coords,color);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool show3D_IDLServer::addSphere(const std::vector<double> & coords, const std::vector<int32_t> & color)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -458,6 +519,51 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
+    if (tag == "addSphere") {
+      std::vector<double>  coords;
+      std::vector<int32_t>  color;
+      {
+        coords.clear();
+        uint32_t _size2;
+        yarp::os::idl::WireState _etype5;
+        reader.readListBegin(_etype5, _size2);
+        coords.resize(_size2);
+        uint32_t _i6;
+        for (_i6 = 0; _i6 < _size2; ++_i6)
+        {
+          if (!reader.readDouble(coords[_i6])) {
+            reader.fail();
+            return false;
+          }
+        }
+        reader.readListEnd();
+      }
+      {
+        color.clear();
+        uint32_t _size7;
+        yarp::os::idl::WireState _etype10;
+        reader.readListBegin(_etype10, _size7);
+        color.resize(_size7);
+        uint32_t _i11;
+        for (_i11 = 0; _i11 < _size7; ++_i11)
+        {
+          if (!reader.readI32(color[_i11])) {
+            reader.fail();
+            return false;
+          }
+        }
+        reader.readListEnd();
+      }
+      bool _return;
+      _return = addSphere(coords,color);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
     if (tag == "filter") {
       bool ror;
       bool sor;
@@ -536,6 +642,7 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
     helpString.push_back("addNormals");
     helpString.push_back("addFeats");
     helpString.push_back("addBoundingBox");
+    helpString.push_back("addSphere");
     helpString.push_back("filter");
     helpString.push_back("quit");
     helpString.push_back("help");
@@ -577,6 +684,13 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@brief addBoundingBox - adds the bounding box to the displayed cloud. If minBB is true, it will be the minimum BB, otherwise the axis-aligned one. ");
       helpString.push_back("@param tpyeBB - (int) 0 to compute the minimum bounding box, 1 to compute the axis-aligned bounding box, 2 to compute Cubic AABB (default = 2), ");
       helpString.push_back("@return true/false on showing the poitncloud ");
+    }
+    if (functionName=="addSphere") {
+      helpString.push_back("bool addSphere(const std::vector<double> & coords, const std::vector<int32_t> & color) ");
+      helpString.push_back("@brief addArrow - Plots arrow with given start and end coords and color ");
+      helpString.push_back("@param coords - sphere coords ");
+      helpString.push_back("@param color - color rgb ");
+      helpString.push_back("@return true/false on displaying the sphere ");
     }
     if (functionName=="filter") {
       helpString.push_back("bool filter(const bool ror = 0, const bool sor = 0, const bool mks = 0, const bool ds = 0) ");

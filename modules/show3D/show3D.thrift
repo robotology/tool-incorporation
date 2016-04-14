@@ -6,6 +6,13 @@
 * show3D_IDLServer Interface.
 */
 
+struct Bottle{}
+(
+    yarp.name = "yarp::os::Bottle"
+    yarp.includefile="yarp/os/Bottle.h"
+)
+
+
 service show3D_IDLServer
 {
     // setVerbose (ON/OFF) - sets verbose of the output on or off
@@ -58,10 +65,24 @@ service show3D_IDLServer
 
 
     /**
-     * @brief showCloud - Displays the received mesh as pointcloud on the visualizer.
-     * @param mesh - (SurfaceMeshWithBoundingBox) mesh to be displayed.
-     * @return true/false on showing the poitncloud
+     * @brief addArrow - Plots arrow with given start and end coords and color
+     * @param arrowStart - start coords
+     * @param arrowEnd - end coords
+     * @param color - color rgb
+     * @return true/false on displaying the arrow the poitncloud
      */
+    //bool addArrow(1: list<double> arrowStart, 2: list<double> arrowEnd, 3: list<i32> color);
+     //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
+
+
+    /**
+     * @brief addArrow - Plots arrow with given start and end coords and color
+     * @param coords - sphere coords
+     * @param color - color rgb
+     * @return true/false on displaying the sphere
+     */
+
+    bool addSphere(1: list<double> coords, 2: list<i32> color);
      //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
 
     /**

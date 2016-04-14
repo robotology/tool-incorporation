@@ -67,6 +67,14 @@ bool ShowModule::addNormals(double radSearch, bool normCol)
     return true;
 }
 
+
+
+bool ShowModule::addSphere(const std::vector<double> &coords, const std::vector<int> &color)
+{
+    visThrd->addSphere(coords, color);
+    return true;
+}
+
 bool ShowModule::addFeats(double res, bool plotHist)
 {
     visThrd->addOMSEGI(res,plotHist);

@@ -74,6 +74,7 @@ protected:
     bool displayFilt;
     bool normalsComputed;
     bool displayBB;
+    bool displaySphere;
 
     // Processing parameters
     int dBBstyle;
@@ -86,10 +87,14 @@ protected:
     bool dFsor;
     bool dFmls;
     bool dFds;
+
+    int sphColor[3];
+    std::vector<double> sphCoords;
     
     void updateVis();
     void plotNewCloud();
     void plotBB(int typeBB = 2);
+    void plotSphere(const std::vector<double> &coords, const int color[]);
     void plotNormals(double rS = 0.01, bool normCol = false);
     void plotOMSEGI(double res = 0.02, bool plotHist = true);    
     void filterCloud(bool rorF = false, bool sorF = false, bool mlsF = false, bool dsF = false);
@@ -110,6 +115,23 @@ public:
      * @param normCol - determines whether the normals will be shown as vectors or colorwise.
      */
     void addNormals(double rS, bool normCol = false);         // Function called from main module to set parameters and unlock update
+
+
+    /**
+     * @brief addArrow- Displays an arrow with given coordinates and color
+     * @param start - starting coordinates
+     * @param end - ending coordinates
+     * @param color - color (RGB)
+     */
+    //void addArrow(std::vector<double> start, std::vector<double> end, std::vector<int> color);
+
+    /**
+     * @brief addSphere- Displays a sphere at given coordinates and a given color
+     * @param coords - starting coordinates
+     * @param color - color (RGB)
+     */
+    void addSphere(const std::vector<double> &coords, const std::vector<int> &color);
+
 
     /**
      * @brief addOMSEGI - Sets flow to allow voxel normal histograms to be computed and displayed on the visualizer

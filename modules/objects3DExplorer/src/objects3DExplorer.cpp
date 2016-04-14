@@ -362,7 +362,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 	}else if (receivedCmd == "get3D"){
         // segment object and get the pointcloud using objectReconstrucor module save it in file or array        
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        bool ok = getPointCloud(cloud_rec);
+        Point2D seed;
+        bool ok = getPointCloud(cloud_rec, seed);
 
         if (ok) {            
             sendPointCloud(cloud_rec);
@@ -390,8 +391,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             sendPointCloud(cloud_merged);
         }
 
-        *cloud_model = *cloud_merged;
+        *cloud_pose = *cloud_merged;
         cloudLoaded = true;
+        poseFound = true;
 
 
         reply.addString("[ack]");
@@ -477,11 +479,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         addPoint(cloud_model, tooltipCanon,green);
         sendPointCloud(cloud_model);
 
+
+
         reply.addString("[ack]");
         reply.addDouble(tooltipCanon.x);
         reply.addDouble(tooltipCanon.y);
         reply.addDouble(tooltipCanon.z);
 
+        showTooltip(tooltipCanon,green);
 
         return true;
 
@@ -516,6 +521,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         cout << "Tooltip found at ( " << tooltip.x <<  ", " << tooltip.y <<  ", "<< tooltip.z <<  "). " << endl;
 
+        showTooltip(tooltip,green);
 
         reply.addString("[ack]");
         reply.addDouble(tooltip.x);
@@ -572,6 +578,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         addPoint(cloud_pose, tooltip,green);
         sendPointCloud(cloud_pose);
 
+        showTooltip(tooltip,green);
+
         reply.addString("[ack]");
         reply.addDouble(tooltip.x);
         reply.addDouble(tooltip.y);
@@ -625,6 +633,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         paramFromPose(toolPose, ori, displ, tilt, shift);
 
         cout << "Param returned from paramFromPose = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
+
+        showTooltip(tooltip,green);
 
         reply.addString("[ack]");
         reply.addDouble(tooltip.x);
@@ -700,7 +710,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-        Time::delay(1);
+        Time::delay(1.0);
         int blue[3] = {0,0,255};    // Plot partial view blue
         addNoise(cloud_from, noise_mean , noise_sigma);
         changeCloudColor(cloud_from, blue);
@@ -721,7 +731,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-        Time::delay(1);
+        Time::delay(1.0);
         sendPointCloud(cloud_to);
         findTooltipCanon(cloud_to, tooltipCanon);
 
@@ -755,7 +765,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         //Display oriented cloud.
         sendPointCloud(cloud_pose);
-        Time::delay(1);
+        Time::delay(1.0);
 
         cmdVis.clear();	replyVis.clear();
         cmdVis.addString("accumClouds");
@@ -1188,7 +1198,7 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY)
 
     // move!
     //iGaze->setTrackingMode(true);
-    iGaze->lookAtFixationPoint(xd+offset);
+    //iGaze->lookAtFixationPoint(xd+offset);
     iCartCtrl->goToPoseSync(xd,od,1.0);
     iCartCtrl->waitMotionDone(0.1);
 
@@ -1208,6 +1218,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     cloud_rec_merged->points.clear();
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    Point2D seed;
     // Rotate tool in hand
     for (int degY = -30; degY<=60; degY += 15)
     {
@@ -1217,7 +1228,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
        // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
-        if(getPointCloud(cloud_rec)){
+        if(getPointCloud(cloud_rec, seed)){
             // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
             *cloud_rec_merged += *cloud_rec;
 
@@ -1225,6 +1236,11 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
             cout << " Cloud at angle " << degY << " reconstructed properly" << endl;
             sendPointCloud(cloud_rec_merged);
+
+            Vector seedV(2);
+            seedV[0]= seed.u;
+            seedV[1]= seed.v;
+            iGaze->lookAtMonoPixel(0,seedV,0.5);
         }else{
             cout << " Cloud at angle " << degY << " couldnt be reconstructed properly" << endl;
         }
@@ -1261,7 +1277,7 @@ bool Objects3DExplorer::lookAround()
 
 /* CLOUD INFO */
 /************************************************************************/
-bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec)
+bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point2D& seed)
 {
     cloud_rec->points.clear();
     cloud_rec->clear();   // clear receiving cloud
@@ -1277,7 +1293,17 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         //if (verbose){printf("Please click on seed point from the Disparity image. \n");}
     }
     rpcObjRecPort.write(cmdOR,replyOR);
+    cout<< "obj3Drec replied" <<replyOR.toString() <<endl;
 
+    seed.u= replyOR.get(1).asInt();
+    seed.v= replyOR.get(2).asInt();
+    if ((seed.u<0) && (seed.v<0)){
+        cout<< "Seed needed to be clicked, assuming center. "<<endl;
+        seed.u = 100;
+        seed.v = 100;
+    }
+
+    cout<< "object segmented from seed (" <<seed.u << ", " << seed.v << "). " <<endl;
 
     // read the cloud from the objectReconst output port
     Bottle *cloudBottle = cloudsInPort.read(true);
@@ -1389,12 +1415,13 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         cmdVis.addString("clearVis");
         rpcVisualizerPort.write(cmdVis,replyVis);
 
-        Time::delay(1);
+        Time::delay(1.0);
         sendPointCloud(modelCloud);
-        Time::delay(1);
+        Time::delay(1.0);
 
         // Get a registration
-        if(!getPointCloud(cloud_rec))          // Registration get and normalized to hand-reference frame.
+        Point2D seed;
+        if(!getPointCloud(cloud_rec,seed))          // Registration get and normalized to hand-reference frame.
         {
             cout << " Cloud not valid" << endl;
             continue;
@@ -1402,7 +1429,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         int blue[3] = {0,0,255};               // Plot oriented model green
         changeCloudColor(cloud_rec, blue);
         sendPointCloud(cloud_rec);
-        Time::delay(1);
+        Time::delay(1.0);
 
         // Align it to the canonical model
         Eigen::Matrix4f alignMatrix;
@@ -1432,7 +1459,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         int green[3] = {0,255,0};          // Plot oriented model green
         changeCloudColor(poseCloud, green);
         sendPointCloud(poseCloud);
-        Time::delay(1);
+        Time::delay(1.0);
 
         if (!poseValid) {
             cout << "The estimated grasp is not possible, retry with a new pointcloud" << endl;
@@ -2250,6 +2277,28 @@ bool Objects3DExplorer::addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, P
     point.b = color[2];
 
     cloud->push_back(point);
+
+    return true;
+}
+
+bool Objects3DExplorer::showTooltip(Point3D coords, int color[])
+{
+    cout << "Adding sphere at (" << coords.x << ", " << coords.y << ", " << coords.z << ") " << endl;
+    Time::delay (0.5);
+    Bottle cmdVis, replyVis;
+    cmdVis.clear();	replyVis.clear();
+    cmdVis.addString("addSphere");
+    Bottle& bCoords = cmdVis.addList();
+    bCoords.addDouble(coords.x);
+    bCoords.addDouble(coords.y);
+    bCoords.addDouble(coords.z);
+    Bottle& bColor = cmdVis.addList();
+    bColor.addInt(color[0]);
+    bColor.addInt(color[1]);
+    bColor.addInt(color[2]);
+    cout << "Sending out  "<< cmdVis.toString() << endl;
+
+    rpcVisualizerPort.write(cmdVis,replyVis);
 
     return true;
 }
