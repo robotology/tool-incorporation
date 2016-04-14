@@ -390,7 +390,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             sendPointCloud(cloud_merged);
         }
 
-        cloud_model = cloud_merged;
+        *cloud_model = *cloud_merged;
+        cloudLoaded = true;
+
 
         reply.addString("[ack]");
         return true;
@@ -1221,7 +1223,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
             // Downsample to reduce size and fasten computation
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-
+            cout << " Cloud at angle " << degY << " reconstructed properly" << endl;
             sendPointCloud(cloud_rec_merged);
         }else{
             cout << " Cloud at angle " << degY << " couldnt be reconstructed properly" << endl;
@@ -1638,24 +1640,24 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         // normalize
         avgCloudKNNdist = accumCloudKNNdist/valPt;
 
-        // sendPointCloud(cloudA);
-        // Time::delay(1.0);
+        sendPointCloud(cloudA);
+        Time::delay(1.0);
 
-        // int blue[3] = {0,0,255};
-        // changeCloudColor(cloudB, blue );
-        // sendPointCloud(cloudB);
-        // Time::delay(1.0);
+        int blue[3] = {0,0,255};
+        changeCloudColor(cloudB, blue );
+        sendPointCloud(cloudB);
+        Time::delay(1.0);
 
-        // int green[3] = {0,255,0};
-        // changeCloudColor(cloudMirror, green);
-        // sendPointCloud(cloudMirror);
+        int green[3] = {0,255,0};
+        changeCloudColor(cloudMirror, green);
+        sendPointCloud(cloudMirror);
 
         // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudMirrorAndA (new pcl::PointCloud<pcl::PointXYZRGB> ());
         // *cloudMirrorAndA = *cloudA;
         // *cloudMirrorAndA += *cloudMirror;
         // sendPointCloud(cloudMirrorAndA);
         // Time::delay(3.0);
-        cout << "Average  distance between two sides of the symmetry plane " << plane_i << ", with eigenValue " <<  eigenValues[plane_i] << ", is " << sqrt(avgCloudKNNdist) << endl;
+        cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
 
 
         if (sqrt(avgCloudKNNdist) < minSymDist){
@@ -1677,7 +1679,7 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     // find the effector plane: shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
     eVs[symPlane_i]= 1e09;          // Make the value of symmetrical plane huge;
     float effEV = 1e08;
-    int effPlane_i= -1, hanPlane_i = -1;
+    int effPlane_i= -1;
     for (int eV = 0; eV< eVs.size();eV++)
     {
         if ((eVs[eV] < effEV) && (eV != symPlane_i)) {      // min egenvalue not of symmetry plane
