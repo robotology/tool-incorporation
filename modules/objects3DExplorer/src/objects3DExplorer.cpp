@@ -1660,6 +1660,7 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         // Split cloud into 2 point vectors (at each side of the plane_i).
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudA (new pcl::PointCloud<pcl::PointXYZRGB> ());
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudB (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudAB (new pcl::PointCloud<pcl::PointXYZRGB> ());
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudMirror (new pcl::PointCloud<pcl::PointXYZRGB> ());
         pcl::ExtractIndices<pcl::PointXYZRGB> eifilter (true); // Initializing with true will allow us to extract the removed indices
         eifilter.setInputCloud (cloud);
@@ -1723,13 +1724,14 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         // normalize
         avgCloudKNNdist = accumCloudKNNdist/valPt;
 
-        sendPointCloud(cloudA);
-        Time::delay(1.5);
 
+        // merge cloud A and B in cloud AB
         int blue[3] = {0,0,255};
         changeCloudColor(cloudB, blue );
-        sendPointCloud(cloudB);
-        Time::delay(1.5);
+        *cloudAB = *cloudA;
+        *cloudAB += *cloudB;
+        sendPointCloud(cloudAB);
+        Time::delay(2.5);
 
         //int green[3] = {0,255,0};
         //changeCloudColor(cloudMirror, green);
