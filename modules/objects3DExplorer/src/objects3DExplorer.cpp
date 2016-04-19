@@ -1165,8 +1165,12 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     }
 
     int context_arm;
+    int context_eye;
 
     iCartCtrl->storeContext(&context_arm);
+    if (followTool){
+        iGaze->storeContext(&context_eye);
+    }
 
     // intialize position and orientation matrices
     Matrix Rh(4,4);
@@ -1195,17 +1199,24 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     Vector od=dcm2axis(R);     // from rotation matrix back to the axis/angle notation
 
 
-    if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
+    //if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
 
 
     // move!
     if (followTool){
+        iGaze->blockEyes(5.0);
         iGaze->setTrackingMode(true);
         iGaze->lookAtFixationPoint(xd+offset);
     }
 
-    iCartCtrl->goToPoseSync(xd,od,1.0);
+    iCartCtrl->goToPoseSync(xd,od,2.0);
     iCartCtrl->waitMotionDone(0.1);
+
+    if (followTool){
+        iGaze->waitMotionDone(0.1);
+        iGaze->restoreContext(context_eye);
+        iGaze->deleteContext(context_eye);
+    }
 
     iCartCtrl->restoreContext(context_arm);
     iCartCtrl->deleteContext(context_arm);
@@ -1231,80 +1242,115 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Point2D seed;
 
+    cout << " ====================================== Starting Exploration  =======================================" <<endl;
+
     // Rotate tool in hand
     for (int degX = minX; degX<=maxX; degX += 20)
     {
+        cout << endl << endl << " ++++++++++++++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++++++++++++" << endl <<endl;
         // Move hand to new position
         turnHand(degX,minY);
         Time::delay(1.0);
 
-       // Get partial reconstruction
+        // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
-        if(getPointCloud(cloud_rec, seed)){
-            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
+        bool ok;
+        ok = getPointCloud(cloud_rec, seed);
+        if (!ok){
+            if ((seed.u>0)&&(seed.v>0)){     // Try to get cloud again, now that we have the current seed
+                cout << " trying rec with current seed." << endl;
+                Vector fixP(2);
+                fixP[0]= seed.u;
+                fixP[1]= seed.v;
+
+                iGaze->blockEyes(5.0);
+                iGaze->lookAtMonoPixel(0,fixP,0.5);
+                iGaze->waitMotionDone(0.1);
+
+                ok = getPointCloud(cloud_rec, seed);
+
+                if (!ok){                   // Try to get cloud again with default gaze (given by hand orientation only).
+                    cout << " trying rec with default gaze." << endl;
+                    turnHand(degX,minY,true);
+                    ok = getPointCloud(cloud_rec, seed);
+                }
+            }else{
+                cout << " Couldn't find a seed from depth. " << endl;
+                cout << " Trying rec with default gaze." << endl;
+                turnHand(degX,minY,true);
+                ok = getPointCloud(cloud_rec, seed);
+            }
+        }
+
+        if(ok){
+            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
             *cloud_rec_merged += *cloud_rec;
 
             // Downsample to reduce size and fasten computation
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-            cout << " Cloud at angle " << degX << " reconstructed properly" << endl;
+            cout << " Cloud at angle X" << degX << " reconstructed " << endl;
             sendPointCloud(cloud_rec_merged);
-            if ((seed.u>0)&&(seed.v>0)){
-                Vector fixP(2);                 // Choose point slightly over the seed point, to keep gaze up
-                if (seed.u>20)
-                    fixP[0]= seed.u- 20;
-                else
-                    fixP[0]= seed.u;
 
-                if (seed.v>20)
-                    fixP[1]= seed.v- 20;
-                else
-                    fixP[1]= seed.v;
-                iGaze->lookAtMonoPixel(0,fixP,0.5);
-            }
-
-        }else{
-            cout << " Cloud at angle X " << degX << " couldnt be reconstructed properly" << endl;
-            turnHand(degX,minY,true);
+        } else {
+            cout << " Could not reconstruct the cloud" << endl;
         }
+
     }
 
 
-    // Rotate tool in hand
+    // Rotate tool in hand around Y
     for (int degY = minY; degY<=maxY; degY += 20)
     {
+
+
+        cout << endl << endl << " ++++++++++++++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++++++++++++" << endl <<endl;
         // Move hand to new position
         turnHand(0,degY);
         Time::delay(1.0);
 
-       // Get partial reconstruction
+        // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
-        if(getPointCloud(cloud_rec, seed)){
-            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame
+        bool ok;
+        ok = getPointCloud(cloud_rec, seed);
+        if (!ok){
+            if ((seed.u>0)&&(seed.v>0)){     // Try to get cloud again, now that we have the current seed
+                cout << " trying rec with current seed." << endl;
+                Vector fixP(2);
+                fixP[0]= seed.u;
+                fixP[1]= seed.v;
+
+                iGaze->blockEyes(5.0);
+                iGaze->lookAtMonoPixel(0,fixP,0.5);
+                iGaze->waitMotionDone(0.1);
+
+                ok = getPointCloud(cloud_rec, seed);
+
+                if (!ok){                   // Try to get cloud again with default gaze (given by hand orientation only).
+                    cout << " trying rec with default gaze." << endl;
+                    turnHand(0,degY,true);
+                    ok = getPointCloud(cloud_rec, seed);
+                }
+            }else{
+                cout << " Couldn't find a seed from depth. " << endl;
+                cout << " Trying rec with default gaze." << endl;
+                turnHand(0,degY,true);
+                ok = getPointCloud(cloud_rec, seed);
+            }
+        }
+
+        if(ok){
+            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
             *cloud_rec_merged += *cloud_rec;
 
             // Downsample to reduce size and fasten computation
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-            cout << " Cloud at angle " << degY << " reconstructed properly" << endl;
+            cout << " Cloud at angleY" << degY << " reconstructed " << endl;
             sendPointCloud(cloud_rec_merged);
-            if ((seed.u>0)&&(seed.v>0)){
-                Vector fixP(2);                 // Choose point slightly over the seed point, to keep gaze up
-                if (seed.u>20)
-                    fixP[0]= seed.u- 20;
-                else
-                    fixP[0]= seed.u;
 
-                if (seed.v>20)
-                    fixP[1]= seed.v- 20;
-                else
-                    fixP[1]= seed.v;
-                iGaze->lookAtMonoPixel(0,fixP,0.5);
-            }
-
-        }else{
-            cout << " Cloud at angle Y " << degY << " couldnt be reconstructed properly" << endl;
-            turnHand(0,degY,true);
+        } else {
+            cout << " Could not reconstruct the cloud" << endl;
         }
     }
 
@@ -1355,7 +1401,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         //if (verbose){printf("Please click on seed point from the Disparity image. \n");}
     }
     rpcObjRecPort.write(cmdOR,replyOR);
-    cout<< "obj3Drec replied: " <<replyOR.toString() <<endl;
+    //cout<< "obj3Drec replied: " <<replyOR.toString() <<endl;
 
     seed.u= replyOR.get(1).asInt();
     seed.v= replyOR.get(2).asInt();
@@ -1372,16 +1418,10 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         return false;
     }
 
-    //cmdOR.clear();	replyOR.clear();
-    //cmdOR.addString("clear");
-    //rpcObjRecPort.write(cmdOR,replyOR);
-
     // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
     if (handFrame) {
-        printf("Transforming cloud to hand reference frame \n");
         //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
         frame2Hand(cloud_rec, cloud_rec);
-        printf("Cloud transformed to hand reference frame \n");
     }
 
     // Apply some filtering to clean the cloud
@@ -2282,10 +2322,10 @@ bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     H2R(0,3)= H2Rpos[0];
     H2R(1,3)= H2Rpos[1];
     H2R(2,3)= H2Rpos[2];
-    if (verbose){ printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());}
+    //if (verbose){ printf("Hand to robot transformatoin matrix (H2R):\n %s \n", H2R.toString().c_str());}
 
     Matrix R2H = SE3inv(H2R);    //inverse the affine transformation matrix from robot to hand
-    if (verbose){printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());}
+    //if (verbose){printf("Robot to Hand transformatoin matrix (R2H):\n %s \n", R2H.toString().c_str());}
 
     // Put Transformation matrix into Eigen Format
     Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(R2H);
@@ -2355,7 +2395,6 @@ bool Objects3DExplorer::showTooltip(Point3D coords, int color[])
     bColor.addInt(color[0]);
     bColor.addInt(color[1]);
     bColor.addInt(color[2]);
-    cout << "Sending out  "<< cmdVis.toString() << endl;
 
     rpcVisualizerPort.write(cmdVis,replyVis);
 
@@ -2395,7 +2434,6 @@ bool Objects3DExplorer::scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
 bool Objects3DExplorer::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, double res)
 {
     //if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
-    cout << "== Size before downsampling: " << cloud_orig->size () << endl;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::VoxelGrid<pcl::PointXYZRGB> vg;
@@ -2406,7 +2444,7 @@ bool Objects3DExplorer::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>:
     cloud_ds->clear();
     copyPointCloud(*cloud_fil, *cloud_ds);
 
-    if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
+    // if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
 
     return true;
 }
