@@ -35,10 +35,10 @@ https://github.com/robotology/icub-main/blob/master/src/modules/actionsRendering
 https://github.com/robotology/icub-main/blob/master/src/libraries/actionPrimitives/include/iCub/action/actionPrimitives.h
 http://wiki.icub.org/iCub/main/dox/html/module_documentation.html
 
-// XXX XXX This module deals with 3D object/tool exploration, partial reconstruction extraction, alignment, pose estimation, etc.
+// This module deals with 3D object/tool exploration, partial reconstruction extraction, alignment, pose estimation, etc.
 // - Provides some functions to explore an object in hand.
 // - Communicates with toolFeatExt for OMS-EGI feature extraction.
-// - Automatizes partial object recosntruction (communicating with obj3Drec), and alignment
+// - Automatizes partial object reconstruction (communicating with obj3Drec), and alignment
 // - Performs pose estimation from model using alignment.
 // - Computes tooltip from model and estimated pose
 **/
@@ -94,6 +94,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     //tooltip = Vector(4,0.0);
 
     //icp variables
+    // XX eeventually make this selectable by .ini or cmd line.
     icp_maxIt = 100;
     icp_maxCorr = 0.03;
     icp_ranORT = 0.05;

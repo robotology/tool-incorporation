@@ -4,12 +4,22 @@
 <module>
     <!-- module's name should match its executable file's name. -->
     <name>objects3DExplorer</name>
-    <description> Uses depth images to build 3D pointclouds from the object from different perspectives, and merges it to get a complete model.</description>
+    <description> This module deals with 3D object/tool exploration, partial reconstruction, alignment, pose estimation, etc..</description>
     <version>1.0</version>
 
     <!-- <arguments> can have multiple <param> tags-->
     <arguments>
-        <param desc="Name of the module" default="toolExplorer"> name</param>
+        <param desc="Name of the module" default="objects3DExplorer"> name</param>
+        <param desc="Robot" default="icub"> robot</param>
+        <param desc="Hand" default="right"> hand</param>
+        <param desc="Eye camera" default="left"> camera</param>
+        <param desc="Verbose ON/OFF" default="false"> verbose</param>
+
+        <param desc="Initial alignment with FPFH" default="true"> initAlign</param>
+        <param desc="Segmentation using 2D (true) or 3D (false)" default="false"> seg2D</param>
+        <param desc="Saving clouds" default="false"> saving</param>
+        <param desc="Root name of recorded clouds" default="cloud"> saveName</param>
+
         <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolModeler"> context </param>
     </arguments>
 
