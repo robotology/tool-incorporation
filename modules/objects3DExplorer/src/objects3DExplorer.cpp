@@ -1236,6 +1236,7 @@ bool Objects3DExplorer::lookAtTool(){
     else
         return false;
 
+    cout << " getting pose" << endl;
     Vector xH,oH;                                                   // Pose of the hand ref. frame
     iCartCtrl->getPose(xH,oH);
 
@@ -1243,13 +1244,18 @@ bool Objects3DExplorer::lookAtTool(){
     Matrix H2R=axis2dcm(oH);                                        // from axis/angle to rotation matrix notation
     H2R(0,3)= xH[0];    H2R(1,3)= xH[1];    H2R(2,3)= xH[2];        // Include translation
 
+    cout << " adding tooltip" << endl;
     // Define the tooltip initial guess w.r.t to hand frame:
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
+    xTH.resize(4);
+
     xTH[0] = 0.17;              // X
     xTH[1] = 0.-17;             // Y
     xTH[2] = 0.0;               // Z
+    xTH[3] = 1.0;               // Z
 
     // Transform point to robot coordinates:
+    cout << " transforming tt to robot frame" << endl;
     xTR = H2R * xTH;
 
     cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
@@ -1313,7 +1319,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     // Rotate tool in hand
     for (int degY = minY; degY<=maxY; degY += 20)
     {
-        cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++" << endl <<endl;
+        cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++" << endl <<endl;
         // Move hand to new position
         turnHand(0,degY);
         lookAtTool();
