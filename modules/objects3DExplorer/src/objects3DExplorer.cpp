@@ -1244,20 +1244,19 @@ bool Objects3DExplorer::lookAtTool(){
     Matrix H2R=axis2dcm(oH);                                        // from axis/angle to rotation matrix notation
     H2R(0,3)= xH[0];    H2R(1,3)= xH[1];    H2R(2,3)= xH[2];        // Include translation
 
-    cout << " adding tooltip" << endl;
+    cout << "hand pose is: " << endl  << H2R.toString() << endl;
+
     // Define the tooltip initial guess w.r.t to hand frame:
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
     xTH.resize(4);
 
     xTH[0] = 0.17;              // X
-    xTH[1] = 0.-17;             // Y
+    xTH[1] = -0.17;             // Y
     xTH[2] = 0.0;               // Z
     xTH[3] = 1.0;               // Z
 
     // Transform point to robot coordinates:
-    cout << " transforming tt to robot frame" << endl;
-    xTR = H2R * xTH;
-
+    xTR = xTH * H2R;
     cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
 
     iGaze->blockEyes(5.0);
@@ -1295,6 +1294,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         lookAtTool();
         Time::delay(1.0);
 
+ /*
         // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
@@ -1312,7 +1312,9 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         } else {
             cout << " Could not reconstruct the cloud" << endl;
         }
+*/
     }
+
     cout << endl << " + + FINISHED X ROTATION + + " << endl <<endl;
 
 
@@ -1325,6 +1327,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         lookAtTool();
         Time::delay(1.0);
 
+/*
         // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
@@ -1342,8 +1345,9 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         } else {
             cout << " Could not reconstruct the cloud" << endl;
         }
+*/
     }
-    cout << endl << " + + FINISHED X ROTATION + + " << endl <<endl;
+    cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
 
 }
 
