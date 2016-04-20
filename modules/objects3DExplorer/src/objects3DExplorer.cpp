@@ -1225,6 +1225,125 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 }
 
 /************************************************************************/
+bool Objects3DExplorer::lookAtTool(){
+    // Uses the knowledge of the kinematics of the arm to look on the direction of where the tool should be.
+    // The hand reference frame stays on the lower part of the image, while the orientation depends on the -Y axis.
+
+    if (hand=="left")
+        iCartCtrl=iCartCtrlL;
+    else if (hand=="right")
+        iCartCtrl=iCartCtrlR;
+    else
+        return false;
+
+    Vector xH,oH;                                                   // Pose of the hand ref. frame
+    iCartCtrl->getPose(xH,oH);
+
+    // Get transformation matrix
+    Matrix H2R=axis2dcm(oH);                                        // from axis/angle to rotation matrix notation
+    H2R(0,3)= xH[0];    H2R(1,3)= xH[1];    H2R(2,3)= xH[2];        // Include translation
+
+    // Define the tooltip initial guess w.r.t to hand frame:
+    Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
+    xTH[0] = 0.17;              // X
+    xTH[1] = 0.-17;             // Y
+    xTH[2] = 0.0;               // Z
+
+    // Transform point to robot coordinates:
+    xTR = H2R * xTH;
+
+    cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
+
+    iGaze->blockEyes(5.0);
+    iGaze->lookAtFixationPoint(xTR);
+    iGaze->waitMotionDone();
+
+    return true;
+
+
+}
+
+bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
+{
+    // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
+    cloud_rec_merged->points.clear();
+
+    int minX = -70;
+    int maxX = 70;
+
+    int minY = -40;
+    int maxY = 60;
+
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    Point2D seed;
+
+    cout << " ====================================== Starting Exploration  =======================================" <<endl;
+
+    // Rotate tool in hand
+    for (int degX = minX; degX<=maxX; degX += 20)
+    {
+        cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++" << endl <<endl;
+        // Move hand to new position
+        turnHand(degX,minY);
+        lookAtTool();
+        Time::delay(1.0);
+
+        // Get partial reconstruction
+        cloud_rec->points.clear();
+        cloud_rec->clear();
+
+        // If cloud was found by any of the prrevious methods
+        if(getPointCloud(cloud_rec, seed)){
+            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
+            *cloud_rec_merged += *cloud_rec;
+
+            // Downsample to reduce size and fasten computation
+            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+            cout << " Cloud at angle X" << degX << " reconstructed " << endl;
+            sendPointCloud(cloud_rec_merged);
+
+        } else {
+            cout << " Could not reconstruct the cloud" << endl;
+        }
+    }
+    cout << endl << " + + FINISHED X ROTATION + + " << endl <<endl;
+
+
+    // Rotate tool in hand
+    for (int degY = minY; degY<=maxY; degY += 20)
+    {
+        cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++" << endl <<endl;
+        // Move hand to new position
+        turnHand(0,degY);
+        lookAtTool();
+        Time::delay(1.0);
+
+        // Get partial reconstruction
+        cloud_rec->points.clear();
+        cloud_rec->clear();
+
+        // If cloud was found by any of the prrevious methods
+        if(getPointCloud(cloud_rec, seed)){
+            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
+            *cloud_rec_merged += *cloud_rec;
+
+            // Downsample to reduce size and fasten computation
+            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+            cout << " Cloud at angle Y" << degY << " reconstructed " << endl;
+            sendPointCloud(cloud_rec_merged);
+
+        } else {
+            cout << " Could not reconstruct the cloud" << endl;
+        }
+    }
+    cout << endl << " + + FINISHED X ROTATION + + " << endl <<endl;
+
+}
+
+
+/************************************************************************/
+/*
 bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
 {
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
@@ -1367,7 +1486,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
     return true;
 }
-
+*/
 
 /************************************************************************/
 /*
