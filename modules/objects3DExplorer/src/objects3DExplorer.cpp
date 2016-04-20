@@ -1257,32 +1257,37 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         cloud_rec->clear();
         bool ok;
         ok = getPointCloud(cloud_rec, seed);
-        if (!ok){
-            if ((seed.u>0)&&(seed.v>0)){     // Try to get cloud again, now that we have the current seed
-                cout << " trying rec with current seed." << endl;
-                Vector fixP(2);
-                fixP[0]= seed.u;
-                fixP[1]= seed.v;
 
-                iGaze->blockEyes(5.0);
-                iGaze->lookAtMonoPixel(0,fixP,0.5);
-                iGaze->waitMotionDone(0.1);
+        // If seed has been found, look at it (for next gaze or for retry)
+        if ((seed.u>0)&&(seed.v>0)){
 
-                ok = getPointCloud(cloud_rec, seed);
+            cout << "Moving gaze to new seed" << endl;
+            Vector fixP(2);
+            fixP[0]= seed.u;
+            fixP[1]= seed.v;
 
-                if (!ok){                   // Try to get cloud again with default gaze (given by hand orientation only).
-                    cout << " trying rec with default gaze." << endl;
-                    turnHand(degX,minY,true);
+            iGaze->blockEyes(5.0);
+            iGaze->lookAtMonoPixel(0,fixP,0.5);
+            iGaze->waitMotionDone(0.1);
+
+            if (!ok){                           // Try to get cloud again, now that we have the current seed
+                    cout << " re-trying rec with current seed." << endl;
                     ok = getPointCloud(cloud_rec, seed);
-                }
-            }else{
-                cout << " Couldn't find a seed from depth. " << endl;
-                cout << " Trying rec with default gaze." << endl;
-                turnHand(degX,minY,true);
-                ok = getPointCloud(cloud_rec, seed);
             }
+
+        // Otherwise try default gaze (given by hand orientation only).
+        }else{
+            cout << " Couldn't find a seed from depth. " << endl;
+            cout << " Moving gaze default position seed" << endl;
+            turnHand(degX,minY,true);
+
+            if(!ok){
+                cout << " re-trying rec with default gaze." << endl;
+                ok = getPointCloud(cloud_rec, seed);}
         }
 
+
+        // If cloud was found by any of the prrevious methods
         if(ok){
             // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
             *cloud_rec_merged += *cloud_rec;
@@ -1314,30 +1319,34 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         cloud_rec->clear();
         bool ok;
         ok = getPointCloud(cloud_rec, seed);
-        if (!ok){
-            if ((seed.u>0)&&(seed.v>0)){     // Try to get cloud again, now that we have the current seed
-                cout << " trying rec with current seed." << endl;
-                Vector fixP(2);
-                fixP[0]= seed.u;
-                fixP[1]= seed.v;
 
-                iGaze->blockEyes(5.0);
-                iGaze->lookAtMonoPixel(0,fixP,0.5);
-                iGaze->waitMotionDone(0.1);
 
-                ok = getPointCloud(cloud_rec, seed);
+        // If seed has been found, look at it (for next gaze or for retry)
+        if ((seed.u>0)&&(seed.v>0)){
 
-                if (!ok){                   // Try to get cloud again with default gaze (given by hand orientation only).
-                    cout << " trying rec with default gaze." << endl;
-                    turnHand(0,degY,true);
+            cout << "Moving gaze to new seed" << endl;
+            Vector fixP(2);
+            fixP[0]= seed.u;
+            fixP[1]= seed.v;
+
+            iGaze->blockEyes(5.0);
+            iGaze->lookAtMonoPixel(0,fixP,0.5);
+            iGaze->waitMotionDone(0.1);
+
+            if (!ok){                           // Try to get cloud again, now that we have the current seed
+                    cout << " re-trying rec with current seed." << endl;
                     ok = getPointCloud(cloud_rec, seed);
-                }
-            }else{
-                cout << " Couldn't find a seed from depth. " << endl;
-                cout << " Trying rec with default gaze." << endl;
-                turnHand(0,degY,true);
-                ok = getPointCloud(cloud_rec, seed);
             }
+
+        // Otherwise try default gaze (given by hand orientation only).
+        }else{
+            cout << " Couldn't find a seed from depth. " << endl;
+            cout << " Moving gaze default position seed" << endl;
+            turnHand(0,degY,true);
+
+            if(!ok){
+                cout << " re-trying rec with default gaze." << endl;
+                ok = getPointCloud(cloud_rec, seed);}
         }
 
         if(ok){
