@@ -1067,20 +1067,26 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 {
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
     cloud_rec_merged->points.clear();
-
-    int minX = -70;
-    int maxX = 70;
-
-    int minY = -40;
-    int maxY = 60;
-
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Point2D seed;
 
+    // Get inital cloud model on central orientation
+    turnHand(0,0);
+    lookAtTool();
+    bool ok = false;
+    while(!ok){          // Keep on getting clouds until one is valid (should be the first)
+        getPointCloud(cloud_rec_merged, seed);
+        lookAround();
+    }
+
     cout << " ====================================== Starting Exploration  =======================================" <<endl;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    Eigen::Matrix4f alignMatrix;
 
     // Rotate tool in hand
+    bool cloudInit = false;
+    int minX = -70, maxX = 70;
+    int minY = -40, maxY = 60;
     for (int degX = minX; degX<=maxX; degX += 20)
     {
         cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++" << endl <<endl;
@@ -1096,7 +1102,16 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         // If cloud was found by any of the prrevious methods
         if(getPointCloud(cloud_rec, seed)){
             // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-            *cloud_rec_merged += *cloud_rec;
+            //*cloud_rec_merged += *cloud_rec;
+
+            // Align new reconstructions to model so far.
+            if (!cloudInit){
+                *cloud_rec_merged += *cloud_rec;
+                cloudInit = true;
+            }else{
+                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
+                *cloud_rec_merged += *cloud_aligned;
+            }
 
             // Downsample to reduce size and fasten computation
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
@@ -1221,9 +1236,9 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
      // ... and removing outliers
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; //filter to remove outliers
-    sor.setStddevMulThresh (1.0);
+    sor.setStddevMulThresh (3.0);
     sor.setInputCloud (cloud_rec);
-    sor.setMeanK(cloud_rec->size()/2);
+    sor.setMeanK(10);
     sor.filter (*cloud_rec);
 
     // Remove hand (all points within 6 cm from origin)
@@ -1419,10 +1434,12 @@ bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pos
 }
 
 /*************************************************************************/
-bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,  Point3D& ttSym, int K)
+bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw,  Point3D& ttSym, int K)
 {
 
-    // XXX Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
+    // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    downsampleCloud(cloud_raw, cloud, 0.005);
 
     // 1- Find the Major axes of the cloud -> Find major planes as normal to those vectors
     pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
