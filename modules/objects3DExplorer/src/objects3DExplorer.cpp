@@ -30,10 +30,6 @@ using namespace iCub::YarpCloud;
 @ingroup icub_module
 \defgroup icub_objects3DExplorer objects3DExplorer
 
-Finish doxygen docu: Use this as examples/templates:
-https://github.com/robotology/icub-main/blob/master/src/modules/actionsRenderingEngine/src/main.cpp
-https://github.com/robotology/icub-main/blob/master/src/libraries/actionPrimitives/include/iCub/action/actionPrimitives.h
-http://wiki.icub.org/iCub/main/dox/html/module_documentation.html
 
 // This module deals with 3D object/tool exploration, partial reconstruction extraction, alignment, pose estimation, etc.
 // - Provides some functions to explore an object in hand.
@@ -282,38 +278,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 	string receivedCmd = command.get(0).asString().c_str();
 	int responseCode;   //Will contain Vocab-encoded response
 
-
-
-    /****   FUNCTION CALLS   ***/
-    /******************************************************************************/
-    /*if (receivedCmd == "exploreAuto"){
-        // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
-        bool ok = exploreAutomatic();
-        if (ok){
-            reply.addString("[ack]");
-            return true;
-        } else {
-            fprintf(stdout,"Couldnt obtain 3D model successfully. \n");
-            reply.addString("[nack] Couldnt obtain 3D model successfully.");
-            return false;
-        }
-    */
-    /*
-    }else if (receivedCmd == "exploreInt"){
-        // Moves the tool in different direction to obtain different points of view and extracts corresponding partial pointclouds.
-        bool ok = exploreInteractive();
-        if (ok){
-            reply.addString("[ack]");
-            return true;
-        } else {
-            fprintf(stdout,"There was an error during the interactive exploration. \n");
-            reply.addString("[nack] There was an error during the interactive exploration. ");
-            return false;
-        }
-
-    }else
-    */
-
     if (receivedCmd == "turnHand"){
 		// Turn the hand 'int' degrees, or go to 0 if no parameter was given.
 		int rotDegX = 0;
@@ -325,7 +289,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             rotDegX = command.get(2).asInt();
 		}			
 
-        bool ok = turnHand(rotDegX, rotDegY, true);
+        bool ok = turnHand(rotDegX, rotDegY);
         if (ok){
             reply.addString("[ack]");
             return true;
@@ -335,6 +299,16 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
   		    return false;
 		}
 
+    }else if (receivedCmd == "lookAtTool"){
+        bool ok = lookAtTool();
+        if (ok){
+            reply.addString("[ack]");
+            return true;
+        } else {
+            fprintf(stdout,"Couldnt look at the tool. \n");
+            reply.addString("[nack] Couldnt look at the tool." );
+            return false;
+        }
 
     }else if (receivedCmd == "loadCloud"){
         string cloud_file_name = command.get(1).asString();
@@ -838,7 +812,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;
         }
         else {
-            fprintf(stdout,"2DSegmentation can only be set to ON or OFF. \n");
+            fprintf(stdout,"2D Segmentation can only be set to ON or OFF. \n");
             reply.addString("[nack] Verbose can only be set to ON or OFF.");
             return false;
         }
@@ -901,6 +875,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
         reply.addString("exploreTool - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
         reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
+        reply.addString("lookAtTool - Moves gaze to look where the tooltip is (or a guess if it is not defined).");
 
         reply.addString("---------- GET POSE -----------");
         reply.addString("findPoseAlign - Find the actual grasp by comparing the actual registration to the given model of the tool.");
@@ -1256,7 +1231,7 @@ bool Objects3DExplorer::lookAtTool(){
     xTH[3] = 1.0;               // Z
 
     // Transform point to robot coordinates:
-    xTR = xTH * H2R;
+    xTR = H2R * xTH;
     cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
 
     iGaze->blockEyes(5.0);
