@@ -1228,7 +1228,7 @@ bool Objects3DExplorer::lookAtTool(){
     xTH[0] = 0.17;              // X
     xTH[1] = -0.17;             // Y
     xTH[2] = 0.0;               // Z
-    xTH[3] = 1.0;               // Z
+    xTH[3] = 1.0;               // T
 
     // Transform point to robot coordinates:
     xTR = H2R * xTH;
@@ -1269,7 +1269,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         lookAtTool();
         Time::delay(1.0);
 
- /*
         // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
@@ -1287,7 +1286,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         } else {
             cout << " Could not reconstruct the cloud" << endl;
         }
-*/
     }
 
     cout << endl << " + + FINISHED X ROTATION + + " << endl <<endl;
@@ -1302,7 +1300,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         lookAtTool();
         Time::delay(1.0);
 
-/*
         // Get partial reconstruction
         cloud_rec->points.clear();
         cloud_rec->clear();
@@ -1320,7 +1317,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         } else {
             cout << " Could not reconstruct the cloud" << endl;
         }
-*/
     }
     cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
 
