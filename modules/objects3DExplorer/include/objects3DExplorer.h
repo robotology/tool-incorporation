@@ -81,6 +81,7 @@ protected:
     yarp::dev::ICartesianControl        *iCartCtrlL;
     yarp::dev::ICartesianControl        *iCartCtrlR;
     yarp::dev::ICartesianControl        *iCartCtrl;
+    yarp::dev::ICartesianControl        *otherHandCtrl;
 
     // config variables
     std::string                         hand;

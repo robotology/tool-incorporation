@@ -194,6 +194,14 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     driverL.view(iCartCtrlL);
     driverR.view(iCartCtrlR);
 
+    if (hand=="left"){
+        iCartCtrl=iCartCtrlL;
+        otherHandCtrl=iCartCtrlR;}
+    else if (hand=="right"){
+        iCartCtrl=iCartCtrlR;
+        otherHandCtrl=iCartCtrlL;}
+    else
+        return false;
 
     iGaze->setSaccadesMode(false);
     if (robot == "icubSim"){
@@ -944,12 +952,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 /************************************************************************/
 bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const bool followTool)
 {
-    if (hand=="left")
-        iCartCtrl=iCartCtrlL;
-    else if (hand=="right")
-        iCartCtrl=iCartCtrlR;
-    else
-        return false;
 
     if ((rotDegY > 70 ) || (rotDegY < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
         printf("Rotation out of operational limits. \n");
@@ -991,25 +993,39 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     Vector od=dcm2axis(R);     // from rotation matrix back to the axis/angle notation
 
 
-    //if (verbose){	printf("Orientation vector matrix is:\n %s \n", od.toString().c_str());	}
+    iCartCtrl->goToPoseSync(xd,od,1.0);
 
+    /********************************/
+    // Look at the desired tool position
 
-    // move!
-    if (followTool){
-        iGaze->blockEyes(5.0);
-        iGaze->setTrackingMode(true);
-        iGaze->lookAtFixationPoint(xd+offset);
+    R(0,3)= xd[0];    R(1,3)= xd[1];    R(2,3)= xd[2];        // Include translation
+
+    // Define the tooltip initial guess w.r.t to hand frame:
+    Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
+    xTH.resize(4);
+
+    if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
+        // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
+        xTH[0] = 0.17;              // X
+        xTH[1] = -0.17;             // Y
+        xTH[2] = 0.0;               // Z
+        xTH[3] = 1.0;               // T
+    }else {
+        xTH[0] = tooltip.x;         // X
+        xTH[1] = tooltip.y;         // Y
+        xTH[2] = tooltip.z;         // Z
+        xTH[3] = 1.0;               // T
     }
 
-    iCartCtrl->goToPoseSync(xd,od,2.0);
+    // Transform point to robot coordinates:
+    xTR = R * xTH;
+    cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
+
+    iGaze->blockEyes(5.0);
+    iGaze->lookAtFixationPoint(xTR);
+    iGaze->waitMotionDone(0.1);
+
     iCartCtrl->waitMotionDone(0.1);
-
-    if (followTool){
-        iGaze->waitMotionDone(0.1);
-        iGaze->restoreContext(context_eye);
-        iGaze->deleteContext(context_eye);
-    }
-
     iCartCtrl->restoreContext(context_arm);
     iCartCtrl->deleteContext(context_arm);
 
@@ -1020,13 +1036,6 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 bool Objects3DExplorer::lookAtTool(){
     // Uses the knowledge of the kinematics of the arm to look on the direction of where the tool should be.
     // The hand reference frame stays on the lower part of the image, while the orientation depends on the -Y axis.
-
-    if (hand=="left")
-        iCartCtrl=iCartCtrlL;
-    else if (hand=="right")
-        iCartCtrl=iCartCtrlR;
-    else
-        return false;
 
     Vector xH,oH;                                                   // Pose of the hand ref. frame
     iCartCtrl->getPose(xH,oH);
@@ -1069,30 +1078,42 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     cloud_rec_merged->points.clear();
     Point2D seed;
 
+    // Move not exploring hand out of the way:
+    Vector away;
+    away.resize(3);
+    away[0] = -0.05;
+    away[1] = (hand=="left")?0.2:-0.2;
+    away[2] = -0.1;
+
+    otherHandCtrl->goToPose(away);
+
+
     // Get inital cloud model on central orientation
     turnHand(0,0);
-    lookAtTool();
+    //lookAtTool();
     bool ok = false;
     while(!ok){          // Keep on getting clouds until one is valid (should be the first)
-        getPointCloud(cloud_rec_merged, seed);
+        ok = getPointCloud(cloud_rec_merged, seed);
         lookAround();
     }
+    sendPointCloud(cloud_rec_merged);
 
     cout << " ====================================== Starting Exploration  =======================================" <<endl;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Eigen::Matrix4f alignMatrix;
+    Eigen::Matrix4f poseMatrix;
 
     // Rotate tool in hand
-    bool cloudInit = false;
+    bool mergeAlign = true;            // XXX make rpc selectable
     int minX = -70, maxX = 70;
     int minY = -40, maxY = 60;
-    for (int degX = minX; degX<=maxX; degX += 20)
+    for (int degX = minX; degX<=maxX; degX += 40)
     {
         cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++" << endl <<endl;
         // Move hand to new position
         turnHand(degX,minY);
-        lookAtTool();
+        //lookAtTool();
         Time::delay(1.0);
 
         // Get partial reconstruction
@@ -1101,16 +1122,18 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         // If cloud was found by any of the prrevious methods
         if(getPointCloud(cloud_rec, seed)){
-            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-            //*cloud_rec_merged += *cloud_rec;
-
-            // Align new reconstructions to model so far.
-            if (!cloudInit){
+            if (!mergeAlign){
+                // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
                 *cloud_rec_merged += *cloud_rec;
-                cloudInit = true;
             }else{
+                // Align new reconstructions to model so far.
                 alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
-                *cloud_rec_merged += *cloud_aligned;
+                poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
+                Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
+                bool poseValid = checkGrasp(pose);
+
+                if (poseValid)
+                    *cloud_rec_merged += *cloud_aligned;
             }
 
             // Downsample to reduce size and fasten computation
@@ -1127,12 +1150,12 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
 
     // Rotate tool in hand
-    for (int degY = minY; degY<=maxY; degY += 20)
+    for (int degY = minY; degY<=maxY; degY += 25)
     {
         cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++" << endl <<endl;
         // Move hand to new position
         turnHand(0,degY);
-        lookAtTool();
+        //lookAtTool();
         Time::delay(1.0);
 
         // Get partial reconstruction
@@ -1141,8 +1164,19 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         // If cloud was found by any of the prrevious methods
         if(getPointCloud(cloud_rec, seed)){
-            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-            *cloud_rec_merged += *cloud_rec;
+            if (!mergeAlign){
+                // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
+                *cloud_rec_merged += *cloud_rec;
+            }else{
+                // Align new reconstructions to model so far.
+                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
+                poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
+                Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
+                bool poseValid = checkGrasp(pose);
+
+                if (poseValid)
+                    *cloud_rec_merged += *cloud_aligned;
+            }
 
             // Downsample to reduce size and fasten computation
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
@@ -1164,16 +1198,11 @@ bool Objects3DExplorer::lookAround()
     Vector fp,fp_aux(3,0.0);
     iGaze->getFixationPoint(fp);
     printf("Looking at %.2f, %.2f, %.2f \n", fp[0], fp[1], fp[2] );
-    for (int g = 1; g<6; g++)
-    {
-        fp_aux[0] = fp[0] + Rand::scalar(-0.02,0.02);
-        fp_aux[1] = fp[1] + Rand::scalar(-0.04,0.04);
-        fp_aux[2] = fp[2] + Rand::scalar(-0.02,0.02);
-        printf("Around Looking at %.2f, %.2f, %.2f \n", fp_aux[0], fp_aux[1], fp_aux[2] );
-        iGaze->lookAtFixationPoint(fp_aux);
-        iGaze->waitMotionDone(0.05);
-    }
-    if (verbose){	printf("Looking around done \n");	}
+    fp_aux[0] = fp[0] + Rand::scalar(-0.02,0.02);
+    fp_aux[1] = fp[1] + Rand::scalar(-0.04,0.04);
+    fp_aux[2] = fp[2] + Rand::scalar(-0.02,0.02);
+    iGaze->lookAtFixationPoint(fp_aux);
+    iGaze->waitMotionDone(0.05);
 
     return true;
 }
@@ -1325,7 +1354,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
 
         if (!alignWithScale(cloud_rec, modelCloud, cloud_aligned, alignMatrix, 0.7, 1.3))
         //if (!alignPointClouds(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
-        return false;
+            return false;
 
         // Inverse the alignment to find tool pose
         poseMatrix = alignMatrix.inverse();
@@ -2081,13 +2110,6 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
 /************************************************************************/
 bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
 {   // Normalizes the frame of the point cloud from the robot frame (as acquired) to the hand frame.
-
-    if (hand=="left")
-        iCartCtrl=iCartCtrlL;
-    else if (hand=="right")
-        iCartCtrl=iCartCtrlR;
-    else
-        return false;
 
     // Transform (translate-rotate) the pointcloud by inverting the hand pose
     Vector H2Rpos, H2Ror;
