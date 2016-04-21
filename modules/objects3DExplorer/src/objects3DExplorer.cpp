@@ -45,6 +45,9 @@ using namespace iCub::YarpCloud;
 
 bool Objects3DExplorer::configure(ResourceFinder &rf)
 {
+    cout << endl <<"\nInitializing variables... " << endl;
+
+    // External variables -- Modifieable by command line or ini file
     string name = rf.check("name",Value("objects3DExplorer")).asString().c_str();
     robot = rf.check("robot",Value("icub")).asString().c_str();
     string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
@@ -64,15 +67,14 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     string defSaveDir = "/saveModels";
     string cloudsSaveDir = rf.check("save")?rf.find("save").asString().c_str():defSaveDir;
     if (cloudsSaveDir[0]!='/')
-        cloudsSaveDir="/"+cloudsSaveDir;
-    cloudsPathTo="."+cloudsSaveDir;
-
+        cloudsSaveDir = "/"+cloudsSaveDir;
+    cloudsPathTo = "."+cloudsSaveDir;
     yarp::os::mkdir_p(cloudsPathTo.c_str());            // Create the save folder if it didnt exist
 
     printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
     printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
 
-    // External variables -- Modifieable by command line or ini file
+
     hand = rf.check("hand", Value("right")).asString();
     camera = rf.check("camera", Value("left")).asString();    
     verbose = rf.check("verbose", Value(true)).asBool();
@@ -84,21 +86,31 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     saveName = rf.check("saveName", Value("cloud")).asString();         // Sets the root name to save recorded clouds
 
     // Flow control variables
+    closing = false;
+    numCloudsSaved = 0;
+    NO_FILENUM = -1;
     cloudLoaded = false;
     poseFound  = false;
     toolPose = eye(4);
-    //tooltip = Vector(4,0.0);
+    tooltip.x = 0.0; tooltip.y = 0.0; tooltip.z = 0.0;
+    tooltipCanon = tooltip;
 
     //icp variables
-    // XX eeventually make this selectable by .ini or cmd line.
+    // XXX eventually make this selectable by .ini or cmd line.
     icp_maxIt = 100;
     icp_maxCorr = 0.03;
     icp_ranORT = 0.05;
     icp_transEp = 1e-6;
 
+    // Noise generation variables
     noise_mean = 0.0;
     noise_sigma = 0.003;
 
+
+    // Clouds
+    cloud_temp = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());  // Point cloud
+    cloud_model = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ()); // Point cloud
+    cloud_pose = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());  // Point cloud
 
     //ports
     bool ret = true;
@@ -187,22 +199,12 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     if (robot == "icubSim"){
             iGaze->setNeckTrajTime(1.5);
             iGaze->setEyesTrajTime(0.5);
-            iGaze->blockEyes(0.0);
+            iGaze->blockEyes(5.0);
     }else{
             iGaze->setNeckTrajTime(1.5);
             iGaze->setEyesTrajTime(0.5);
-            iGaze->blockEyes(0.0);
+            iGaze->blockEyes(5.0);
     }
-
-    printf("\nInitializing variables... \n");
-
-    closing = false;    
-    numCloudsSaved = 0;
-    NO_FILENUM = -1;
-
-    cloud_temp = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());  // Point cloud
-    cloud_model = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ()); // Point cloud
-    cloud_pose = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());  // Point cloud
 
     cout << endl << "Configuring done." << endl;
 
@@ -278,84 +280,53 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 	string receivedCmd = command.get(0).asString().c_str();
 	int responseCode;   //Will contain Vocab-encoded response
 
-    if (receivedCmd == "turnHand"){
-		// Turn the hand 'int' degrees, or go to 0 if no parameter was given.
-		int rotDegX = 0;
-		int rotDegY = 0;
-		if (command.size() == 2){
-			rotDegY = command.get(1).asInt();
-		} else if  (command.size() == 3){			
-            rotDegY = command.get(1).asInt();
-            rotDegX = command.get(2).asInt();
-		}			
+    //================================= GET MODEL COMMANDS ================================
 
-        bool ok = turnHand(rotDegX, rotDegY);
-        if (ok){
+    if (receivedCmd == "loadCloud"){
+            string cloud_file_name = command.get(1).asString();
+            cout << "Attempting to load " << (cloudsPathFrom + cloud_file_name).c_str() << "... "<< endl;
+
+            // load cloud to be displayed
+            if (!CloudUtils::loadCloud(cloudsPathFrom, cloud_file_name, cloud_model))  {
+                std::cout << "Error loading point cloud " << cloud_file_name.c_str() << endl << endl;
+                return false;
+            }
+
+            cout << "cloud of size "<< cloud_model->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
+
+            saveName = cloud_file_name;
+            cloudLoaded = true;
+            poseFound = false;
+
+            // Display the loaded cloud
+            sendPointCloud(cloud_model);
             reply.addString("[ack]");
             return true;
-        } else {
-            fprintf(stdout,"Couldnt go to the desired position. \n");
-            reply.addString("[nack] Couldnt go to the desired position." );
-  		    return false;
-		}
-
-    }else if (receivedCmd == "lookAtTool"){
-        bool ok = lookAtTool();
-        if (ok){
-            reply.addString("[ack]");
-            return true;
-        } else {
-            fprintf(stdout,"Couldnt look at the tool. \n");
-            reply.addString("[nack] Couldnt look at the tool." );
-            return false;
-        }
-
-    }else if (receivedCmd == "loadCloud"){
-        string cloud_file_name = command.get(1).asString();
-        cout << "Attempting to load " << (cloudsPathFrom + cloud_file_name).c_str() << "... "<< endl;
-
-        // load cloud to be displayed
-        if (!CloudUtils::loadCloud(cloudsPathFrom, cloud_file_name, cloud_model))  {
-            std::cout << "Error loading point cloud " << cloud_file_name.c_str() << endl << endl;
-            return false;
-        }
-
-        cout << "cloud of size "<< cloud_model->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
-
-        saveName = cloud_file_name;
-        cloudLoaded = true;
-        poseFound = false;
 
 
-        // Display the loaded cloud
-        sendPointCloud(cloud_model);
-        reply.addString("[ack]");
-        return true;
-
-
-
-	}else if (receivedCmd == "get3D"){
-        // segment object and get the pointcloud using objectReconstrucor module save it in file or array        
+    }else if (receivedCmd == "get3D"){
+        // segment object and get the pointcloud using objectReconstrucor module save it in file or array
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
         Point2D seed;
         bool ok = getPointCloud(cloud_rec, seed);
 
-        if (ok) {            
+        if (ok) {
+
+            if (!cloudLoaded){
+                 cloud_model = cloud_rec;
+                 cloudLoaded = true;
+            }
             sendPointCloud(cloud_rec);
 
         } else {
-		    fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
+            fprintf(stdout,"Couldnt reconstruct pointcloud. \n");
             reply.addString("[nack] Couldnt reconstruct pointcloud. ");
-		    return false;
-        }
-
-        if (!cloudLoaded){
-             cloud_model = cloud_rec;
-             cloudLoaded = true;
+            return false;
         }
 
         reply.addString("[ack]");
         return true;
+
 
     }else if (receivedCmd == "exploreTool"){
 
@@ -370,10 +341,46 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         cloudLoaded = true;
         poseFound = true;
 
-
         reply.addString("[ack]");
         return true;
 
+
+    }else if (receivedCmd == "turnHand"){
+            // Turn the hand 'int' degrees, or go to 0 if no parameter was given.
+            int rotDegX = 0;
+            int rotDegY = 0;
+            if (command.size() == 2){
+                rotDegY = command.get(1).asInt();
+            } else if  (command.size() == 3){
+                rotDegY = command.get(1).asInt();
+                rotDegX = command.get(2).asInt();
+            }
+
+            bool ok = turnHand(rotDegX, rotDegY);
+            if (ok){
+                reply.addString("[ack]");
+                return true;
+            } else {
+                fprintf(stdout,"Couldnt go to the desired position. \n");
+                reply.addString("[nack] Couldnt go to the desired position." );
+                return false;
+            }
+
+
+    }else if (receivedCmd == "lookAtTool"){
+        bool ok = lookAtTool();
+        if (ok){
+            reply.addString("[ack]");
+            return true;
+        } else {
+            fprintf(stdout,"Couldnt look at the tool. \n");
+            reply.addString("[nack] Couldnt look at the tool." );
+            return false;
+        }
+
+
+
+//================================= POSE COMMANDS ================================
 
     }else if (receivedCmd == "findPoseAlign"){
         // Check if model is loaded, else return false
@@ -431,9 +438,110 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         sendPointCloud(cloud_pose);
 
         reply.addString("[ack]");
-
         return true;
 
+
+    }else if (receivedCmd == "alignFromFiles"){
+
+       // Clear visualizer
+       Bottle cmdVis, replyVis;
+       cmdVis.clear();	replyVis.clear();
+       cmdVis.addString("clearVis");
+       rpcVisualizerPort.write(cmdVis,replyVis);
+
+       string cloud_from_name = command.get(1).asString();
+       string cloud_to_name = command.get(2).asString();
+
+       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from (new pcl::PointCloud<pcl::PointXYZRGB> ());
+       cloud_from->clear();
+       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to (new pcl::PointCloud<pcl::PointXYZRGB> ());
+       cloud_to->clear();
+
+       // load cloud to be aligned
+       cout << "Attempting to load " << (cloudsPathFrom + cloud_from_name).c_str() << "... "<< endl;
+       if (CloudUtils::loadCloud(cloudsPathFrom, cloud_from_name, cloud_from))  {
+           cout << "cloud of size "<< cloud_from->points.size() << " points loaded from "<< cloud_from_name.c_str() << endl;
+       } else{
+           std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;
+           return false;
+       }
+
+       Time::delay(1.0);
+       int blue[3] = {0,0,255};    // Plot partial view blue
+       addNoise(cloud_from, noise_mean , noise_sigma);
+       changeCloudColor(cloud_from, blue);
+       sendPointCloud(cloud_from);
+
+       // Set accumulator mode.
+       cmdVis.clear();	replyVis.clear();
+       cmdVis.addString("accumClouds");
+       cmdVis.addInt(1);
+       rpcVisualizerPort.write(cmdVis,replyVis);
+
+       // load model cloud to align to
+       cout << "Attempting to load " << (cloudsPathFrom + cloud_to_name).c_str() << "... "<< endl;
+       if (CloudUtils::loadCloud(cloudsPathFrom, cloud_to_name, cloud_to))  {
+           cout << "cloud of size "<< cloud_to->points.size() << " points loaded from" <<cloud_to_name.c_str() << endl;
+       } else{
+           std::cout << "Error loading point cloud " << cloud_to_name.c_str() << endl << endl;
+           return false;
+       }
+
+       Time::delay(1.0);
+       sendPointCloud(cloud_to);
+       findTooltipCanon(cloud_to, tooltipCanon);
+
+       // Show clouds original position
+       Eigen::Matrix4f alignMatrix;
+       Eigen::Matrix4f poseMatrix;
+       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+
+       // Find cloud alignment
+       alignWithScale(cloud_from, cloud_to, cloud_aligned, alignMatrix, 0.7, 1.3);
+       //alignPointClouds(cloud_from, cloud_to, cloud_aligned, alignMatrix);
+
+       // Compute pose matrix as inverse of alignment, and display model on view pose.
+       poseMatrix = alignMatrix.inverse();
+       pcl::transformPointCloud (*cloud_to, *cloud_pose, poseMatrix);
+
+       //  and format to YARP to send.
+       Matrix poseMatYARP = CloudUtils::eigMat2yarpMat(poseMatrix);
+       cout << "Alignment Matrix is "<< endl << alignMatrix << endl;
+       cout << "Pose Matrix YARP is "<< endl << poseMatYARP.toString() << endl;
+
+       int green[3] = {0,255,0};          // Change color oriented model green
+       changeCloudColor(cloud_pose,green);
+       poseFound = true;
+
+       // Add tooltip in purple
+       placeTipOnPose(tooltipCanon, poseMatYARP, tooltip);
+       cloud_pose->erase(cloud_pose->end()); // Remove last point
+       addPoint(cloud_pose, tooltip, true);
+
+       //Display oriented cloud.
+       sendPointCloud(cloud_pose);
+       Time::delay(1.0);
+
+       cmdVis.clear();	replyVis.clear();
+       cmdVis.addString("accumClouds");
+       cmdVis.addInt(0);
+       rpcVisualizerPort.write(cmdVis,replyVis);
+
+       reply.addString("[ack]");
+       reply.addList().read(poseMatYARP);
+       return true;
+
+
+
+    }else if (receivedCmd == "clearpose"){
+        toolPose.resize(4,4);
+        toolPose.eye();
+        poseFound = false;
+        return true;
+
+
+//================================= TOOLTIP ESTIMATION ================================
 
     }else if (receivedCmd == "findTooltipCanon"){
         // Check if model is loaded, else return false
@@ -454,59 +562,13 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         addPoint(cloud_model, tooltipCanon,green);
         sendPointCloud(cloud_model);
 
-
-
         reply.addString("[ack]");
         reply.addDouble(tooltipCanon.x);
         reply.addDouble(tooltipCanon.y);
         reply.addDouble(tooltipCanon.z);
 
         showTooltip(tooltipCanon,green);
-
         return true;
-
-
-    }else if (receivedCmd == "findTooltipSym"){
-        // Check if model is loaded, else return false
-        if (!cloudLoaded){
-            cout << "Model needed to find tooltip. Load model" << endl;
-            reply.addString("[nack] Load model first to find tooltip.");
-            return false;
-        }
-
-        // Check if pose has been found, else return false
-        int green[3] = {0,255,0};
-        if (!poseFound){
-            if(!findTooltipSym(cloud_model, tooltip)){
-                cout << "Could not compute tooltip from canonical cloud" << endl;
-                reply.addString("[nack] Could not compute tooltip.");
-                return false;
-            }
-            Time::delay(0.5);
-            addPoint(cloud_model, tooltip,green);
-            sendPointCloud(cloud_model);
-        }else {
-            if(!findTooltipSym(cloud_pose, tooltip)){
-                cout << "Could not compute tooltip from cloud in pose" << endl;
-                reply.addString("[nack] Could not compute tooltip.");
-                return false;
-            }
-            Time::delay(0.5);
-            addPoint(cloud_pose, tooltip,green);
-            sendPointCloud(cloud_pose);
-        }
-
-        cout << "Tooltip found at ( " << tooltip.x <<  ", " << tooltip.y <<  ", "<< tooltip.z <<  "). " << endl;
-
-        showTooltip(tooltip,green);
-
-        reply.addString("[ack]");
-        reply.addDouble(tooltip.x);
-        reply.addDouble(tooltip.y);
-        reply.addDouble(tooltip.z);
-
-        return true;
-
 
 
     }else if (receivedCmd == "findTooltipParam"){   // XXX Function only for simulation
@@ -561,8 +623,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addDouble(tooltip.x);
         reply.addDouble(tooltip.y);
         reply.addDouble(tooltip.z);
-
         return true;
+
 
     }else if (receivedCmd == "findTooltipAlign"){
         // Check if model is loaded, else return false
@@ -621,8 +683,58 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addDouble(displ);
         reply.addDouble(tilt);
         reply.addDouble(shift);
+        return true;
+
+
+    }else if (receivedCmd == "findTooltipSym"){
+        // Check if model is loaded, else return false
+        if (!cloudLoaded){
+            cout << "Model needed to find tooltip. Load model" << endl;
+            reply.addString("[nack] Load model first to find tooltip.");
+            return false;
+        }
+
+        // Check if pose has been found, else return false
+        int green[3] = {0,255,0};
+        if (!poseFound){
+            if(!findTooltipSym(cloud_model, tooltip)){
+                cout << "Could not compute tooltip from canonical cloud" << endl;
+                reply.addString("[nack] Could not compute tooltip.");
+                return false;
+            }
+            Time::delay(0.5);
+            addPoint(cloud_model, tooltip,green);
+            sendPointCloud(cloud_model);
+        }else {
+            if(!findTooltipSym(cloud_pose, tooltip)){
+                cout << "Could not compute tooltip from cloud in pose" << endl;
+                reply.addString("[nack] Could not compute tooltip.");
+                return false;
+            }
+            Time::delay(0.5);
+            addPoint(cloud_pose, tooltip,green);
+            sendPointCloud(cloud_pose);
+        }
+
+        cout << "Tooltip found at ( " << tooltip.x <<  ", " << tooltip.y <<  ", "<< tooltip.z <<  "). " << endl;
+        showTooltip(tooltip,green);
+
+        reply.addString("[ack]");
+        reply.addDouble(tooltip.x);
+        reply.addDouble(tooltip.y);
+        reply.addDouble(tooltip.z);
 
         return true;
+
+    }else if (receivedCmd == "cleartip"){
+        tooltip.x == 0.0;
+        tooltip.y == 0.0;
+        tooltip.z == 0.0;
+
+        tooltipCanon = tooltip;
+        return true;
+
+// ======================= AFFORDANCES ================================
 
     }else if (receivedCmd == "getAffordance"){
 
@@ -661,106 +773,10 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
 
-    // ------------------- Functions for testing methods -----------------
-    }else if (receivedCmd == "alignFromFiles"){
 
-        // Clear visualizer
-        Bottle cmdVis, replyVis;
-        cmdVis.clear();	replyVis.clear();
-        cmdVis.addString("clearVis");
-        rpcVisualizerPort.write(cmdVis,replyVis);
+// =======================  PARAMETER SET  =======================
 
-        string cloud_from_name = command.get(1).asString();
-        string cloud_to_name = command.get(2).asString();
-
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        cloud_from->clear();
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        cloud_to->clear();
-
-        // load cloud to be aligned
-        cout << "Attempting to load " << (cloudsPathFrom + cloud_from_name).c_str() << "... "<< endl;
-        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_from_name, cloud_from))  {
-            cout << "cloud of size "<< cloud_from->points.size() << " points loaded from "<< cloud_from_name.c_str() << endl;
-        } else{
-            std::cout << "Error loading point cloud " << cloud_from_name.c_str() << endl << endl;
-            return false;
-        }
-
-        Time::delay(1.0);
-        int blue[3] = {0,0,255};    // Plot partial view blue
-        addNoise(cloud_from, noise_mean , noise_sigma);
-        changeCloudColor(cloud_from, blue);
-        sendPointCloud(cloud_from);
-
-        // Set accumulator mode.
-        cmdVis.clear();	replyVis.clear();
-        cmdVis.addString("accumClouds");
-        cmdVis.addInt(1);
-        rpcVisualizerPort.write(cmdVis,replyVis);
-
-        // load model cloud to align to
-        cout << "Attempting to load " << (cloudsPathFrom + cloud_to_name).c_str() << "... "<< endl;
-        if (CloudUtils::loadCloud(cloudsPathFrom, cloud_to_name, cloud_to))  {
-            cout << "cloud of size "<< cloud_to->points.size() << " points loaded from" <<cloud_to_name.c_str() << endl;
-        } else{
-            std::cout << "Error loading point cloud " << cloud_to_name.c_str() << endl << endl;
-            return false;
-        }
-
-        Time::delay(1.0);
-        sendPointCloud(cloud_to);
-        findTooltipCanon(cloud_to, tooltipCanon);
-
-        // Show clouds original position
-        Eigen::Matrix4f alignMatrix;
-        Eigen::Matrix4f poseMatrix;
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
-
-
-        // Find cloud alignment
-        alignWithScale(cloud_from, cloud_to, cloud_aligned, alignMatrix, 0.7, 1.3);
-        //alignPointClouds(cloud_from, cloud_to, cloud_aligned, alignMatrix);
-
-        // Compute pose matrix as inverse of alignment, and display model on view pose.
-        poseMatrix = alignMatrix.inverse();
-        pcl::transformPointCloud (*cloud_to, *cloud_pose, poseMatrix);
-
-        //  and format to YARP to send.
-        Matrix poseMatYARP = CloudUtils::eigMat2yarpMat(poseMatrix);
-        cout << "Alignment Matrix is "<< endl << alignMatrix << endl;
-        cout << "Pose Matrix YARP is "<< endl << poseMatYARP.toString() << endl;
-
-        int green[3] = {0,255,0};          // Change color oriented model green
-        changeCloudColor(cloud_pose,green);
-        poseFound = true;
-
-        // Add tooltip in purple
-        placeTipOnPose(tooltipCanon, poseMatYARP, tooltip);
-        cloud_pose->erase(cloud_pose->end()); // Remove last point
-        addPoint(cloud_pose, tooltip, true);
-
-        //Display oriented cloud.
-        sendPointCloud(cloud_pose);
-        Time::delay(1.0);
-
-        cmdVis.clear();	replyVis.clear();
-        cmdVis.addString("accumClouds");
-        cmdVis.addInt(0);
-        rpcVisualizerPort.write(cmdVis,replyVis);
-
-        reply.addString("[ack]");
-        reply.addList().read(poseMatYARP);
-
-        //CloudUtils::savePointsPly(cloud_to, cloudsPathTo,cloudName,numCloudsSaved);
-
-        return true;
-    }
-
-
-    /****   Parameter Setting calls ***/
-    /******************************************************************************/
-    else if (receivedCmd == "handFrame"){
+    }else if (receivedCmd == "handFrame"){
         // activates the normalization of the pointcloud to the hand reference frame.
         bool ok = setHandFrame(command.get(1).asString());
         if (ok){
@@ -771,6 +787,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack] Transformation to hand frame has to be set to ON or OFF. ");
             return false;
         }
+
 
     }else if (receivedCmd == "FPFH"){
         // activates the normalization of the pointcloud to the hand reference frame.
@@ -785,27 +802,28 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+
     }else if (receivedCmd == "icp"){
-        // icp -> sets parameters for iterative closest point aligning algorithm
-        //int maxIt, double maxCorr, double ranORT, double transEp)
-            icp_maxIt = command.get(1).asInt();
-            icp_maxCorr = command.get(2).asDouble();
-            icp_ranORT = command.get(3).asDouble();
-            icp_transEp = command.get(4).asDouble();
-            cout << " icp Parameters set to " <<  icp_maxIt << ", " << icp_maxCorr << ", " << icp_ranORT<< ", " << icp_transEp << endl;
-            reply.addString("[ack]");
-            return true;
+        // icp -> sets parameters for iterative closest point aligning algorithm        
+        icp_maxIt = command.get(1).asInt();
+        icp_maxCorr = command.get(2).asDouble();
+        icp_ranORT = command.get(3).asDouble();
+        icp_transEp = command.get(4).asDouble();
+        cout << " icp Parameters set to " <<  icp_maxIt << ", " << icp_maxCorr << ", " << icp_ranORT<< ", " << icp_transEp << endl;
+        reply.addString("[ack]");
+        return true;
+
 
     }else if (receivedCmd == "noise"){
-        // icp -> sets parameters for iterative closest point aligning algorithm
-        //int maxIt, double maxCorr, double ranORT, double transEp)
-            noise_mean = command.get(1).asDouble();
-            noise_sigma = command.get(2).asDouble();
-            cout << "Noise Parameters set to mean:" <<  noise_mean << ", sigma: " << noise_sigma << endl;
-            reply.addString("[ack]");
-            return true;
+        // noise -> sets parameters for noise addition for align test
+        noise_mean = command.get(1).asDouble();
+        noise_sigma = command.get(2).asDouble();
+        cout << "Noise Parameters set to mean:" <<  noise_mean << ", sigma: " << noise_sigma << endl;
+        reply.addString("[ack]");
+        return true;
 
-    }else if (receivedCmd == "setSeg"){
+
+    }else if (receivedCmd == "seg2D"){
         bool ok = setSeg(command.get(1).asString());
         if (ok){
             reply.addString("[ack]");
@@ -816,6 +834,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack] Verbose can only be set to ON or OFF.");
             return false;
         }
+
 
     }else if (receivedCmd == "savename"){
         // changes the name with which files will be saved by the object-reconstruction module
@@ -836,18 +855,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-	}else if (receivedCmd == "verbose"){
-		bool ok = setVerbose(command.get(1).asString());
-        if (ok){
-            reply.addString("[ack]");
-            return true;
-        }
-		else {
-		    fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-            reply.addString("[nack] Verbose can only be set to ON or OFF.");
-		    return false;
-		}
-
 
     }else if (receivedCmd == "saving"){
         // changes whether the reconstructed clouds will be saved or not.
@@ -861,14 +868,23 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+    }else if (receivedCmd == "verbose"){
+        bool ok = setVerbose(command.get(1).asString());
+        if (ok){
+            reply.addString("[ack]");
+            return true;
+        }
+        else {
+            fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
+            reply.addString("[nack] Verbose can only be set to ON or OFF.");
+            return false;
+        }
+
+
 	}else if (receivedCmd == "help"){
 		reply.addVocab(Vocab::encode("many"));
 		responseCode = Vocab::encode("ack");
-		reply.addString("Available commands are:");
-        reply.addString("-------------EXPLORATIVE ACTIONS-----------");
-        //reply.addString("exploreAuto - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
-        //reply.addString("exploreInt - interactively explores the tool and asks for confirmation on each registration until a proper 3D model is built.");
-
+        reply.addString("Available commands are:");
 
         reply.addString("---------- GET MODEL -----------");
         reply.addString("loadCloud - Loads a cloud from a file (.ply or .pcd).");
@@ -880,14 +896,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("---------- GET POSE -----------");
         reply.addString("findPoseAlign - Find the actual grasp by comparing the actual registration to the given model of the tool.");
         reply.addString("setPoseParam [ori][disp][tilt][shift] - Set the tool pose given the grasp parameters.");
+        reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' from .ply/.pcd files (test for aligning algorithms).");
+        reply.addString("clearpose - Removes any previously estimated pose.");
 
-        reply.addString("---------- GET TOOLTIP -----------");
+        reply.addString("---------- TOOLTIP ESTIMATION -----------");
         reply.addString("findTooltipCanon - Finds the tooltip of the tool in its canonical position -MODEL REQUIRED-.");
         reply.addString("findTooltipParam [ori][disp][tilt][shift]- Finds the tooltip of the tool in the position given by the parameters -MODEL REQUIRED-.");
+        reply.addString("findTooltipAlign - Places the tooltip on the rotated tool after pose has been found -MODEL and POSE required-.");
         reply.addString("findTooltipSym - Finds the tooltip of the tool in any position based on symmetry planes.");
+        reply.addString("cleartip - Removes any previously estimated tooltip.");
 
+        reply.addString("---------- AFFORDANCES ------------");
         reply.addString("getAffordance - returns the pre-learnt affordances for the loaded tool-pose.");
-        reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' loaded from .ply or .pcd files.");   
+        reply.addString("extractFeats - Sends the oriented model out and calls TFE to compute features.");
 
         reply.addString("---------- SET PARAMETERS ------------");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame. (default ON).");
@@ -896,7 +917,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("noise (double)mean (double)sigma - sets noise parameters (default 0.0, 0.003)");
         reply.addString("seg2D (ON/OFF) - Set the segmentation to 2D (ON) from graphBasedSegmentation, or 3D (OFF), from 'flood3d' .");
         reply.addString("savename (string) - Changes the name with which the pointclouds will be saved.");
-        reply.addString("save (ON/OFF) - Controls whether recorded clouds are saved or not.");
+        reply.addString("saving (ON/OFF) - Controls whether recorded clouds are saved or not.");
         reply.addString("verbose (ON/OFF) - Sets ON/OFF printouts of the program, for debugging or visualization.");
         reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
@@ -904,16 +925,13 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 		reply.addVocab(responseCode);
 		return true;
 
-	} else if (receivedCmd == "quit"){
-        //responseCode = Vocab::encode("ack");
-        //reply.addVocab(responseCode);
+    } else if (receivedCmd == "quit"){
         reply.addString("[ack]");
 		closing = true;
 		return true;
 	}
     
-    reply.addString("Invalid command, type [help] for a list of accepted commands.");
-    
+    reply.addString("Invalid command, type [help] for a list of accepted commands.");    
     return true;
 
 }
@@ -922,207 +940,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 /**********************************************************
                     PROTECTED METHODS
 /**********************************************************/
-
-/*  EXPLORATIVE ACTIONS  */
-/************************************************************************/
-/*
-bool Objects3DExplorer::exploreAutomatic()
-{
-    // Explore the tool from different angles and save pointclouds
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-
-    // Register the first pointcloud to initialize
-    bool initDone = false;
-    cloud_model->clear();
-    string  mergedName = saveName + "_merged";
-    turnHand(0,0);
-    while (!initDone)
-    {
-        // Register and display the cloud
-        getPointCloud(cloud_rec);
-        sendPointCloud(cloud_rec);
-        *cloud_model = *cloud_rec;  //Initialize cloud merged
-        CloudUtils::savePointsPly(cloud_model, cloudsPathTo, mergedName, NO_FILENUM);
-        initDone = true;
-        printf("Base cloud initialized \n");
-    }
-
-    // Perform Automatic Exploration
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    for (int degX = 60; degX>=-75; degX -= 15)
-    {
-        turnHand(degX,0);
-        //lookAround();
-        getPointCloud(cloud_rec);
-        sendPointCloud(cloud_rec);
-        printf("Exploration from  rot X= %i, Y= %i done. \n", degX, 0 );
-        CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);
-
-        // Aling last reconstructred cloud and merge it with the existing cloud_model
-        Eigen::Matrix4f alignMatrix;
-        alignPointClouds(cloud_rec, cloud_model, cloud_aligned, alignMatrix);
-        *cloud_model += *cloud_aligned;
-
-        // Display the merged cloud
-        sendPointCloud(cloud_model);
-        CloudUtils::savePointsPly(cloud_model, cloudsPathTo, mergedName, NO_FILENUM);
-
-        Time::delay(0.5);
-    }
-    for (int degY = 0; degY<=60; degY += 15)
-    {
-        turnHand(-60,degY);
-        //lookAround();
-        getPointCloud(cloud_rec);
-        sendPointCloud(cloud_rec);
-        CloudUtils::savePointsPly(cloud_rec,cloudsPathTo, saveName, numCloudsSaved);
-        printf("Exploration from  rot X= %i, Y= %i done. \n", -60, degY );
-
-        // Aling last reconstructred cloud and merge it with the existing cloud_model
-        Eigen::Matrix4f alignMatrix;
-        alignPointClouds(cloud_rec, cloud_model, cloud_aligned, alignMatrix);
-        *cloud_model += *cloud_aligned;
-
-        // Display the merged cloud
-        sendPointCloud(cloud_model);
-        CloudUtils::savePointsPly(cloud_model, cloudsPathTo, mergedName, NO_FILENUM);
-
-        Time::delay(0.5);
-    }
-
-    printf("Exploration finished, returning control. \n");
-    return true;
-}
-*/
-
-
-/************************************************************************/
-/*
-bool Objects3DExplorer::exploreInteractive()
-{   // Explore the tool and incrementally check registration and add merge pointclouds if correct
-
-    // set angles for exploration limits
-    int minRotX = -75; int maxRotX = 60;
-    int minRotY = 0;   int maxRotY = 60;
-    int angleStep = 15;
-
-    int posN_X = 1 + (maxRotX-minRotX)/angleStep;
-    int posN_Y = 1 + (maxRotY-minRotY)/angleStep;
-
-    Vector positionsX(posN_X);       // Vector with the possible angles on X
-    Vector positionsY(posN_Y);       // Vector with the possible angles on Y
-    bool visitedPos[posN_X][posN_Y]; // Matrix to check which positions have been visited
-
-    // Fill in the vectors with the possible values
-    for (int iX = 0; iX<=posN_X; iX++ )
-        positionsX[iX] = minRotX + iX*angleStep;
-
-    for (int iY = 0; iY<=posN_Y; iY++ )
-        positionsY[iY] = minRotY + iY*angleStep;
-
-    // Register the first pointcloud to initialize
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
-
-    bool initDone = false;
-    cloud_model->clear();
-    string  mergedName = saveName + "_merged";
-    while (!initDone)
-    {
-        turnHand(0, 0);
-
-        // Register and display the cloud
-        getPointCloud(cloud_rec);
-        sendPointCloud(cloud_rec);
-
-        printf("Is the registered cloud clean? (y/n)? \n");
-        string answerInit;
-        cin >> answerInit;
-        if ((answerInit == "y")||(answerInit == "Y"))
-        {
-            *cloud_model = *cloud_rec;  //Initialize cloud merged
-            *cloud_temp = *cloud_rec;    //Initialize auxiliary cloud on which temporal merges will be shown before confirmation
-            CloudUtils::savePointsPly(cloud_model, cloudsPathTo, mergedName,NO_FILENUM );
-            initDone = true;
-            printf("Base cloud initialized \n");
-        }else {
-            printf(" Try again \n");
-        }
-    }
-
-    // Perform interactive exploration
-    yarp::math::Rand randG; // YARP random generator
-    int Xind = 0; int Yind = 0;
-    bool explorationDone = false;
-    while (!explorationDone)
-    {
-        Xind = round(randG.scalar()*posN_X);
-        Yind = round(randG.scalar()*posN_Y);
-
-        turnHand(positionsX[Xind], positionsY[Yind]);
-
-        // Register and display the cloud
-        getPointCloud(cloud_rec);
-        sendPointCloud(cloud_rec);
-
-        // If it is ok, do the merge and display again.
-        printf("Is the registered cloud clean? (y/n)? \n >> ");
-        string answerReg;
-        cin >> answerReg;
-        if ((answerReg == "y")||(answerReg == "Y"))
-        {
-            printf("\n Saving partial registration for later use \n ");
-            CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);
-
-            // If the cloud is clean, merge the last recorded cloud_rec with the existing cloud_merged and save on cloud_temp
-            Eigen::Matrix4f alignMatrix;
-            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
-            alignPointClouds(cloud_rec, cloud_model, cloud_aligned, alignMatrix);
-            *cloud_temp += *cloud_aligned;                            // write aligned registration first to a temporal merged
-
-            // Display the merged cloud
-            sendPointCloud(cloud_temp);
-
-            // If merge is good, update model
-            // XXX offer three options
-            // - Yes, its is good, save (y)
-            // - No, it sucks, go for another registration (n)
-            // - Retry merging with different parameters (r)
-            // XXX this last option implies making some merging parameters tweakable ( use of FPFH / ICP, iterations, min dist, etc).
-            printf("Is the merged cloud clean? (y/n)? \n >> ");
-            string answerMerge;
-            cin >> answerMerge;
-            if ((answerMerge == "y")||(answerMerge == "Y"))
-            {
-                cloud_model->clear();
-                *cloud_model = *cloud_temp;
-                printf(" The model has been updated \n");
-
-                // Ask if more registrations need to be made, and if so, loop again. Otherwise, break.
-                printf(" Should I take another registration? (y/n) \n");
-                string answerModel;
-                cin >> answerModel;
-                if ((answerModel == "y")||(answerModel == "Y"))
-                {
-                    printf(" Model not finished, continuing with exploration \n");
-                } else {
-                    CloudUtils::savePointsPly(cloud_model, cloudsPathTo, mergedName, NO_FILENUM );
-                    printf(" Final model saved as %s, finishing exploration \n", mergedName.c_str());
-                    explorationDone = true;
-                }
-            } else {
-                printf("\n Ignoring merge, continue with exploration \n");
-                *cloud_temp = *cloud_model;
-            }
-        } else {
-            printf("\n Unproper registration, try again \n");
-        }
-        printf("Exploration from  rot X= %f, Y= %f done. \n",positionsX[Xind] , positionsY[Yind] );
-    }
-
-    printf("Exploration finished, returning control. \n");
-    return true;
-}
-*/
 
 /************************************************************************/
 bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const bool followTool)
@@ -1211,7 +1028,6 @@ bool Objects3DExplorer::lookAtTool(){
     else
         return false;
 
-    cout << " getting pose" << endl;
     Vector xH,oH;                                                   // Pose of the hand ref. frame
     iCartCtrl->getPose(xH,oH);
 
@@ -1219,16 +1035,22 @@ bool Objects3DExplorer::lookAtTool(){
     Matrix H2R=axis2dcm(oH);                                        // from axis/angle to rotation matrix notation
     H2R(0,3)= xH[0];    H2R(1,3)= xH[1];    H2R(2,3)= xH[2];        // Include translation
 
-    cout << "hand pose is: " << endl  << H2R.toString() << endl;
-
     // Define the tooltip initial guess w.r.t to hand frame:
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
     xTH.resize(4);
 
-    xTH[0] = 0.17;              // X
-    xTH[1] = -0.17;             // Y
-    xTH[2] = 0.0;               // Z
-    xTH[3] = 1.0;               // T
+    if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
+        // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
+        xTH[0] = 0.17;              // X
+        xTH[1] = -0.17;             // Y
+        xTH[2] = 0.0;               // Z
+        xTH[3] = 1.0;               // T
+    }else {
+        xTH[0] = tooltip.x;         // X
+        xTH[1] = tooltip.y;         // Y
+        xTH[2] = tooltip.z;         // Z
+        xTH[3] = 1.0;               // T
+    }
 
     // Transform point to robot coordinates:
     xTR = H2R * xTH;
@@ -1239,8 +1061,6 @@ bool Objects3DExplorer::lookAtTool(){
     iGaze->waitMotionDone();
 
     return true;
-
-
 }
 
 bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
@@ -1324,153 +1144,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
 
 /************************************************************************/
-/*
-bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
-{
-    // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
-    cloud_rec_merged->points.clear();
-
-
-    int minX = -70;
-    int maxX = 70;
-
-    int minY = -40;
-    int maxY = 60;
-
-    turnHand(minX,minY,true);
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    Point2D seed;
-
-    cout << " ====================================== Starting Exploration  =======================================" <<endl;
-
-    // Rotate tool in hand
-    for (int degX = minX; degX<=maxX; degX += 20)
-    {
-        cout << endl << endl << " ++++++++++++++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++++++++++++" << endl <<endl;
-        // Move hand to new position
-        turnHand(degX,minY);
-        Time::delay(1.0);
-
-        // Get partial reconstruction
-        cloud_rec->points.clear();
-        cloud_rec->clear();
-        bool ok;
-        ok = getPointCloud(cloud_rec, seed);
-
-        // If seed has been found, look at it (for next gaze or for retry)
-        if ((seed.u>0)&&(seed.v>0)){
-
-            cout << "Moving gaze to new seed" << endl;
-            Vector fixP(2);
-            fixP[0]= seed.u;
-            fixP[1]= seed.v;
-
-            iGaze->blockEyes(5.0);
-            iGaze->lookAtMonoPixel(0,fixP,0.5);
-            iGaze->waitMotionDone(0.1);
-
-            if (!ok){                           // Try to get cloud again, now that we have the current seed
-                    cout << " re-trying rec with current seed." << endl;
-                    ok = getPointCloud(cloud_rec, seed);
-            }
-
-        // Otherwise try default gaze (given by hand orientation only).
-        }else{
-            cout << " Couldn't find a seed from depth. " << endl;
-            cout << " Moving gaze default position seed" << endl;
-            turnHand(degX,minY,true);
-
-            if(!ok){
-                cout << " re-trying rec with default gaze." << endl;
-                ok = getPointCloud(cloud_rec, seed);}
-        }
-
-
-        // If cloud was found by any of the prrevious methods
-        if(ok){
-            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-            *cloud_rec_merged += *cloud_rec;
-
-            // Downsample to reduce size and fasten computation
-            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-            cout << " Cloud at angle X" << degX << " reconstructed " << endl;
-            sendPointCloud(cloud_rec_merged);
-
-        } else {
-            cout << " Could not reconstruct the cloud" << endl;
-        }
-
-    }
-
-
-    // Rotate tool in hand around Y
-    for (int degY = minY; degY<=maxY; degY += 20)
-    {
-
-
-        cout << endl << endl << " ++++++++++++++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++++++++++++" << endl <<endl;
-        // Move hand to new position
-        turnHand(0,degY);
-        Time::delay(1.0);
-
-        // Get partial reconstruction
-        cloud_rec->points.clear();
-        cloud_rec->clear();
-        bool ok;
-        ok = getPointCloud(cloud_rec, seed);
-
-
-        // If seed has been found, look at it (for next gaze or for retry)
-        if ((seed.u>0)&&(seed.v>0)){
-
-            cout << "Moving gaze to new seed" << endl;
-            Vector fixP(2);
-            fixP[0]= seed.u;
-            fixP[1]= seed.v;
-
-            iGaze->blockEyes(5.0);
-            iGaze->lookAtMonoPixel(0,fixP,0.5);
-            iGaze->waitMotionDone(0.1);
-
-            if (!ok){                           // Try to get cloud again, now that we have the current seed
-                    cout << " re-trying rec with current seed." << endl;
-                    ok = getPointCloud(cloud_rec, seed);
-            }
-
-        // Otherwise try default gaze (given by hand orientation only).
-        }else{
-            cout << " Couldn't find a seed from depth. " << endl;
-            cout << " Moving gaze default position seed" << endl;
-            turnHand(0,degY,true);
-
-            if(!ok){
-                cout << " re-trying rec with default gaze." << endl;
-                ok = getPointCloud(cloud_rec, seed);}
-        }
-
-        if(ok){
-            // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-            *cloud_rec_merged += *cloud_rec;
-
-            // Downsample to reduce size and fasten computation
-            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-            cout << " Cloud at angleY" << degY << " reconstructed " << endl;
-            sendPointCloud(cloud_rec_merged);
-
-        } else {
-            cout << " Could not reconstruct the cloud" << endl;
-        }
-    }
-
-    cout << "Reconstructed cloud of size " << cloud_rec_merged->size() << endl;
-
-    return true;
-}
-*/
-
-/************************************************************************/
-/*
 bool Objects3DExplorer::lookAround()
 {
     Vector fp,fp_aux(3,0.0);
@@ -1489,7 +1162,6 @@ bool Objects3DExplorer::lookAround()
 
     return true;
 }
-*/
 
 
 /* CLOUD INFO */
@@ -1504,18 +1176,13 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     cmdOR.clear();	replyOR.clear();
     if (seg2D){
         cmdOR.addString("seg");
-        if (verbose){printf("Please click on seed point from the Disparity or Segmentation images. \n");}
     } else {
-        cmdOR.addString("flood3d");
-        //if (verbose){printf("Please click on seed point from the Disparity image. \n");}
+        cmdOR.addString("flood3d");        
     }
     rpcObjRecPort.write(cmdOR,replyOR);
-    //cout<< "obj3Drec replied: " <<replyOR.toString() <<endl;
 
     seed.u= replyOR.get(1).asInt();
     seed.v= replyOR.get(2).asInt();
-
-    cout<< "object segmented from seed (" <<seed.u << ", " << seed.v << "). " <<endl;
 
     // read the cloud from the objectReconst output port
     Bottle *cloudBottle = cloudsInPort.read(true);
@@ -1529,7 +1196,6 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
     // Transform the cloud's frame so that the bouding box is aligned with the hand coordinate frame
     if (handFrame) {
-        //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudNorm (new pcl::PointCloud<pcl::PointXYZRGB> ());// Point cloud
         frame2Hand(cloud_rec, cloud_rec);
     }
 
@@ -1560,7 +1226,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     sor.setMeanK(cloud_rec->size()/2);
     sor.filter (*cloud_rec);
 
-    // Remove hand (all points within 4 cm from origin)
+    // Remove hand (all points within 6 cm from origin)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_nohand (new pcl::PointCloud<pcl::PointXYZRGB> ());
     if (handFrame) {
         double handRad = 0.06;
@@ -1584,7 +1250,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     }
 
 
-    //scaleCloud(cloud_rec,1.1);
+    scaleCloud(cloud_rec,1.1);
 
     if (cloud_rec->size() < 100){
         cout << " Not enough points left after filtering. Something must have happened on reconstruction" << endl;
@@ -1758,7 +1424,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
     // XXX Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
 
-
     // 1- Find the Major axes of the cloud -> Find major planes as normal to those vectors
     pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
     feature_extractor.setInputCloud(cloud);
@@ -1792,8 +1457,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         mainPlanes.push_back(P);
 
     // 2- Compute symmetry coeffcients w.r.t each of the planes -> Select symmetry plane as one with higher symCoeff
-        //std::vector<int> pointsA, pointsB;                              //Define the indices of the points to each side of the plane
-
         pcl::PointIndices::Ptr pointsA (new pcl::PointIndices ());
         pcl::PointIndices::Ptr pointsB (new pcl::PointIndices ());
         // Loop through all the points in the cloud and select which side of the plane they belong to.
@@ -1824,7 +1487,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
         // Mirror one of the vectors wrt the plane_i.
         Plane3D uP;     // Unit plane
-        //float a_, b_, c_, d_,
         double M = sqrt(P.a*P.a+P.b*P.b+P.c*P.c);    // Elements of normal unit vector
         uP.a = P.a/M;
         uP.b = P.b/M;
@@ -1847,7 +1509,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         // compute avg distance between mirrored vector and the other one.
         pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
         kdtree.setInputCloud(cloudA);
-        //int K = 1;
         std::vector<int> pointIdxNKNSearch(K);
         std::vector<float> pointNKNSquaredDistance(K);
         float accumCloudKNNdist = 0.0;
@@ -1874,7 +1535,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         // normalize
         avgCloudKNNdist = accumCloudKNNdist/valPt;
 
-
         // merge cloud A and B in cloud AB
         int blue[3] = {0,0,255};
         changeCloudColor(cloudB, blue );
@@ -1882,16 +1542,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         *cloudAB += *cloudB;
         sendPointCloud(cloudAB);
         Time::delay(2.5);
-
-        //int green[3] = {0,255,0};
-        //changeCloudColor(cloudMirror, green);
-        //sendPointCloud(cloudMirror);
-
-        // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudMirrorAndA (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        // *cloudMirrorAndA = *cloudA;
-        // *cloudMirrorAndA += *cloudMirror;
-        // sendPointCloud(cloudMirrorAndA);
-        // Time::delay(3.0);
         cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
 
 

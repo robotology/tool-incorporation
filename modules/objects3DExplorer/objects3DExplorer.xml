@@ -39,13 +39,13 @@
         <input>
             <type>Bottle</type>
             <port carrier="tcp">/objects3DExplorer/clouds:i</port>
-            <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point </description>
+            <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point, or optionally 3 more values RGB </description>
         </input>   
         <!-- output data if available -->        
         <output>
             <type>Bottle</type>
             <port>/objects3DExplorer/clouds:o</port>
-            <description> Send out the latest reconstructed mesh, for visualization or further processing</description>
+            <description> Send out the latest reconstructed cloud in the same bottle format, for visualization or further processing</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
@@ -74,8 +74,6 @@
     <development>
         <header></header>
         <library>YARP</library>
-        <library>icubmod</library>
-        <library>ctrlLib</library>
         <library>PCL 1.7</library>
     </development>
 
