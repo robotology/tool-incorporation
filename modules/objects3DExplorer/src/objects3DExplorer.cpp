@@ -1079,13 +1079,14 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     Point2D seed;
 
     // Move not exploring hand out of the way:
-    Vector away;
-    away.resize(3);
-    away[0] = -0.05;
-    away[1] = (hand=="left")?0.2:-0.2;
-    away[2] = -0.1;
+    Vector away, awayOr;
+    otherHandCtrl->getPose(away,awayOr);
+    away[0] = -0.2;
+    away[1] = (hand=="left")?0.3:-0.3;
+    away[2] = 0.1;
 
-    otherHandCtrl->goToPose(away);
+    otherHandCtrl->goToPose(away, awayOr);
+    otherHandCtrl->waitMotionDone();
 
 
     // Get inital cloud model on central orientation
@@ -1337,6 +1338,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
 
         // Get a registration
         Point2D seed;
+        lookAtTool();
         if(!getPointCloud(cloud_rec,seed))          // Registration get and normalized to hand-reference frame.
         {
             cout << " Cloud not valid" << endl;
