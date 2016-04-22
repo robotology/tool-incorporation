@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2015 iCub Facility - Istituto Italiano di Tecnologia
  * Author: Tanis Mar
  * email:  tanis.mar@iit.it
@@ -1783,6 +1783,7 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
         // Write the name of the tool in the bottle
         // Get index of tool pose in hand
         int toolposeI = getTPindex(saveName, toolPose);
+        cout << "Computed T-P index is: "<< toolposeI << endl;
         if (toolposeI < 0){
             cout << "No tool loaded " << endl;
             affBottle.addString("no_aff");
@@ -1809,11 +1810,10 @@ bool Objects3DExplorer::getAffProps(const Matrix &affMatrix, Property &affProps)
     int rows = affMatrix.rows();
     int cols = affMatrix.cols();
     Vector affVector(cols, 0.0);
-    if (rows > 1){
-        // Sum all vectors into one.
-        for (int r = 0; r < rows; r++){
-            affVector = affVector + affMatrix.getRow(r);
-        }
+
+    // Sum all vectors into one.
+    for (int r = 0; r < rows; r++){
+        affVector = affVector + affMatrix.getRow(r);
     }
 
     affProps.clear();
@@ -1895,7 +1895,7 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     }
 
     int tpi = toolI*3 + poseI; // tool-pose index
-    cout << "Tool-Pose index is: "<< toolI << endl;
+    cout << "Tool-Pose index is: "<< tpi << endl;
 
     return tpi;
 }
