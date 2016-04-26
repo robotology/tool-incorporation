@@ -1,5 +1,5 @@
 # objects3DModeler
-This repo contains the modules to perform 3D  exploration, either on hand on or the table
+This repo contains the modules to perform 3D  exploration, modelling, visualization and feature extraction, either on hand on or the table
 
 [objects3DModeler] This module deals with 3D object/tool exploration, partial reconstruction, alignment, pose estimation, etc. Detailed documentation at: 
 XXXX
