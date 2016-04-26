@@ -756,7 +756,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         {
             cout << "Tool and pose need to estimate affordance of tool-pose. Load tool and find pose." << endl;
             reply.addString("[nack] Tool-pose must be known to predict affordances.");
-            return false;
+            return true;
         }
 
         Bottle aff;
@@ -773,14 +773,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         } else {
             fprintf(stdout,"Affordance could not be obtained or was not present. \n");
             reply.addString("[nack] Affordance could not be obtained or was not present. ");
-            return false;
+            return true;
         }
 
     }else if (receivedCmd == "extractFeats"){
         if(!extractFeats()){
             cout << "Could not extract the features" << endl;
             reply.addString("[nack]Features not extracted.");
-            return false;
+            return true;
         }
         cout << "Features extracted by toolFeatExt" << endl;
         reply.addString("[ack]");
@@ -1775,9 +1775,9 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
             if (toolI = 3){
                 toolName = "real/realStick3";
             }
-            Bottle &toolAffBot = affBottle.addList();
-            toolAffBot.addString(toolName);
-            Property &affProps = toolAffBot.addDict();
+            //Bottle &toolAffBot = affBottle.addList();
+            affBottle.addString(toolName);
+            Property &affProps = affBottle.addDict();
 
             // Get all affordances corresponding to that tool
             toolAffMat = affMatrix.submatrix(toolVecInd, toolVecInd + 2, 0, cols-1);
@@ -1793,13 +1793,13 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
         if (toolposeI < 0){
             cout << "No tool loaded " << endl;
             affBottle.addString("no_aff");
-            return false;
+            return true;
         }
 
         // Get name of tool in hand
-        Bottle &toolAffBot = affBottle.addList();
-        toolAffBot.addString(saveName);
-        Property &affProps = toolAffBot.addDict();
+        //Bottle &toolAffBot = affBottle.addList();
+        affBottle.addString(saveName);
+        Property &affProps = affBottle.addDict();
 
         toolAffMat = affMatrix.submatrix(toolposeI, toolposeI, 0 , cols-1);
 
