@@ -70,6 +70,7 @@ protected:
     yarp::os::RpcServer rpcInPort;  // port to handle incoming commands
     yarp::os::Port      feat3DoutPort; // Port where the features of the tool are send out (as a thrift Tool3DwithOrient struct)    
     yarp::os::BufferedPort<yarp::os::Bottle> cloudsOutPort; // Port to send out the cloud as a boltte to be further processed or displayed
+    yarp::os::BufferedPort<yarp::os::Bottle> cloudsInPort; // Port to send out the cloud as a boltte to be further processed or displayed
     std::string cloudpath;            // path to folder with .ply or .pcd files
     std::string cloudname;           // name of the .ply or .pcd cloud file
 
@@ -104,7 +105,7 @@ public:
     bool                        getAllToolFeats(const std::string& robot = "real");    
     bool                        getSamples(const int n, const double deg);
     bool                        setPose(const yarp::sig::Matrix& rotMat);
-    bool                        setCanonicalPose(const double deg = 0.0, const double disp = 0.0, const double tilt = 45.0);
+    bool                        setCanonicalPose(const double deg = 0.0, const int disp = 0, const double tilt = 45.0);
 
     bool                        bins(const int binsN = 2);
     bool                        depth(const int depthN = 2);

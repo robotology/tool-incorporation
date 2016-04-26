@@ -49,13 +49,13 @@ service tool3DFeat_IDLServer
 
 
     /**
-     * @brief getFeats - Performs 3D feature extraction of the tool in the rotated pose.
+     * @brief getFeats - Performs 3D feature extraction of all loaded tools
      * @return true/false on success/failure of extracting features
      */
     bool getAllToolFeats(1: string robot = "real");
 
     /**
-     * @brief getSamples - Generates n poses of the tool around a base orientation deg.
+     * @brief getSamples - Generates n poses of the tool around a base orientation deg and extract features.
      * @param n - (int) desired number of poses (default = 10) .
      * @param deg - (double) base orientation of the tool pose (default = 0.0).
      * @return true/false on success/failure of generating n samples.
@@ -78,11 +78,12 @@ service tool3DFeat_IDLServer
 
     /**
      * @brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector.
-     * @param deg - (double) degrees of rotation along the longest axis.
+     * @param deg - (double) degrees of rotation around the longest axis.
      * @param disp - (int) displacement along the tool axis (grasped closer or further from end-effector).
+     * @param tilt - (double) degrees of rotation around Z (tilted forward)
      * @return true/false on success/failure of rotating model according to orientation.
      */
-    bool setCanonicalPose(1: double deg = 0, 2: double disp = 0.0, 3: double tilt = 45.0);
+    bool setCanonicalPose(1: double deg = 0, 2: i32 disp = 0, 3: double tilt = 45.0);
 
     /**
      * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.

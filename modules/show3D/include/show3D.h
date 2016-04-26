@@ -75,7 +75,6 @@ public:
     bool addBoundingBox(int typeBB);
     bool addSphere(const std::vector<double> &coords, const std::vector<int> &color);
     bool filter(bool ror, bool sor, bool mls, bool ds);
-    //bool showCloud(const iCub::data3D::SurfaceMeshWithBoundingBox meshB);
 
     // module control //
     bool						attach(yarp::os::RpcServer &source);

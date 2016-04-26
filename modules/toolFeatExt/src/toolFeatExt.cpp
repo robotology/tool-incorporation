@@ -19,7 +19,7 @@
 // toolFeatExt deals with extracting features from the oriented cloud model.
 // Therefore it works only on the model.
 // Required rotations/orietations are found by other modules.
-// At the same time, it is the only module having in memory the rotate/oriented point cloud.
+
 
 #include <toolFeatExt.h>
 
@@ -30,12 +30,12 @@ using namespace yarp::math;
 using namespace iCub::YarpCloud;
 
 // XXX XXX Modify this module so that it is mainly concerned with getting OMS-EGI features from a point cloud. Therefore, it should
-// - be able to load cloud from model (loadModel) and orient it with matrix (setPose-setCanonicalPose)
-// - be able read a cloud (on updateModule) and set it as the model.  <-- XXX missing!!
-// - compute features on command and send them out (getFeat), and set paraemters
+// - be able to load cloud from model (loadModel) and orient it with matrix (setPose-setCanonicalPose) - done
+// - be able read a cloud (on updateModule) and set it as the model.                        <-- XXX missing!!
+// - compute features on command and send them out (getFeat), and set paraemters            - done
 // - Optionally,
-//      - compute automatically all features for all avaiable models. (getAllToolFeats).
-//      - get multiple samples from a single tool-pose with slight variations (getSamples).
+//      - compute automatically all features for all avaiable models. (getAllToolFeats).    - done
+//      - get multiple samples from a single tool-pose with slight variations (getSamples). - done
 
 
 
@@ -75,8 +75,11 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
 
     //open ports
     bool ret = true;
+    ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());    // port to receive pointclouds from
     ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
-    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                  // port to receive pointclouds from
+
+    // XXX eventually might be ok to remove this port, and all the functions to send out clouds, as that is now handled by obj3Dexp
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());    // port to receive pointclouds from
     if (!ret){
         printf("Problems opening ports\n");
         return false;
@@ -115,7 +118,16 @@ double ToolFeatExt::getPeriod()
 
 bool ToolFeatExt::updateModule()
 {
-    // XXX add a function here so that everytime that the module receives a cloud it saves it as the loaded model.
+    // read the cloud as bottle
+    Bottle *cloudBottle=cloudsInPort.read(false);
+    if (cloudBottle!=NULL){
+        cout<< "Received Cloud Bottle of size " << cloudBottle->size() << endl;
+        cloud->points.clear();
+        cloud->clear();
+        CloudUtils::bottle2cloud(*cloudBottle,cloud);
+        cout<< "Cloud of size: " << cloud->points.size() << endl;
+        sendCloud(cloud);
+    }
     return !closing;
 }
 
@@ -257,7 +269,7 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 }
 
 /**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const double deg, const double disp, const double tilt)
+bool ToolFeatExt::setCanonicalPose(const double deg, const int disp, const double tilt)
 {   // Rotates the tool model 'deg' degrees around the hand -Y axis
     // Positive angles turn the end effector "inwards" wrt the iCub, while negative ones rotate it "outwards" (for tool on the right hand).
     float rad = deg*M_PI/180.0; // converse deg into rads

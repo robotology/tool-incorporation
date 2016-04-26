@@ -54,10 +54,10 @@ public:
 class tool3DFeat_IDLServer_setCanonicalPose : public yarp::os::Portable {
 public:
   double deg;
-  double disp;
+  int32_t disp;
   double tilt;
   bool _return;
-  void init(const double deg, const double disp, const double tilt);
+  void init(const double deg, const int32_t disp, const double tilt);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -209,7 +209,7 @@ bool tool3DFeat_IDLServer_setCanonicalPose::write(yarp::os::ConnectionWriter& co
   if (!writer.writeListHeader(4)) return false;
   if (!writer.writeTag("setCanonicalPose",1,1)) return false;
   if (!writer.writeDouble(deg)) return false;
-  if (!writer.writeDouble(disp)) return false;
+  if (!writer.writeI32(disp)) return false;
   if (!writer.writeDouble(tilt)) return false;
   return true;
 }
@@ -224,7 +224,7 @@ bool tool3DFeat_IDLServer_setCanonicalPose::read(yarp::os::ConnectionReader& con
   return true;
 }
 
-void tool3DFeat_IDLServer_setCanonicalPose::init(const double deg, const double disp, const double tilt) {
+void tool3DFeat_IDLServer_setCanonicalPose::init(const double deg, const int32_t disp, const double tilt) {
   _return = false;
   this->deg = deg;
   this->disp = disp;
@@ -353,12 +353,12 @@ bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const double disp, const double tilt) {
+bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp, const double tilt) {
   bool _return = false;
   tool3DFeat_IDLServer_setCanonicalPose helper;
   helper.init(deg,disp,tilt);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const double disp, const double tilt)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp, const double tilt)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -481,12 +481,12 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
     }
     if (tag == "setCanonicalPose") {
       double deg;
-      double disp;
+      int32_t disp;
       double tilt;
       if (!reader.readDouble(deg)) {
         deg = 0;
       }
-      if (!reader.readDouble(disp)) {
+      if (!reader.readI32(disp)) {
         disp = 0;
       }
       if (!reader.readDouble(tilt)) {
@@ -601,12 +601,12 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     }
     if (functionName=="getAllToolFeats") {
       helpString.push_back("bool getAllToolFeats(const std::string& robot = \"real\") ");
-      helpString.push_back("@brief getFeats - Performs 3D feature extraction of the tool in the rotated pose. ");
+      helpString.push_back("@brief getFeats - Performs 3D feature extraction of all loaded tools ");
       helpString.push_back("@return true/false on success/failure of extracting features ");
     }
     if (functionName=="getSamples") {
       helpString.push_back("bool getSamples(const int32_t n = 10, const double deg = 0) ");
-      helpString.push_back("@brief getSamples - Generates n poses of the tool around a base orientation deg. ");
+      helpString.push_back("@brief getSamples - Generates n poses of the tool around a base orientation deg and extract features. ");
       helpString.push_back("@param n - (int) desired number of poses (default = 10) . ");
       helpString.push_back("@param deg - (double) base orientation of the tool pose (default = 0.0). ");
       helpString.push_back("@return true/false on success/failure of generating n samples. ");
@@ -624,10 +624,11 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("@return true/false on success/failure of rotating model according to  matrix. ");
     }
     if (functionName=="setCanonicalPose") {
-      helpString.push_back("bool setCanonicalPose(const double deg = 0, const double disp = 0, const double tilt = 45) ");
+      helpString.push_back("bool setCanonicalPose(const double deg = 0, const int32_t disp = 0, const double tilt = 45) ");
       helpString.push_back("@brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector. ");
-      helpString.push_back("@param deg - (double) degrees of rotation along the longest axis. ");
+      helpString.push_back("@param deg - (double) degrees of rotation around the longest axis. ");
       helpString.push_back("@param disp - (int) displacement along the tool axis (grasped closer or further from end-effector). ");
+      helpString.push_back("@param tilt - (double) degrees of rotation around Z (tilted forward) ");
       helpString.push_back("@return true/false on success/failure of rotating model according to orientation. ");
     }
     if (functionName=="bins") {

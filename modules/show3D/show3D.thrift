@@ -72,11 +72,11 @@ service show3D_IDLServer
      * @return true/false on displaying the arrow the poitncloud
      */
     //bool addArrow(1: list<double> arrowStart, 2: list<double> arrowEnd, 3: list<i32> color);
-     //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
+    //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
 
 
     /**
-     * @brief addArrow - Plots arrow with given start and end coords and color
+     * @brief addSphere - Plots a sphere with given coords and color
      * @param coords - sphere coords
      * @param color - color rgb
      * @return true/false on displaying the sphere

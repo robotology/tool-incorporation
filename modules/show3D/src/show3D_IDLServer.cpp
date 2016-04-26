@@ -687,7 +687,7 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
     }
     if (functionName=="addSphere") {
       helpString.push_back("bool addSphere(const std::vector<double> & coords, const std::vector<int32_t> & color) ");
-      helpString.push_back("@brief addArrow - Plots arrow with given start and end coords and color ");
+      helpString.push_back("@brief addSphere - Plots a sphere with given coords and color ");
       helpString.push_back("@param coords - sphere coords ");
       helpString.push_back("@param color - color rgb ");
       helpString.push_back("@return true/false on displaying the sphere ");

@@ -25,11 +25,6 @@ using namespace yarp::math;
 
 using namespace iCub::YarpCloud;
 
-/**
- *
-@ingroup icub_module
-\defgroup icub_objects3DExplorer objects3DExplorer
-
 
 // This module deals with 3D object/tool exploration, partial reconstruction extraction, alignment, pose estimation, etc.
 // - Provides some functions to explore an object in hand.
@@ -37,7 +32,6 @@ using namespace iCub::YarpCloud;
 // - Automatizes partial object reconstruction (communicating with obj3Drec), and alignment
 // - Performs pose estimation from model using alignment.
 // - Computes tooltip from model and estimated pose
-**/
   
 /**********************************************************
                     PUBLIC METHODS
@@ -703,10 +697,15 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-        // Check if pose has been found, else return false
+        double effWeight = 0.2;
+        if (command.size() > 1){
+            effWeight = command.get(1).asDouble();
+        }
+
+        // Check if pose has been found, use the canonically oriented model
         int green[3] = {0,255,0};
         if (!poseFound){
-            if(!findTooltipSym(cloud_model, tooltip)){
+            if(!findTooltipSym(cloud_model, tooltip, effWeight)){
                 cout << "Could not compute tooltip from canonical cloud" << endl;
                 reply.addString("[nack] Could not compute tooltip.");
                 return false;
@@ -715,7 +714,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             addPoint(cloud_model, tooltip,green);
             sendPointCloud(cloud_model);
         }else {
-            if(!findTooltipSym(cloud_pose, tooltip)){
+            if(!findTooltipSym(cloud_pose, tooltip, effWeight)){
                 cout << "Could not compute tooltip from cloud in pose" << endl;
                 reply.addString("[nack] Could not compute tooltip.");
                 return false;
@@ -917,7 +916,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("findTooltipCanon - Finds the tooltip of the tool in its canonical position -MODEL REQUIRED-.");
         reply.addString("findTooltipParam [ori][disp][tilt][shift]- Finds the tooltip of the tool in the position given by the parameters -MODEL REQUIRED-.");
         reply.addString("findTooltipAlign - Places the tooltip on the rotated tool after pose has been found -MODEL and POSE required-.");
-        reply.addString("findTooltipSym - Finds the tooltip of the tool in any position based on symmetry planes.");
+        reply.addString("findTooltipSym [effWeight]- Finds the tooltip of the tool in any position based on symmetry planes.");
         reply.addString("cleartip - Removes any previously estimated tooltip.");
 
         reply.addString("---------- AFFORDANCES ------------");
@@ -1471,7 +1470,7 @@ bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pos
 }
 
 /*************************************************************************/
-bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw,  Point3D& ttSym, int K)
+bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw,  Point3D& ttSym, double effWeight, int K)
 {
 
     // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
@@ -1637,13 +1636,13 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     Plane3D effP = unitPlanes[effPlane_i];
     double maxDist = 0.0;
     int maxPt_i = -1;
-    double w = 0.8;     // Weight assigned to effector distance w.r.t. orig distance
+    effWeight = 0.8;     // Weight assigned to effector distance w.r.t. orig distance
     for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
     {
         pcl::PointXYZRGB *pt = &cloud->at(ptI);
         float dist_eff = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);   // Normalized signed distance of point to eff plane
         float dist_orig = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z);              // Distance from the origin.
-        float dist_aux = w*dist_eff + (1-w)*dist_orig;
+        float dist_aux = effWeight*dist_eff + (1-effWeight)*dist_orig;
         if (dist_aux > maxDist){
             maxDist = dist_aux;
             maxPt_i = ptI;

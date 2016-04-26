@@ -23,12 +23,12 @@ public:
    */
   virtual bool getFeats();
   /**
-   * @brief getFeats - Performs 3D feature extraction of the tool in the rotated pose.
+   * @brief getFeats - Performs 3D feature extraction of all loaded tools
    * @return true/false on success/failure of extracting features
    */
   virtual bool getAllToolFeats(const std::string& robot = "real");
   /**
-   * @brief getSamples - Generates n poses of the tool around a base orientation deg.
+   * @brief getSamples - Generates n poses of the tool around a base orientation deg and extract features.
    * @param n - (int) desired number of poses (default = 10) .
    * @param deg - (double) base orientation of the tool pose (default = 0.0).
    * @return true/false on success/failure of generating n samples.
@@ -48,11 +48,12 @@ public:
   virtual bool setPose(const yarp::sig::Matrix& toolPose);
   /**
    * @brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector.
-   * @param deg - (double) degrees of rotation along the longest axis.
+   * @param deg - (double) degrees of rotation around the longest axis.
    * @param disp - (int) displacement along the tool axis (grasped closer or further from end-effector).
+   * @param tilt - (double) degrees of rotation around Z (tilted forward)
    * @return true/false on success/failure of rotating model according to orientation.
    */
-  virtual bool setCanonicalPose(const double deg = 0, const double disp = 0, const double tilt = 45);
+  virtual bool setCanonicalPose(const double deg = 0, const int32_t disp = 0, const double tilt = 45);
   /**
    * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
    * @param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel).

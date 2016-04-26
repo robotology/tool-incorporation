@@ -51,7 +51,7 @@ public:
    */
   virtual bool addBoundingBox(const int32_t typeBB = 0);
   /**
-   * @brief addArrow - Plots arrow with given start and end coords and color
+   * @brief addSphere - Plots a sphere with given coords and color
    * @param coords - sphere coords
    * @param color - color rgb
    * @return true/false on displaying the sphere
