@@ -1,0 +1,46 @@
+<module>
+    <!-- module's name should match its executable file's name. -->
+    <name>show3D</name>
+    <description> Reads and visualizes the merged pointclouds.</description>
+    <version>1.0</version>
+
+    <!-- <arguments> can have multiple <param> tags-->
+    <arguments>
+        <param desc="Name of the module" default="tool3Dshow"> name</param>
+        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolModeler"> context </param>
+    </arguments>
+
+    <!-- <authors> can have multiple <author> tags. -->
+    <authors>
+	  <author email="tanis.mar@iit.it"> Tanis Mar</author>
+    </authors>
+
+     <!-- <data> can have multiple <input> or <output> tags. -->
+     <data>
+        <!-- input data if available -->
+        <input port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/show3D/rpc:i</port>
+            <description>takes RPC commands from Human or stateMachine</description>
+        </input>
+        <input>
+            <type>Bottle</type>
+            <port>/show3D/clouds:i</port>
+            <description> Receives the pointcloud to be displayed as a Bottle of points in Lists.</description>
+        </input>
+    </data>
+
+    <dependencies>
+        <computer>
+        </computer>
+    </dependencies>
+
+    <!-- specific libraries or header files which are used for development -->
+    <development>
+        <header></header>
+        <library>YARP</library>
+        <library>PCL 1.7</library>
+    </development>
+
+</module>
+

@@ -1,0 +1,200 @@
+<application>
+    <name>objectFusionAPP</name>
+    <module>
+        <name>objFus3D</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 405.9) (y 159.9))</geometry>
+    </module>
+    <module>
+        <name>SFM</name>
+        <parameters>--elas_setting MIDDLEBURY</parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 615) (y 345.9))</geometry>
+    </module>
+    <module>
+        <name>graphBasedSegmentation</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 595) (y 33.9))</geometry>
+    </module>
+    <module>
+        <name>obj3Drec</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 760) (y 163.9))</geometry>
+    </module>
+    <module>
+        <name>show3D</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 980) (y 151.9))</geometry>
+    </module>
+    <module>
+        <name>templatePFTracker</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 526) (y 503.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--out /out --x 10 --y 10</parameters>
+        <node>console</node>
+        <prefix>/imLeft</prefix>
+        <geometry>(Pos (x 198) (y 190.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--out /out --x 10 --y 350</parameters>
+        <node>console</node>
+        <prefix>/segView</prefix>
+        <geometry>(Pos (x 945) (y 47.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--x 350 --y 350</parameters>
+        <node>console</node>
+        <prefix>/trackIm</prefix>
+        <geometry>(Pos (x 866) (y 504.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--x 350 --y 10</parameters>
+        <node>console</node>
+        <prefix>/disp</prefix>
+        <geometry>(Pos (x 981) (y 224.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--x 10 --y 700</parameters>
+        <node>console</node>
+        <prefix>/crop</prefix>
+        <geometry>(Pos (x 588) (y 210.9))</geometry>
+    </module>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/templatePFTracker/left/image:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 351.5) (y 472.5)) ((x 197) (y 358)) ((x 527) (y 584))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/objFus3D/crop:o</from>
+        <to>/templatePFTracker/template/image:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 526) (y 394.5)) ((x 546) (y 230)) ((x 527) (y 559))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/objFus3D/objrec:rpc</from>
+        <to>/obj3Drec/rpc:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 643.5) (y 194.5)) ((x 548) (y 206)) ((x 760) (y 181))  )</geometry>
+    </connection>
+    <connection>
+        <from>/obj3Drec/seg:rpc</from>
+        <to>/GBSeg/conf</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 742) (y 172.5)) ((x 909) (y 268)) ((x 596) (y 77))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/imLeft/yarpview/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 187.5) (y 285)) ((x 197) (y 358)) ((x 199) (y 209))  )</geometry>
+    </connection>
+    <connection>
+        <from>/GBSeg/viewImg:o</from>
+        <to>/segView/yarpview/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 893) (y 65)) ((x 861) (y 64)) ((x 946) (y 66))  )</geometry>
+    </connection>
+    <connection>
+        <from>/obj3Drec/pnt:o</from>
+        <to external="true">/objFus3D/clouds:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 645.5) (y 239.5)) ((x 914) (y 194)) ((x 901) (y 151)) ((x 361) (y 151)) ((x 361) (y 271)) ((x 416) (y 279))  )</geometry>
+    </connection>
+    <connection>
+        <from>/obj3Drec/disp:o</from>
+        <to>/disp/yarpview/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 937.5) (y 231)) ((x 914) (y 219)) ((x 982) (y 243))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to external="true">/objFus3D/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 286) (y 333.5)) ((x 197) (y 358)) ((x 412) (y 305))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/obj3Drec/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 468.5) (y 296)) ((x 197) (y 358)) ((x 761) (y 232))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/GBSeg/rawImg:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 386) (y 206.5)) ((x 197) (y 358)) ((x 596) (y 52))  )</geometry>
+    </connection>
+    <connection>
+        <from>/templatePFTracker/target:o</from>
+        <to external="true">/objFus3D/track:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 565) (y 438.5)) ((x 752) (y 622)) ((x 415) (y 253))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/imLeft/out</from>
+        <to external="true">/objFus3D/coords:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 297.5) (y 169.5)) ((x 217) (y 82)) ((x 415) (y 253))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/SFM/left:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 396) (y 362.5)) ((x 197) (y 358)) ((x 616) (y 364))  )</geometry>
+    </connection>
+    <connection>
+        <from>/obj3Drec/pnt:o</from>
+        <to>/show3D/clouds:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 937) (y 194.5)) ((x 914) (y 194)) ((x 981) (y 195))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/right/out</from>
+        <to>/SFM/right:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 397) (y 428.5)) ((x 199) (y 465)) ((x 616) (y 389))  )</geometry>
+    </connection>
+    <connection>
+        <from>/obj3Drec/SFM:rpc</from>
+        <to>/SFM/rpc</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 747.5) (y 349.5)) ((x 909) (y 243)) ((x 901) (y 406)) ((x 751) (y 406)) ((x 751) (y 481)) ((x 616) (y 481)) ((x 615) (y 438))  )</geometry>
+    </connection>
+    <connection>
+        <from>/SFM/disp:o</from>
+        <to>/obj3Drec/disp:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 734.5) (y 291.5)) ((x 729) (y 376)) ((x 761) (y 207))  )</geometry>
+    </connection>
+    <connection>
+        <from>/templatePFTracker/left/image:o</from>
+        <to>/trackIm/yarpview/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 799) (y 522.5)) ((x 752) (y 522)) ((x 867) (y 523))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/objFus3D/crop:o</from>
+        <to>/crop/yarpview/img:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 557) (y 229.5)) ((x 546) (y 230)) ((x 589) (y 229))  )</geometry>
+    </connection>
+</application>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="yarpmanifest.xsl"?>
+
+<module>
+    <!-- module's name should match its executable file's name. -->
+    <name>objects3DExplorer</name>
+    <description> This module deals with 3D object/tool exploration, partial reconstruction, alignment, pose estimation, etc..</description>
+    <version>1.0</version>
+
+    <!-- <arguments> can have multiple <param> tags-->
+    <arguments>
+        <param desc="Name of the module" default="objects3DExplorer"> name</param>
+        <param desc="Robot" default="icub"> robot</param>
+        <param desc="Hand" default="right"> hand</param>
+        <param desc="Eye camera" default="left"> camera</param>
+        <param desc="Verbose ON/OFF" default="false"> verbose</param>
+
+        <param desc="Initial alignment with FPFH" default="true"> initAlign</param>
+        <param desc="Segmentation using 2D (true) or 3D (false)" default="false"> seg2D</param>
+        <param desc="Saving clouds" default="false"> saving</param>
+        <param desc="Root name of recorded clouds" default="cloud"> saveName</param>
+
+        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolModeler"> context </param>
+    </arguments>
+
+    <!-- <authors> can have multiple <author> tags. -->
+    <authors>
+	  <author email="tanis.mar@iit.it"> Tanis Mar</author>
+    </authors>
+
+     <!-- <data> can have multiple <input> or <output> tags. -->
+     <data>
+        <!-- input data if available -->
+        <input port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/objects3DExplorer/rpc:i</port>
+            <description>takes RPC commands from Human or stateMachine</description>
+        </input>      
+        <input>
+            <type>Bottle</type>
+            <port carrier="tcp">/objects3DExplorer/clouds:i</port>
+            <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point, or optionally 3 more values RGB </description>
+        </input>   
+        <!-- output data if available -->        
+        <output>
+            <type>Bottle</type>
+            <port>/objects3DExplorer/clouds:o</port>
+            <description> Send out the latest reconstructed cloud in the same bottle format, for visualization or further processing</description>
+        </output>
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/objects3DExplorer/objrec:rpc</port>
+            <description> Send commands to the objectReconstruction module</description>
+        </output>
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/objects3DExplorer/visualizer:rpc</port>
+            <description> Send commands to the visualizer module to display the pointcloud</description>
+        </output>
+        <output port_type="service">
+            <type>rpc</type>
+            <port>/objects3DExplorer/featExt:rpc</port>
+            <description> Send commands to the toolFeatExt module to extract 3D geometrical features from the tool</description>
+        </output>        
+
+    </data>
+
+    <dependencies>
+        <computer>
+        </computer>
+    </dependencies>
+
+    <!-- specific libraries or header files which are used for development -->
+    <development>
+        <header></header>
+        <library>YARP</library>
+        <library>PCL 1.7</library>
+    </development>
+
+</module>
+
