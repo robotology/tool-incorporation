@@ -546,6 +546,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         toolPose.resize(4,4);
         toolPose.eye();
         poseFound = false;
+        reply.addString("[ack]");
         return true;
 
 
@@ -740,6 +741,11 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         tooltip.z == 0.0;
 
         tooltipCanon = tooltip;
+        reply.addString("[ack]");
+
+        reply.addDouble(tooltip.x);
+        reply.addDouble(tooltip.y);
+        reply.addDouble(tooltip.z);
         return true;
 
 // ======================= AFFORDANCES ================================
@@ -1006,8 +1012,8 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.17;              // X
-        xTH[1] = -0.17;             // Y
+        xTH[0] = 0.15;              // X
+        xTH[1] = -0.15;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
     }else {
@@ -1050,8 +1056,8 @@ bool Objects3DExplorer::lookAtTool(){
 
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.17;              // X
-        xTH[1] = -0.17;             // Y
+        xTH[0] = 0.13;              // X
+        xTH[1] = -0.13;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
     }else {
