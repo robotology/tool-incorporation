@@ -380,6 +380,24 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+    }else if (receivedCmd == "cleartool"){
+
+        // clear tool
+        cloudLoaded = false;
+        toolPose.resize(4,4);
+        toolPose.eye();
+        poseFound = false;
+
+        //clear tip
+        tooltip.x == 0.0;
+        tooltip.y == 0.0;
+        tooltip.z == 0.0;
+
+        tooltipCanon = tooltip;
+        reply.addString("[ack]");
+
+        return true;
+
 
 
 //================================= POSE COMMANDS ================================
@@ -574,7 +592,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
 
-    }else if (receivedCmd == "findTooltipParam"){   // XXX Function only for simulation
+    }else if (receivedCmd == "findTooltipParam"){   // Function only for simulation
 
         // Check if model is loaded, else return false
         if (!cloudLoaded){
@@ -1096,7 +1114,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
     // Get inital cloud model on central orientation
     turnHand(0,0);
-    //lookAtTool();
     bool ok = false;
     while(!ok){          // Keep on getting clouds until one is valid (should be the first)
         ok = getPointCloud(cloud_rec_merged, seed);
@@ -1484,9 +1501,9 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
     // Find major axes as eigenVectors
     vector< Eigen::Vector3f> eigenVectors(3);               // Normals to the 3 main planes
-    Eigen::Vector3f eigenValues(3);                            // Relative legth in each eigenVector direction.
+    Eigen::Vector3f eigenValues(3);                         // Relative length in each eigenVector direction.
     yarp::sig::Vector eVs(3);
-    Eigen::Vector3f mc;                                    // Center of mass
+    Eigen::Vector3f mc;                                     // Center of mass
     feature_extractor.getEigenValues(eigenValues[0], eigenValues[1], eigenValues[2]);
     eVs[0]= eigenValues[0];     eVs[1]= eigenValues[1];     eVs[2]= eigenValues[2];
     feature_extractor.getEigenVectors(eigenVectors[0], eigenVectors[1], eigenVectors[2]);
@@ -1500,7 +1517,6 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     // Find major planes as normal to those vectors
     for (int plane_i = 0; plane_i < eigenVectors.size(); plane_i ++){
         // Compute coefficients of plane equation ax + by + cz + d = 0
-        // float a, b, c, d;
         Plane3D P;
         P.a = eigenVectors[plane_i](0);
         P.b = eigenVectors[plane_i](1);
@@ -1538,7 +1554,8 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
         cout << "The original cloud of size " << cloud->size() << " is divided in two clouds of size " << cloudA->size() << " and " << cloudB->size() << ". "<< endl;
 
-        // Mirror one of the vectors wrt the plane_i.
+
+        // Get the normalized plane parameters -> unit planes
         Plane3D uP;     // Unit plane
         double M = sqrt(P.a*P.a+P.b*P.b+P.c*P.c);    // Elements of normal unit vector
         uP.a = P.a/M;
@@ -1546,8 +1563,9 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         uP.c = P.c/M;
         uP.d = P.d/M;
         unitPlanes.push_back(uP);
-        cloudMirror->clear();
 
+        // Mirror one of the half clouds wrt the plane_i.
+        cloudMirror->clear();
         for (unsigned int ptI=0; ptI<cloudB->points.size(); ptI++)
         {
             pcl::PointXYZRGB *pt = &cloudB->at(ptI);
@@ -1559,7 +1577,7 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
             cloudMirror->push_back(ptMirror);
         }
 
-        // compute avg distance between mirrored vector and the other one.
+        // compute avg distance between one side's half cloud and the mirrored image of the other half cloud using KNN
         pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
         kdtree.setInputCloud(cloudA);
         std::vector<int> pointIdxNKNSearch(K);
@@ -1585,25 +1603,24 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
             accumCloudKNNdist += avgPointKNNdist;
         }
 
-        // normalize
+        // normalize distances by num of points, and keep most symmetric plane
         avgCloudKNNdist = accumCloudKNNdist/valPt;
 
-        // merge cloud A and B in cloud AB
+        if (sqrt(avgCloudKNNdist) < minSymDist){
+            symPlane_i = plane_i;
+            minSymDist = sqrt(avgCloudKNNdist);
+        }
+
+        // merge cloud A and B in cloud AB for visualization
         int blue[3] = {0,0,255};
-        changeCloudColor(cloudB, blue );
+        changeCloudColor(cloudB, blue);
         *cloudAB = *cloudA;
         *cloudAB += *cloudB;
         sendPointCloud(cloudAB);
         Time::delay(2.5);
         cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
-
-
-        if (sqrt(avgCloudKNNdist) < minSymDist){
-            //symPlane = P;
-            symPlane_i = plane_i;
-            minSymDist = sqrt(avgCloudKNNdist);
-        }
     }
+
     // Check that a symmetry plane has been found
     if (symPlane_i <0 ){
         cout << "The symmetry plane could not be found" << endl;
@@ -1756,7 +1773,7 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
     affBottle.clear();
 
     Matrix toolAffMat;
-    if (allAffs){
+    if (allAffs){       // Provides a summary of all known affordances for tool selection
         int toolI = 0;
         string toolName;
         for (int toolVecInd = 0; toolVecInd < affMatrix.rows()/3; toolVecInd + 3){
@@ -1774,7 +1791,6 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
             if (toolI = 3){
                 toolName = "real/realStick3";
             }
-            //Bottle &toolAffBot = affBottle.addList();
             affBottle.addString(toolName);
             Property &affProps = affBottle.addDict();
 
@@ -1783,29 +1799,37 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 
             getAffProps(toolAffMat, affProps);
         }
-    }else{
+    }else{          // Returns affordances of current tool-pose
 
-        // Write the name of the tool in the bottle
-        // Get index of tool pose in hand
-        int toolposeI = getTPindex(saveName, toolPose);
-        cout << "Computed T-P index is: "<< toolposeI << endl;
-        if (toolposeI < 0){
+        if ((!cloudLoaded) || (!poseFound)){
             cout << "No tool loaded " << endl;
             affBottle.addString("no_aff");
+            affBottle.addString("no_tool");
+            return true;
+        }
+
+        // Write the name of the tool in the bottle
+        // Get index of tool pose in hand        
+        if (getTPindex(saveName, toolPose) < 0){
+            cout << "Tool affordances not known " << endl;
+            affBottle.addString("no_aff");
+            affBottle.addString("tool_aff_unknown");
             return true;
         }
 
         // Get name of tool in hand
-        //Bottle &toolAffBot = affBottle.addList();
         affBottle.addString(saveName);
         Property &affProps = affBottle.addDict();
+        toolAffMat = affMatrix.submatrix(toolposeI, toolposeI, 0 , cols-1); // Get affordance vector corresponding to current tool-pose
 
-        toolAffMat = affMatrix.submatrix(toolposeI, toolposeI, 0 , cols-1);
-
-        // get the tool-pose affordances
-        getAffProps(toolAffMat, affProps);
+        // get the tool-pose affordances        
+        if(!getAffProps(toolAffMat, affProps)){
+            cout << "Tool can't afford any action in the repertoire " << endl;
+            affBottle.addString("no_aff");
+            affBottle.addString("no_action_aff");
+            return true;
+        }
     }
-
     return true;
 }
 
@@ -1847,12 +1871,9 @@ bool Objects3DExplorer::getAffProps(const Matrix &affMatrix, Property &affProps)
         affOK = true;
     }
 
-    if (!affOK){
-        cout << "This tool-pose does not afford any of the possible actions." << endl;
-        affProps.put("no_aff", 0.0);
+    if (affOK){
+        cout << "Tool (pose) affordances are " << affProps.toString() << endl;
     }
-
-    cout << "Tool (pose) affordances are " << affProps.toString() << endl;
 
     return affOK;
 }

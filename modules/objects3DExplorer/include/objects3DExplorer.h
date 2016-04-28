@@ -128,8 +128,6 @@ protected:
     /* functions*/
     
     /* Actions */
-    // bool                exploreAutomatic();
-    // bool                exploreInteractive();
     bool                turnHand(const int rotDegX = 0, const int rotDegY = 0, const bool followTool = false);
     bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged);
     bool                lookAtTool();
@@ -147,6 +145,7 @@ protected:
 
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);    
     bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Point3D& ttSym, double effW = 0.8, int K = 5);
+    bool                findOri();
 
     bool                placeTipOnPose(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);
     bool                paramFromPose(const yarp::sig::Matrix &pose, double &ori, double &displ, double &tilt, double &shift);
