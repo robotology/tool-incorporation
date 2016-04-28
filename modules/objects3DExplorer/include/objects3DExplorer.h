@@ -132,10 +132,10 @@ protected:
     bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged);
     bool                lookAtTool();
     bool                lookAround();
-
+    double              adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance);
 
     /* Object info from Cloud */
-    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point2D& seed);
+    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam = -1.0);
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     bool                findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose);

@@ -309,8 +309,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     }else if (receivedCmd == "get3D"){
         // segment object and get the pointcloud using objectReconstrucor module save it in file or array
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        Point2D seed;
-        bool ok = getPointCloud(cloud_rec, seed);
+        bool ok = getPointCloud(cloud_rec);
 
         if (ok) {
 
@@ -382,8 +381,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
     }else if (receivedCmd == "cleartool"){
 
-        // clear tool
+        //clear clouds
+        cloud_model->clear();
+        cloud_model->points.clear();
+        cloud_pose->clear();
+        cloud_pose->points.clear();
         cloudLoaded = false;
+
+        // clear pose
         toolPose.resize(4,4);
         toolPose.eye();
         poseFound = false;
@@ -923,6 +928,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("exploreTool - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
         reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
         reply.addString("lookAtTool - Moves gaze to look where the tooltip is (or a guess if it is not defined).");
+        reply.addString("cleartool - Removes previously loaded or computed tool model, pose and tip.");
+
 
         reply.addString("---------- GET POSE -----------");
         reply.addString("findPoseAlign - Find the actual grasp by comparing the actual registration to the given model of the tool.");
@@ -1073,8 +1080,8 @@ bool Objects3DExplorer::lookAtTool(){
 
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.13;              // X
-        xTH[1] = -0.13;             // Y
+        xTH[0] = 0.15;              // X
+        xTH[1] = -0.15;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
     }else {
@@ -1099,7 +1106,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 {
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
     cloud_rec_merged->points.clear();
-    Point2D seed;
 
     // Move not exploring hand out of the way:
     Vector away, awayOr;
@@ -1111,13 +1117,13 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     otherHandCtrl->goToPose(away, awayOr);
     otherHandCtrl->waitMotionDone();
 
+    double spDist = 0.004;
 
     // Get inital cloud model on central orientation
     turnHand(0,0);
-    bool ok = false;
-    while(!ok){          // Keep on getting clouds until one is valid (should be the first)
-        ok = getPointCloud(cloud_rec_merged, seed);
+    while(!getPointCloud(cloud_rec_merged, spDist)){          // Keep on getting clouds until one is valid (should be the first)
         lookAround();
+        spDist = adaptDepth(cloud_rec_merged,spDist);
     }
     sendPointCloud(cloud_rec_merged);
 
@@ -1144,7 +1150,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         cloud_rec->clear();
 
         // If cloud was found by any of the prrevious methods
-        if(getPointCloud(cloud_rec, seed)){
+        if(getPointCloud(cloud_rec, spDist)){
+            spDist = adaptDepth(cloud_rec, spDist);
             if (!mergeAlign){
                 // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
                 *cloud_rec_merged += *cloud_rec;
@@ -1186,7 +1193,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         cloud_rec->clear();
 
         // If cloud was found by any of the prrevious methods
-        if(getPointCloud(cloud_rec, seed)){
+        if(getPointCloud(cloud_rec, spDist)){
+            spDist = adaptDepth(cloud_rec,spDist);
             if (!mergeAlign){
                 // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
                 *cloud_rec_merged += *cloud_rec;
@@ -1213,6 +1221,19 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
 
 }
+double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
+    if (cloud->size()> 10000){
+        cout << " Spatial distance modified to " << spatial_distance - 0.0001 << endl;
+        return spatial_distance - 0.001;
+    }
+    if (cloud->size()< 400){
+        cout << " Spatial distance modified to " << spatial_distance + 0.0001 << endl;
+        return spatial_distance + 0.001;
+    }
+    return spatial_distance;
+}
+
+
 
 
 /************************************************************************/
@@ -1233,7 +1254,7 @@ bool Objects3DExplorer::lookAround()
 
 /* CLOUD INFO */
 /************************************************************************/
-bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, Point2D& seed)
+bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam)
 {
     cloud_rec->points.clear();
     cloud_rec->clear();   // clear receiving cloud
@@ -1244,12 +1265,11 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     if (seg2D){
         cmdOR.addString("seg");
     } else {
-        cmdOR.addString("flood3d");        
+        cmdOR.addString("flood3d");
+        if (segParam > 0.0)
+            cmdOR.addDouble(segParam);
     }
     rpcObjRecPort.write(cmdOR,replyOR);
-
-    seed.u= replyOR.get(1).asInt();
-    seed.v= replyOR.get(2).asInt();
 
     // read the cloud from the objectReconst output port
     Bottle *cloudBottle = cloudsInPort.read(true);
@@ -1359,9 +1379,8 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         Time::delay(1.0);
 
         // Get a registration
-        Point2D seed;
         lookAtTool();
-        if(!getPointCloud(cloud_rec,seed))          // Registration get and normalized to hand-reference frame.
+        if(!getPointCloud(cloud_rec))          // Registration get and normalized to hand-reference frame.
         {
             cout << " Cloud not valid" << endl;
             continue;
@@ -1809,8 +1828,9 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
         }
 
         // Write the name of the tool in the bottle
-        // Get index of tool pose in hand        
-        if (getTPindex(saveName, toolPose) < 0){
+        // Get index of tool pose in hand
+        int toolposeI = getTPindex(saveName, toolPose);
+        if (toolposeI < 0){
             cout << "Tool affordances not known " << endl;
             affBottle.addString("no_aff");
             affBottle.addString("tool_aff_unknown");
