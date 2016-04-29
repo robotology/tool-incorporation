@@ -107,6 +107,7 @@ protected:
     // module parameters
     bool                                cloudLoaded;
     bool                                poseFound;
+    bool                                symFound;
     bool                                initAlignment;
     bool                                seg2D;
     bool                                closing;    
@@ -116,9 +117,14 @@ protected:
     struct                              Point2D {int u; int v;};
     struct                              Point3D {double x;double y; double z;};
     struct                              Plane3D {double a;double b; double c; double d;};
+    int                                 purple[3], red[3], green[3], blue[3], orange[3];
 
     yarp::sig::Matrix                           toolPose;
     Point3D                                     tooltip, tooltipCanon;
+
+    yarp::sig::Vector                           eigenValues;
+    std::vector<Plane3D>                        eigenPlanes;
+    std::map<std::string,int>                   planeInds; // Save the indices of the symmetry, effector and handle eigenvectors
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;     // Temporal pointcloud for validation
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_model;    // Validated merged pointcloud
@@ -143,9 +149,11 @@ protected:
     bool                alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_from, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned, Eigen::Matrix4f& transfMat, double minScale = 1.0, double maxScale = 1.0, double step = 0.1);
     bool                checkGrasp(const yarp::sig::Matrix &pose);
 
-    bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);    
-    bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Point3D& ttSym, double effW = 0.8, int K = 5);
-    bool                findOri();
+    bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
+    bool                findSymmetry(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::sig::Vector &eigenVal,  std::vector<Plane3D> &mainPlanes, std::map<std::string,int> &planesI, int K = 5, bool vis = true);
+    bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::vector<Plane3D> &mainPlanes, const std::map<std::string, int > &planeInds, Point3D& ttSym, double effW = 0.8);
+    Plane3D             main2unitPlane(const Plane3D main);
+    //bool                findOri(const std::vector<Plane3D> &mainPlanes, const std::map<std::string, int > &planeInds, yarp::sig::Matrix &pose);
 
     bool                placeTipOnPose(const Point3D &ttCanon, const yarp::sig::Matrix &pose, Point3D &tooltipTrans);
     bool                paramFromPose(const yarp::sig::Matrix &pose, double &ori, double &displ, double &tilt, double &shift);

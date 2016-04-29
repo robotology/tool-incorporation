@@ -85,9 +85,13 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     NO_FILENUM = -1;
     cloudLoaded = false;
     poseFound  = false;
+    symFound = false;
     toolPose = eye(4);
     tooltip.x = 0.0; tooltip.y = 0.0; tooltip.z = 0.0;
     tooltipCanon = tooltip;
+
+    eigenValues.resize(3,0.0);
+    eigenPlanes.clear();
 
     //icp variables
     // XXX eventually make this selectable by .ini or cmd line.
@@ -100,6 +104,11 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     noise_mean = 0.0;
     noise_sigma = 0.003;
 
+       red[0] = 255;       red[1] = 0;       red[2] = 0;
+    purple[0] = 255;    purple[1] = 0;    purple[2] = 255;
+     green[0] = 0;       green[1] = 255;   green[2] = 0;
+      blue[0] = 0;        blue[1] = 0;      blue[2] = 255;
+    orange[0] = 255;    orange[1] = 165;  orange[2] = 0;
 
     // Clouds
     cloud_temp = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB> ());  // Point cloud
@@ -492,9 +501,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
        }
 
        Time::delay(1.0);
-       int blue[3] = {0,0,255};    // Plot partial view blue
        addNoise(cloud_from, noise_mean , noise_sigma);
-       changeCloudColor(cloud_from, blue);
+       changeCloudColor(cloud_from, blue);      // Plot partial view blue
        sendPointCloud(cloud_from);
 
        // Set accumulator mode.
@@ -535,8 +543,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
        cout << "Alignment Matrix is "<< endl << alignMatrix << endl;
        cout << "Pose Matrix YARP is "<< endl << poseMatYARP.toString() << endl;
 
-       int green[3] = {0,255,0};          // Change color oriented model green
-       changeCloudColor(cloud_pose,green);
+       changeCloudColor(cloud_pose,green);  // Change color oriented model green
        poseFound = true;
 
        // Add tooltip in purple
@@ -584,7 +591,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-        int green[3] = {0,255,0};
         addPoint(cloud_model, tooltipCanon,green);
         sendPointCloud(cloud_model);
 
@@ -639,7 +645,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         setToolPose(cloud_model, toolPose, cloud_pose);
 
         // Display tooltip in oriented cloud
-        int green[3] = {0,255,0};
         addPoint(cloud_pose, tooltip,green);
         sendPointCloud(cloud_pose);
 
@@ -682,7 +687,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
 
         // Add point to indicate tooltip.
-        int green[3] = {0,255,0};
         addPoint(cloud_model, tooltipCanon, green);
         sendPointCloud(cloud_model);
 
@@ -725,27 +729,26 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             effWeight = command.get(1).asDouble();
         }
 
-        // Check if pose has been found, use the canonically oriented model
-        int green[3] = {0,255,0};
+        // Check if pose has been found, use the canonically oriented model        
         if (!poseFound){
-            if(!findTooltipSym(cloud_model, tooltip, effWeight)){
-                cout << "Could not compute tooltip from canonical cloud" << endl;
-                reply.addString("[nack] Could not compute tooltip.");
-                return false;
-            }
-            Time::delay(0.5);
-            addPoint(cloud_model, tooltip,green);
-            sendPointCloud(cloud_model);
-        }else {
-            if(!findTooltipSym(cloud_pose, tooltip, effWeight)){
-                cout << "Could not compute tooltip from cloud in pose" << endl;
-                reply.addString("[nack] Could not compute tooltip.");
-                return false;
-            }
-            Time::delay(0.5);
-            addPoint(cloud_pose, tooltip,green);
-            sendPointCloud(cloud_pose);
+            *cloud_pose = *cloud_model;}
+
+        if(!findSymmetry(cloud_pose, eigenValues,  eigenPlanes, planeInds)){
+            cout << "Could not compute the tool main planes and symmetries" << endl;
+            reply.addString("[nack] Could not compute symmetries.");
+            return false;
         }
+
+        if(!findTooltipSym(cloud_pose, eigenPlanes, planeInds, tooltip, effWeight)){
+            cout << "Could not find the tooltip from the symmetry planes" << endl;
+            reply.addString("[nack] Could not compute tooltip.");
+            return false;
+        }
+
+        Time::delay(0.5);
+        addPoint(cloud_pose, tooltip,purple);
+        sendPointCloud(cloud_pose);
+
 
         cout << "Tooltip found at ( " << tooltip.x <<  ", " << tooltip.y <<  ", "<< tooltip.z <<  "). " << endl;
         showTooltip(tooltip,green);
@@ -774,13 +777,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
     }else if (receivedCmd == "getAffordance"){
 
-        if (!(poseFound)&&(cloudLoaded))
-        {
-            cout << "Tool and pose need to estimate affordance of tool-pose. Load tool and find pose." << endl;
-            reply.addString("[nack] Tool-pose must be known to predict affordances.");
-            return true;
-        }
-
         Bottle aff;
         bool all = false;
         if (command.size() > 1){
@@ -794,7 +790,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;
         } else {
             fprintf(stdout,"Affordance could not be obtained or was not present. \n");
-            reply.addString("[nack] Affordance could not be obtained or was not present. ");
+            reply.addString("no_aff");
+            reply.addString("error");
             return true;
         }
 
@@ -1224,11 +1221,11 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
     if (cloud->size()> 10000){
         cout << " Spatial distance modified to " << spatial_distance - 0.0001 << endl;
-        return spatial_distance - 0.001;
+        return spatial_distance - 0.0005;
     }
     if (cloud->size()< 400){
         cout << " Spatial distance modified to " << spatial_distance + 0.0001 << endl;
-        return spatial_distance + 0.001;
+        return spatial_distance + 0.0005;
     }
     return spatial_distance;
 }
@@ -1366,6 +1363,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
     cmdVis.addString("accumClouds");
     cmdVis.addInt(1);
     rpcVisualizerPort.write(cmdVis,replyVis);
+    double spDist = 0.004;
 
     while (!poseValid){
 
@@ -1380,13 +1378,13 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
 
         // Get a registration
         lookAtTool();
-        if(!getPointCloud(cloud_rec))          // Registration get and normalized to hand-reference frame.
-        {
+        if(!getPointCloud(cloud_rec, spDist))          // Registration get and normalized to hand-reference frame.
+        {            
+            spDist = adaptDepth(cloud_rec,spDist);
             cout << " Cloud not valid" << endl;
             continue;
         }
-        int blue[3] = {0,0,255};               // Plot oriented model green
-        changeCloudColor(cloud_rec, blue);
+        changeCloudColor(cloud_rec, blue);             // Plot reconstructed view blue
         sendPointCloud(cloud_rec);
         Time::delay(1.0);
 
@@ -1415,8 +1413,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         poseCloud->clear();
         pcl::transformPointCloud(*modelCloud, *poseCloud, poseMatrix);
 
-        int green[3] = {0,255,0};          // Plot oriented model green
-        changeCloudColor(poseCloud, green);
+        changeCloudColor(poseCloud, purple);
         sendPointCloud(poseCloud);
         Time::delay(1.0);
 
@@ -1505,9 +1502,12 @@ bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pos
     return true;
 }
 
+
 /*************************************************************************/
-bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw,  Point3D& ttSym, double effWeight, int K)
+bool Objects3DExplorer::findSymmetry(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Vector &eigenVal,  vector<Plane3D> &mainPlanes, map<string,int> &planesI, const int K, const bool vis)
 {
+    // Clear previous data
+    mainPlanes.clear();
 
     // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -1519,27 +1519,27 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     feature_extractor.compute();
 
     // Find major axes as eigenVectors
-    vector< Eigen::Vector3f> eigenVectors(3);               // Normals to the 3 main planes
-    Eigen::Vector3f eigenValues(3);                         // Relative length in each eigenVector direction.
-    yarp::sig::Vector eVs(3);
-    Eigen::Vector3f mc;                                     // Center of mass
-    feature_extractor.getEigenValues(eigenValues[0], eigenValues[1], eigenValues[2]);
-    eVs[0]= eigenValues[0];     eVs[1]= eigenValues[1];     eVs[2]= eigenValues[2];
-    feature_extractor.getEigenVectors(eigenVectors[0], eigenVectors[1], eigenVectors[2]);
+    vector< Eigen::Vector3f> eigVec(3);                         // Normals to the 3 main planes
+    Eigen::Vector3f eigVal(3);                                  // Relative length in each eigenVector direction.
+    Eigen::Vector3f mc;                                         // Center of mass
+    feature_extractor.getEigenValues(eigVal[0], eigVal[1], eigVal[2]);
+    feature_extractor.getEigenVectors(eigVec[0], eigVec[1], eigVec[2]);
     feature_extractor.getMassCenter(mc);
 
-    int symPlane_i= -1;
-    //Plane3D symPlane;
-    vector<Plane3D> mainPlanes;
+
+    eigenVal[0]= eigVal[0];     eigenVal[1]= eigVal[1];     eigenVal[2]= eigVal[2]; // Format eigen Vector to Yarp vector
+
+    //vector<Plane3D> mainPlanes;
     vector<Plane3D> unitPlanes;
+    int symPlane_i= -1;
     float minSymDist = 1e9;
     // Find major planes as normal to those vectors
-    for (int plane_i = 0; plane_i < eigenVectors.size(); plane_i ++){
+    for (int plane_i = 0; plane_i < eigVec.size(); plane_i ++){
         // Compute coefficients of plane equation ax + by + cz + d = 0
         Plane3D P;
-        P.a = eigenVectors[plane_i](0);
-        P.b = eigenVectors[plane_i](1);
-        P.c = eigenVectors[plane_i](2);
+        P.a = eigVec[plane_i](0);
+        P.b = eigVec[plane_i](1);
+        P.c = eigVec[plane_i](2);
         P.d = -P.a*mc(0)-P.b*mc(1)-P.c*mc(2);
 
         mainPlanes.push_back(P);
@@ -1573,14 +1573,8 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
         cout << "The original cloud of size " << cloud->size() << " is divided in two clouds of size " << cloudA->size() << " and " << cloudB->size() << ". "<< endl;
 
-
         // Get the normalized plane parameters -> unit planes
-        Plane3D uP;     // Unit plane
-        double M = sqrt(P.a*P.a+P.b*P.b+P.c*P.c);    // Elements of normal unit vector
-        uP.a = P.a/M;
-        uP.b = P.b/M;
-        uP.c = P.c/M;
-        uP.d = P.d/M;
+        Plane3D uP = main2unitPlane(P);
         unitPlanes.push_back(uP);
 
         // Mirror one of the half clouds wrt the plane_i.
@@ -1624,20 +1618,21 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 
         // normalize distances by num of points, and keep most symmetric plane
         avgCloudKNNdist = accumCloudKNNdist/valPt;
-
         if (sqrt(avgCloudKNNdist) < minSymDist){
             symPlane_i = plane_i;
             minSymDist = sqrt(avgCloudKNNdist);
         }
 
         // merge cloud A and B in cloud AB for visualization
-        int blue[3] = {0,0,255};
-        changeCloudColor(cloudB, blue);
-        *cloudAB = *cloudA;
-        *cloudAB += *cloudB;
-        sendPointCloud(cloudAB);
-        Time::delay(2.5);
-        cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
+        if (vis)
+        {
+            changeCloudColor(cloudB, blue);
+            *cloudAB = *cloudA;
+            *cloudAB += *cloudB;
+            sendPointCloud(cloudAB);
+            Time::delay(2.5);
+            cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
+        }
     }
 
     // Check that a symmetry plane has been found
@@ -1646,39 +1641,83 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         return false;
     }
     cout << "The symmetry plane is plane " << symPlane_i << endl;
+    planesI["sym"] = symPlane_i;
 
-
-    // 3-  Tooltip is the furthest point on a weighted sum of distance to origin (small weight) and effector plane (large weight)
 
     // find the effector plane: shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
-    eVs[symPlane_i]= 1e09;          // Make the value of symmetrical plane huge;
+    eigVal[symPlane_i]= 1e09;                         // Make the value of symmetrical plane huge so that it will never be the minimum;
     float effEV = 1e08;
-    int effPlane_i= -1;
-    for (int eV = 0; eV< eVs.size();eV++)
+    int effPlane_i= -1;    
+    for (int eV = 0; eV< eigVal.size();eV++)
     {
-        if ((eVs[eV] < effEV) && (eV != symPlane_i)) {      // min egenvalue not of symmetry plane
-            effEV = eVs[eV];
+        if ((eigVal[eV] < effEV) && (eV != symPlane_i)) {      // min eigenvalue not of symmetry plane
+            effEV = eigVal[eV];
             effPlane_i = eV;
         }
-    }
-
+    }    
     if ((effPlane_i < 0 )) {
-        cout << "There was some error finding effector planes" << endl;
+        cout << "There was some error finding effector plane" << endl;
         return false;
     }
-    cout << "The effector is perpendicular to plane " << effPlane_i << endl;
+    planesI["eff"] = effPlane_i;
+    //cout << "The effector is perpendicular to plane " << effPlane_i << endl;
+
+    // The remaining plane corresponds to the one perpendicular to the handle/longest axis
+    int hanPlane_i= -1;
+    for (int eV = 0; eV< eigVal.size();eV++)
+    {
+        if ((eV != effPlane_i) && (eV != symPlane_i)) {      // min eigenvalue not of symmetry plane
+            hanPlane_i = eV;
+        }
+    }
+    if ((hanPlane_i < 0 )) {
+        cout << "There was some error finding handle plane" << endl;
+        return false;
+    }
+    planesI["han"] = hanPlane_i;
+
+    cout << "Planes correspond to indices: sym_i = " << planesI["sym"] << ", eff_i = " << planesI["eff"] << ", han_i = " << planesI["han"] << "." << endl;
+
+    // The unit eigenvectors define a reference frame oriented with the tool
+    // If we match effector to X, handle to Y and sym to Z, it gives us the pose wrt to the canonical pose on the hand reference frame
+
+    Matrix R(4,4);
+    // effector eigVec-> X                    handle eigVec-> Y                     symmetry eigVec-> Z
+    R(0,0) = eigVec[effPlane_i][0];     R(0,1) = eigVec[hanPlane_i][0];     R(0,2) = eigVec[symPlane_i][0];     R(0,3) = mc[0];
+    R(1,0) = eigVec[effPlane_i][1];     R(1,1) = eigVec[hanPlane_i][1];     R(1,2) = eigVec[symPlane_i][1];     R(1,3) = mc[1];
+    R(2,0) = eigVec[effPlane_i][2];     R(2,1) = eigVec[hanPlane_i][2];     R(2,2) = eigVec[symPlane_i][2];     R(2,3) = mc[2];
+    R(3,0) = 0.0;                       R(3,1) = 0.0;                       R(3,2) = 0.0;                       R(3,3) = 1.0;
+
+    double ori, disp, tilt, shift;
+    paramFromPose(R,ori, disp, tilt, shift);
+
+    cout << "Parameters computed from symmetry: or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
+
+
+
+    return true;
+}
+
+
+/*************************************************************************/
+bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const vector<Plane3D> &mainPlanes, const map<string, int > &planeInds,  Point3D& ttSym, double effWeight)
+{    
+    // Tooltip is the furthest point on a weighted sum of distance to origin (small weight) and effector plane (large weight)
+
+    int effP_i = planeInds.find("eff")->second;     //retreive eff plane index
+    Plane3D effMP = mainPlanes[effP_i];
+    Plane3D effP = main2unitPlane(effMP);   // Trasnform to unit plane
 
     // Find furthest point along effector eigenvector.
-    Plane3D effP = unitPlanes[effPlane_i];
     double maxDist = 0.0;
     int maxPt_i = -1;
     effWeight = 0.8;     // Weight assigned to effector distance w.r.t. orig distance
     for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
     {
         pcl::PointXYZRGB *pt = &cloud->at(ptI);
-        float dist_eff = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);   // Normalized signed distance of point to eff plane
-        float dist_orig = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z);              // Distance from the origin.
-        float dist_aux = effWeight*dist_eff + (1-effWeight)*dist_orig;
+        float dist_eff = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);     // Normalized signed distance of point to eff plane
+        float dist_orig = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z);                // Distance from the origin.
+        float dist_aux = effWeight*dist_eff + (1-effWeight)*dist_orig;                  // Wighted sum of distances
         if (dist_aux > maxDist){
             maxDist = dist_aux;
             maxPt_i = ptI;
@@ -1688,18 +1727,40 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
         cout << "There was some error finding furthest point" << endl;
         return false;
     }
+    pcl::PointXYZRGB *maxPt = &cloud->at(maxPt_i);
 
     // Project point on symmetry plane
-    pcl::PointXYZRGB *maxPt = &cloud->at(maxPt_i);
-    Plane3D sP = unitPlanes[symPlane_i];
+    int symP_i = planeInds.find("sym")->second;     //retreive eff plane index
+    Plane3D sMP = mainPlanes[symP_i];
+    Plane3D sP = main2unitPlane(sMP);
     float dn = sP.a*maxPt->x + sP.b*maxPt->y + sP.c*maxPt->z + sP.d;   // Normalized signed distance of point to plane_i
     ttSym.x = maxPt->x - (sP.a*dn);
     ttSym.y = maxPt->y - (sP.b*dn);
     ttSym.z = maxPt->z - (sP.c*dn);
 
     return true;
+}
+
+
+Objects3DExplorer::Plane3D Objects3DExplorer::main2unitPlane(const Plane3D main)
+{
+    Plane3D unit;
+    double M = sqrt(main.a*main.a + main.b*main.b + main.c*main.c);    // Elements of normal unit vector
+    unit.a = main.a/M;    unit.b = main.b/M;    unit.c = main.c/M;    unit.d = main.d/M;
+    return unit;
+}
+
+
+/************************************************************************/
+/*bool               Objects3DExplorer::findToolOri(const vector<Plane3D> &mainPlanes,const map<string, int > &planeInds, Matrix &pose)
+{
+    int eff_i = planeInds.find("eff")->second;
+    Plane3D uP = main2unitPlane(mainPlanes[eff_i]);
+
+
 
 }
+*/
 
 /************************************************************************/
 bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
