@@ -75,6 +75,14 @@ bool ShowModule::addSphere(const std::vector<double> &coords, const std::vector<
     return true;
 }
 
+
+bool ShowModule::addArrow(const std::vector<double> &coordsIni, const std::vector<double> &coordsEnd, const std::vector<int> &color)
+{
+    visThrd->addArrow(coordsIni, coordsEnd, color);
+    return true;
+}
+
+
 bool ShowModule::addFeats(double res, bool plotHist)
 {
     visThrd->addOMSEGI(res,plotHist);

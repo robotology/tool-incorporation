@@ -74,6 +74,7 @@ public:
     bool addFeats(double res, bool plotHist);
     bool addBoundingBox(int typeBB);
     bool addSphere(const std::vector<double> &coords, const std::vector<int> &color);
+    bool addArrow(const std::vector<double> &coordsIni, const std::vector<double> &coordsEnd, const std::vector<int> &color);
     bool filter(bool ror, bool sor, bool mls, bool ds);
 
     // module control //

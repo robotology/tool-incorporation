@@ -66,13 +66,12 @@ service show3D_IDLServer
 
     /**
      * @brief addArrow - Plots arrow with given start and end coords and color
-     * @param arrowStart - start coords
-     * @param arrowEnd - end coords
+     * @param coordsIni - starting line coords
+     * @param coordsEnd - ending line coords
      * @param color - color rgb
-     * @return true/false on displaying the arrow the poitncloud
+     * @return true/false on displaying the arrow
      */
-    //bool addArrow(1: list<double> arrowStart, 2: list<double> arrowEnd, 3: list<i32> color);
-    //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
+    bool addArrow(1: list<double> coordsIni, 2: list<double> coordsEnd, 3: list<i32> color);
 
 
     /**
@@ -83,7 +82,7 @@ service show3D_IDLServer
      */
 
     bool addSphere(1: list<double> coords, 2: list<i32> color);
-     //bool showCloud(1: SurfaceMeshWithBoundingBox mesh);
+
 
     /**
      * @brief filter - Function to apply and show different filtering processes to the displayed cloud.

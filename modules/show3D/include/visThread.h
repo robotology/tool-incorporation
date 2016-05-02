@@ -75,6 +75,7 @@ protected:
     bool normalsComputed;
     bool displayBB;
     bool displaySphere;
+    bool displayArrow;
 
     // Processing parameters
     int dBBstyle;
@@ -90,11 +91,17 @@ protected:
 
     int sphColor[3];
     std::vector<double> sphCoords;
+
+    int arrowColor[3];
+    std::vector<double> arrowCoordsIni;
+    std::vector<double> arrowCoordsEnd;
+
     
     void updateVis();
     void plotNewCloud();
     void plotBB(int typeBB = 2);
     void plotSphere(const std::vector<double> &coords, const int color[]);
+    void plotArrow(const std::vector<double> &coordsIni,const std::vector<double> &coordsEnd, const int color[]);
     void plotNormals(double rS = 0.01, bool normCol = false);
     void plotOMSEGI(double res = 0.02, bool plotHist = true);    
     void filterCloud(bool rorF = false, bool sorF = false, bool mlsF = false, bool dsF = false);
@@ -123,7 +130,7 @@ public:
      * @param end - ending coordinates
      * @param color - color (RGB)
      */
-    //void addArrow(std::vector<double> start, std::vector<double> end, std::vector<int> color);
+    void addArrow(const std::vector<double> &coordsIni, const std::vector<double> &coordsEnd, const std::vector<int> &color);
 
     /**
      * @brief addSphere- Displays a sphere at given coordinates and a given color

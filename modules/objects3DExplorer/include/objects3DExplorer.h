@@ -124,7 +124,7 @@ protected:
 
     yarp::sig::Vector                           eigenValues;
     std::vector<Plane3D>                        eigenPlanes;
-    std::map<std::string,int>                   planeInds; // Save the indices of the symmetry, effector and handle eigenvectors
+    std::map<std::string,int>                   planeInds;      // Save the indices of the symmetry, effector and handle eigenvectors
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;     // Temporal pointcloud for validation
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_model;    // Validated merged pointcloud
@@ -150,8 +150,10 @@ protected:
     bool                checkGrasp(const yarp::sig::Matrix &pose);
 
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);
-    bool                findSymmetry(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::sig::Vector &eigenVal,  std::vector<Plane3D> &mainPlanes, std::map<std::string,int> &planesI, int K = 5, bool vis = true);
-    bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::vector<Plane3D> &mainPlanes, const std::map<std::string, int > &planeInds, Point3D& ttSym, double effW = 0.8);
+    //bool                findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::sig::Vector &eigenVal,  std::vector<Plane3D> &mainPlanes, std::map<std::string,int> &planesI, int K = 5, bool vis = true);
+    bool                findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::sig::Matrix &pose, int K = 5, bool vis = true);
+    //bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::vector<Plane3D> &mainPlanes, const std::map<std::string, int > &planeInds, Point3D& ttSym, double effW = 0.8);
+    bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, Point3D& ttSym, double effW = 0.8);
     Plane3D             main2unitPlane(const Plane3D main);
     //bool                findOri(const std::vector<Plane3D> &mainPlanes, const std::map<std::string, int > &planeInds, yarp::sig::Matrix &pose);
 
@@ -173,7 +175,9 @@ protected:
     bool                addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, bool shift = false);     // overload default color
     bool                addPoint(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Point3D coords, int color[], bool shift = false);
-    bool                showTooltip(Point3D coords, int color[]);
+    bool                showTooltip(const Point3D coords, int color[]);
+    bool                showRefFrame(const Point3D center, const std::vector<Plane3D> &refPlanes);
+    bool                showLine(const Point3D coordsIni, const Point3D coordsEnd, int color[]);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]); // overload default color
     bool                scaleCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double scale = 1.0);

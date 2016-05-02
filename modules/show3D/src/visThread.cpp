@@ -30,6 +30,7 @@ bool VisThread::threadInit()
     displayOMSEGI = false;    
     displayFilt = false;
     displaySphere = false;
+    displayArrow = false;
 
     normalsComputed = false;
 
@@ -77,6 +78,13 @@ void VisThread::run()
                 {
                     plotSphere(sphCoords,sphColor);
                     displaySphere = false;
+                }
+
+                // Dislpay arrow
+                if (displayArrow)
+                {
+                    plotArrow(arrowCoordsIni, arrowCoordsEnd,arrowColor);
+                    displayArrow = false;
                 }
 
                 // Compute and add normals to display
@@ -517,7 +525,7 @@ void VisThread::plotBB(int typeBB)
 }
 
 
-// addArrow interface
+// addSphere interface
 void VisThread::addSphere(const std::vector<double> &coords, const std::vector<int> &color )
 {
 
@@ -544,6 +552,41 @@ void VisThread::plotSphere(const std::vector<double> &coords, const int color[])
     return;
 }
 
+
+// addArrow interface
+void VisThread::addArrow(const std::vector<double> &coordsIni,const std::vector<double> &coordsEnd, const std::vector<int> &color )
+{
+
+    displayArrow = true;
+    arrowColor[0] = color[0]; arrowColor[1] = color[1]; arrowColor[2] = color[2];
+    arrowCoordsIni = coordsIni;
+    arrowCoordsEnd = coordsEnd;
+    updateVis();
+
+    cout << "Arrow added" << endl;
+    return;
+}
+
+// Displays arrow
+void VisThread::plotArrow(const std::vector<double> &coordsIni,const std::vector<double> &coordsEnd, const int color[])
+{
+    pcl::PointXYZRGB start;
+    start.x = coordsIni[0];
+    start.y = coordsIni[1];
+    start.z = coordsIni[2];
+
+    pcl::PointXYZRGB end;
+    end.x = coordsEnd[0];
+    end.y = coordsEnd[1];
+    end.z = coordsEnd[2];
+
+    // for PCL 1.8
+    // viewer->addArrow (const P1 &pt1, const P2 &pt2, double r, double g, double b, const std::string &id="line", int viewport=0)
+    // PCL < 1.8
+    viewer->addLine(start, end, color[0], color[1], color[2]);
+
+    return;
+}
 
 
 

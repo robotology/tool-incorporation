@@ -51,6 +51,14 @@ public:
    */
   virtual bool addBoundingBox(const int32_t typeBB = 0);
   /**
+   * @brief addArrow - Plots arrow with given start and end coords and color
+   * @param coordsIni - starting line coords
+   * @param coordsEnd - ending line coords
+   * @param color - color rgb
+   * @return true/false on displaying the arrow
+   */
+  virtual bool addArrow(const std::vector<double> & coordsIni, const std::vector<double> & coordsEnd, const std::vector<int32_t> & color);
+  /**
    * @brief addSphere - Plots a sphere with given coords and color
    * @param coords - sphere coords
    * @param color - color rgb
