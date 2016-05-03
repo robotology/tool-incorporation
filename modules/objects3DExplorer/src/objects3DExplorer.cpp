@@ -1720,14 +1720,35 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     // The unit eigenvectors define a reference frame oriented with the tool
     // If we match effector to X, handle to Y and sym to Z, it gives us the pose wrt to the canonical pose on the hand reference frame
 
-    // XXX make sure that the identification between eigenvector and rotation matrix is correct
+    Vector xRef(3,0.0); xRef[0] = 1.0;
+    Vector yRef(3,0.0); yRef[1] = 1.0;
+    Vector xTool, yTool, zTool;
+    xTool.push_back(eigVec[effPlane_i][0]);     xTool.push_back(eigVec[effPlane_i][1]);     xTool.push_back(eigVec[effPlane_i][2]);
+    yTool.push_back(eigVec[hanPlane_i][0]);     yTool.push_back(eigVec[hanPlane_i][1]);     yTool.push_back(eigVec[hanPlane_i][2]);
+
+    // XXX Figure out what to do when the tool is rotated more than 90 degrees (XdotX is positive, so it believes ts oriented backwards)
+    double x_sign = dot(xTool,xRef);
+    if (x_sign<0){
+        xTool = xTool*(-1);
+        cout << "X sign changed"<< endl;
+    }
+
+    double y_sign = dot(yTool,yRef);
+    if (y_sign<0){
+        yTool = yTool*(-1);
+        cout << "Y sign changed"<< endl;
+    }
+
+    zTool = cross(xTool, yTool);
+
+    cout << "Norm: X= " << norm(xTool) << ", Y= " << norm(yTool) << ", Z= " << norm(zTool) << endl;
 
     Matrix R(4,4);
-    // effector eigVec-> X                    handle eigVec-> Y                     symmetry eigVec-> Z
-    R(0,0) = eigVec[effPlane_i][0];     R(0,1) = -eigVec[hanPlane_i][0];     R(0,2) = -eigVec[symPlane_i][0];     R(0,3) = mc[0];
-    R(1,0) = eigVec[effPlane_i][1];     R(1,1) = -eigVec[hanPlane_i][1];     R(1,2) = -eigVec[symPlane_i][1];     R(1,3) = mc[1];
-    R(2,0) = eigVec[effPlane_i][2];     R(2,1) = -eigVec[hanPlane_i][2];     R(2,2) = -eigVec[symPlane_i][2];     R(2,3) = mc[2];
-    R(3,0) = 0.0;                       R(3,1) = 0.0;                       R(3,2) = 0.0;                       R(3,3) = 1.0;
+    // effector eigVec-> X     handle eigVec-> Y      symmetry eigVec-> Z
+    R(0,0) = xTool[0];         R(0,1) = yTool[0];     R(0,2) = zTool[0];         R(0,3) = mc[0];
+    R(1,0) = xTool[1];         R(1,1) = yTool[1];     R(1,2) = zTool[1];         R(1,3) = mc[1];
+    R(2,0) = xTool[2];         R(2,1) = yTool[2];     R(2,2) = zTool[2];         R(2,3) = mc[2];
+    R(3,0) = 0.0;              R(3,1) = 0.0;          R(3,2) = 0.0;              R(3,3) = 1.0;
 
     cout << "Found rotation matrix " << endl << R.toString() << endl;
 
@@ -1739,7 +1760,7 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
     cout << "Original returned parameters are   or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
-
+    /*
     if (tilt<0){
         tilt = 180 + tilt;
         ori = -ori;
@@ -1750,6 +1771,7 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     }else if (tilt > 90){
         tilt = 180- tilt;
     }
+    */
     disp = disp - mc(1);
     cout << "Parameters computed from symmetry: or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
@@ -1829,18 +1851,6 @@ Objects3DExplorer::Plane3D Objects3DExplorer::main2unitPlane(const Plane3D main)
     unit.a = main.a/M;    unit.b = main.b/M;    unit.c = main.c/M;    unit.d = main.d/M;
     return unit;
 }
-
-
-/************************************************************************/
-/*bool               Objects3DExplorer::findToolOri(const vector<Plane3D> &mainPlanes,const map<string, int > &planeInds, Matrix &pose)
-{
-    int eff_i = planeInds.find("eff")->second;
-    Plane3D uP = main2unitPlane(mainPlanes[eff_i]);
-
-
-
-}
-*/
 
 /************************************************************************/
 bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
@@ -2412,8 +2422,6 @@ bool Objects3DExplorer::showRefFrame(const Point3D center,const std::vector<Plan
 
 bool Objects3DExplorer::showLine(const Point3D coordsIni, const  Point3D coordsEnd, int color[])
 {
-
-    Time::delay(0.5);
     Bottle cmdVis, replyVis;
     cmdVis.clear();	replyVis.clear();
     cmdVis.addString("addArrow");
@@ -2438,7 +2446,7 @@ bool Objects3DExplorer::showLine(const Point3D coordsIni, const  Point3D coordsE
 
     rpcVisualizerPort.write(cmdVis,replyVis);
     cout << "Show line from  " << coordsIni.x << ", " << coordsIni.y << ", " << coordsIni.z <<  ") to (" << coordsEnd.x << ", " << coordsEnd.y << ", " << coordsEnd.z <<  "). " << endl;
-
+    Time::delay(0.2);
     return true;
 }
 
