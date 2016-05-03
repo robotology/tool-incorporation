@@ -44,6 +44,7 @@ bool VisThread::threadInit()
     dFsor = false;
     dFmls = false;
     dFds = false;
+    arrowNum = 0;
 
     return true;
 }
@@ -570,6 +571,14 @@ void VisThread::addArrow(const std::vector<double> &coordsIni,const std::vector<
 // Displays arrow
 void VisThread::plotArrow(const std::vector<double> &coordsIni,const std::vector<double> &coordsEnd, const int color[])
 {
+
+    stringstream s;
+    s.str("");
+    s << "arrow" << arrowNum;
+        arrowNum++;
+
+    string arrowName = s.str();
+
     pcl::PointXYZRGB start;
     start.x = coordsIni[0];
     start.y = coordsIni[1];
@@ -583,7 +592,7 @@ void VisThread::plotArrow(const std::vector<double> &coordsIni,const std::vector
     // for PCL 1.8
     // viewer->addArrow (const P1 &pt1, const P2 &pt2, double r, double g, double b, const std::string &id="line", int viewport=0)
     // PCL < 1.8
-    viewer->addLine(start, end, color[0], color[1], color[2]);
+    viewer->addLine(start, end, color[0], color[1], color[2],arrowName);
 
     return;
 }

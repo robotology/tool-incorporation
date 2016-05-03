@@ -347,6 +347,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             sendPointCloud(cloud_merged);
         }
 
+        *cloud_model = *cloud_merged;
         *cloud_pose = *cloud_merged;
         cloudLoaded = true;
         poseFound = true;
@@ -425,8 +426,12 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+        int trials = 5;
+        if (command.size() > 1)
+            trials = command.get(1).asDouble();
+
         // Find grasp by comparing partial view with model        
-        bool ok = findPoseAlign(cloud_model, cloud_pose, toolPose);
+        bool ok = findPoseAlign(cloud_model, cloud_pose, toolPose,trials);
 
         if (ok){
             reply.addString("[ack]");
@@ -1118,9 +1123,11 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
     cloud_rec_merged->points.clear();
 
+    cout << " Moving other hand away" << endl;
     // Move not exploring hand out of the way:
     Vector away, awayOr;
     otherHandCtrl->getPose(away,awayOr);
+    cout << " Pose received: " << away.toString() << endl;
     away[0] = -0.2;
     away[1] = (hand=="left")?0.3:-0.3;
     away[2] = 0.1;
@@ -1129,7 +1136,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     otherHandCtrl->waitMotionDone();
 
     double spDist = 0.004;
-
+    cout << " Get first cloud" << endl;
     // Get inital cloud model on central orientation
     turnHand(0,0);
     while(!getPointCloud(cloud_rec_merged, spDist)){          // Keep on getting clouds until one is valid (should be the first)
@@ -1231,7 +1238,18 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     }
     cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
 
+
+    // filter spurious noise
+    for (int i = 0; i < 3; i++){
+        pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
+        ror.setInputCloud(cloud_rec_merged);
+        ror.setRadiusSearch(0.01);
+        ror.setMinNeighborsInRadius(5);
+        ror.filter(*cloud_rec_merged);
+    }
+    sendPointCloud(cloud_rec_merged);
 }
+
 double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
     if (cloud->size()> 10000){
         cout << " Spatial distance modified to " << spatial_distance - 0.0001 << endl;
@@ -1324,6 +1342,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     sor.setMeanK(10);
     sor.filter (*cloud_rec);
 
+
     // Remove hand (all points within 6 cm from origin)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_nohand (new pcl::PointCloud<pcl::PointXYZRGB> ());
     if (handFrame) {
@@ -1366,7 +1385,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
 
 /************************************************************************/
-bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose)
+bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose, const int numT)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Bottle cmdVis, replyVis;
@@ -1436,7 +1455,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         }
 
         trial++;  // to limit number of trials
-        if (trial > 10){
+        if (trial > numT){
             cout << "Could not find a valid grasp in 10 trials" << endl;
 
 
@@ -1695,6 +1714,8 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     //planesI["han"] = hanPlane_i;
 
     //cout << "Planes correspond to indices: sym_i = " << planesI["sym"] << ", eff_i = " << planesI["eff"] << ", han_i = " << planesI["han"] << "." << endl;
+
+    sendPointCloud(cloud_raw);
 
     // The unit eigenvectors define a reference frame oriented with the tool
     // If we match effector to X, handle to Y and sym to Z, it gives us the pose wrt to the canonical pose on the hand reference frame
@@ -2315,6 +2336,8 @@ bool Objects3DExplorer::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::
        
     if (verbose){cout << "Sending out cloud of size " << cloud->size()<< endl;}
     cloudsOutPort.write();
+
+    Time::delay(0.5);
     return true;
 
 }
@@ -2381,33 +2404,40 @@ bool Objects3DExplorer::showRefFrame(const Point3D center,const std::vector<Plan
     z_axis.x = center.x + refPlanes[2].a/50.0;       z_axis.y = center.y + refPlanes[2].b/50.0;           z_axis.z = center.z + refPlanes[2].c/50.0;
 
     showLine(center,x_axis, red);
-    showLine(center,y_axis, red);
-    showLine(center,z_axis, red);
+    showLine(center,y_axis, green);
+    showLine(center,z_axis, blue);
 
     return true;
 }
 
 bool Objects3DExplorer::showLine(const Point3D coordsIni, const  Point3D coordsEnd, int color[])
 {
-    cout << "Show line from  " << coordsIni.x << ", " << coordsIni.y << ", " << coordsIni.z <<  ") to (" << coordsEnd.x << ", " << coordsEnd.y << ", " << coordsEnd.z <<  "). " << endl;
+
     Time::delay(0.5);
     Bottle cmdVis, replyVis;
     cmdVis.clear();	replyVis.clear();
     cmdVis.addString("addArrow");
     Bottle& bCoordsIni = cmdVis.addList();
+    Bottle& bCoordsEnd = cmdVis.addList();
+    Bottle& bColor = cmdVis.addList();
+    bCoordsIni.clear();
+    bCoordsEnd.clear();
+    bColor.clear();
+
     bCoordsIni.addDouble(coordsIni.x);
     bCoordsIni.addDouble(coordsIni.y);
     bCoordsIni.addDouble(coordsIni.z);
-    Bottle& bCoordsEnd = cmdVis.addList();
+
     bCoordsEnd.addDouble(coordsEnd.x);
     bCoordsEnd.addDouble(coordsEnd.y);
     bCoordsEnd.addDouble(coordsEnd.z);
-    Bottle& bColor = cmdVis.addList();
+
     bColor.addInt(color[0]);
     bColor.addInt(color[1]);
     bColor.addInt(color[2]);
 
     rpcVisualizerPort.write(cmdVis,replyVis);
+    cout << "Show line from  " << coordsIni.x << ", " << coordsIni.y << ", " << coordsIni.z <<  ") to (" << coordsEnd.x << ", " << coordsEnd.y << ", " << coordsEnd.z <<  "). " << endl;
 
     return true;
 }

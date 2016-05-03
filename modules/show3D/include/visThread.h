@@ -95,6 +95,7 @@ protected:
     int arrowColor[3];
     std::vector<double> arrowCoordsIni;
     std::vector<double> arrowCoordsEnd;
+    int arrowNum;
 
     
     void updateVis();
