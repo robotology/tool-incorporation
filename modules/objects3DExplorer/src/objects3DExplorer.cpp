@@ -1716,12 +1716,18 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     double ori, disp, tilt, shift;
     paramFromPose(R,ori, disp, tilt, shift);
 
+    cout << "Original returned parameters are   or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
+
+
     if (tilt<0){
-        tilt = 180- tilt;
+        tilt = 180 + tilt;
         ori = -ori;
     }
+
     if (tilt > 180){
         tilt = tilt -180;
+    }else if (tilt > 90){
+        tilt = 180- tilt;
     }
     disp = disp - mc(1);
     cout << "Parameters computed from symmetry: or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
