@@ -41,7 +41,18 @@
             <port carrier="tcp">/objects3DExplorer/clouds:i</port>
             <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point, or optionally 3 more values RGB </description>
         </input>   
+       <input>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/objects3DExplorer/img:i</port>
+            <description>Receives images from the camera, to process and propagate them </description>
+        </input> 
         <!-- output data if available -->        
+
+        <output>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/objects3DExplorer/img:o</port>
+            <description>Propagates image from camera with tool kinematic extension superimposed. </description>
+        </output>
         <output>
             <type>Bottle</type>
             <port>/objects3DExplorer/clouds:o</port>

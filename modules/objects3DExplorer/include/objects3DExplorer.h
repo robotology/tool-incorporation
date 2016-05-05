@@ -55,6 +55,9 @@
 #include <pcl/filters/extract_indices.h>
 
 
+#include <cv.h>
+
+
 
 /**********************************************************/
 class Objects3DExplorer : public yarp::os::RFModule
@@ -62,8 +65,10 @@ class Objects3DExplorer : public yarp::os::RFModule
 protected:
     /* variables */ 
     // ports
-    yarp::os::BufferedPort<yarp::os::Bottle>                           cloudsInPort;
-    yarp::os::BufferedPort<yarp::os::Bottle>                           cloudsOutPort;
+    yarp::os::BufferedPort<yarp::os::Bottle>                            cloudsInPort;
+    yarp::os::BufferedPort<yarp::os::Bottle>                            cloudsOutPort;
+    yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >    imgInPort;
+    yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >    imgOutPort;
 
     // rpc ports
     yarp::os::RpcServer                 rpcPort;
@@ -125,7 +130,6 @@ protected:
 
     yarp::sig::Vector                           eigenValues;
     std::vector<Plane3D>                        eigenPlanes;
-    //std::map<std::string,int>                   planeInds;      // Save the indices of the symmetry, effector and handle eigenvectors
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_temp;     // Temporal pointcloud for validation
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr      cloud_model;    // Validated merged pointcloud

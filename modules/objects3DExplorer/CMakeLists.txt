@@ -7,6 +7,7 @@ SET(PROJECTNAME objects3DExplorer)
 PROJECT(${PROJECTNAME})
 
 find_package(ICUB REQUIRED)
+find_package(OpenCV)
 
 file(GLOB source src/*.cpp)
 file(GLOB header include/*.h)
@@ -25,12 +26,13 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${ICUBCONTRIB_INSTALL_PREFIX}/include)
 include_directories(${YarpCloud_INCLUDE_DIRS})
 include_directories(${generated_libs_dir}/include)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 link_directories(${ICUBCONTRIB_INSTALL_PREFIX}/lib/x86_64-linux-gnu) #This should be added by default, but it's not, so add it just in case.
 
 add_executable(${PROJECTNAME} ${source} ${header})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${PCL_LIBRARIES} YarpCloud)
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} YarpCloud)
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
 yarp_install(FILES ${PROJECTNAME}.xml DESTINATION ${ICUBCONTRIB_MODULES_INSTALL_DIR})

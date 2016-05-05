@@ -117,8 +117,10 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 
     //ports
     bool ret = true;
-    ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());                    // port to receive pointclouds from
-    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());                   // port to send pointclouds to
+    ret = ret && imgInPort.open(("/"+name+"/img:i").c_str());                    // port to receive images from
+    ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());              // port to receive pointclouds from
+    ret = ret && cloudsInPort.open(("/"+name+"/clouds:o").c_str());              // port to send processed pointclouds to
+    ret = ret && imgOutPort.open(("/"+name+"/img:o").c_str());                   // port to send processed images to
     if (!ret){
         printf("\nProblems opening ports\n");
         return false;
@@ -238,6 +240,8 @@ bool Objects3DExplorer::interruptModule()
         driverHR.view(ivel);
     ivel->stop(4);
 
+    imgInPort.interrupt();
+    imgOutPort.interrupt();
     cloudsInPort.interrupt();
     cloudsOutPort.interrupt();
 
@@ -252,6 +256,8 @@ bool Objects3DExplorer::interruptModule()
 /************************************************************************/
 bool Objects3DExplorer::close()
 {
+    imgInPort.close();
+    imgOutPort.close();
     cloudsInPort.close();
     cloudsOutPort.close();
 
@@ -278,6 +284,59 @@ double Objects3DExplorer::getPeriod()
 /************************************************************************/
 bool Objects3DExplorer::updateModule()
 {
+    if (imgOutPort.getOutputCount()>0)
+    {        
+        if (ImageOf<PixelBgr> *pImgBgrIn=imgInPort.read(false))
+        {        
+            Vector xa,oa;
+            iCartCtrl->getPose(xa,oa);
+
+            Matrix Ha=axis2dcm(oa);
+            xa.push_back(1.0);
+            Ha.setCol(3,xa);
+
+            Vector v(4,0.0); v[3]=1.0;
+            Vector c=Ha*v;
+
+            v=0.0; v[0]=0.05; v[3]=1.0;
+            Vector x=Ha*v;
+
+            v=0.0; v[1]=0.05; v[3]=1.0;
+            Vector y=Ha*v;
+
+            v=0.0; v[2]=0.05; v[3]=1.0;
+            Vector z=Ha*v;
+
+            v[0] = tooltip.x;   v[1] = tooltip.y;   v[2] = tooltip.z;   v[3] = 1.0;
+            Vector t=Ha*v;
+
+            Vector pc,px,py,pz,pt;
+            int camSel=(camera=="left")?0:1;
+            iGaze->get2DPixel(camSel,c,pc);
+            iGaze->get2DPixel(camSel,x,px);
+            iGaze->get2DPixel(camSel,y,py);
+            iGaze->get2DPixel(camSel,z,pz);
+            iGaze->get2DPixel(camSel,t,pt);
+
+            CvPoint point_c = cvPoint((int)pc[0],(int)pc[1]);
+            CvPoint point_x = cvPoint((int)px[0],(int)px[1]);
+            CvPoint point_y = cvPoint((int)py[0],(int)py[1]);
+            CvPoint point_z = cvPoint((int)pz[0],(int)pz[1]);
+            CvPoint point_t = cvPoint((int)pt[0],(int)pt[1]);
+
+            cvCircle(pImgBgrIn->getIplImage(),point_c,4,cvScalar(0,255,0),4);
+            cvCircle(pImgBgrIn->getIplImage(),point_t,4,cvScalar(255,0,0),4);
+
+            cvLine(pImgBgrIn->getIplImage(),point_c,point_x,cvScalar(0,0,255),2);
+            cvLine(pImgBgrIn->getIplImage(),point_c,point_y,cvScalar(0,255,0),2);
+            cvLine(pImgBgrIn->getIplImage(),point_c,point_z,cvScalar(255,0,0),2);
+            cvLine(pImgBgrIn->getIplImage(),point_c,point_t,cvScalar(255,255,255),2);
+
+            imgOutPort.prepare()=*pImgBgrIn;
+            imgOutPort.write();
+        }
+    }
+
     return !closing;
 }
 
@@ -1537,7 +1596,6 @@ bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pos
 
 
 /*************************************************************************/
-//bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Vector &eigenVal,  vector<Plane3D> &mainPlanes, map<string,int> &planesI, const int K, const bool vis)
 bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
 {
     // Clear previous data
@@ -1563,8 +1621,6 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
     Point3D center;
     center.x = mc[0];           center.y = mc[1];           center.z = mc[2];
-    // Vector eigenVal;
-    // eigenVal[0]= eigVal[0];     eigenVal[1]= eigVal[1];     eigenVal[2]= eigVal[2]; // Format eigen Vector to Yarp vector
 
     vector<Plane3D> mainPlanes;
     vector<Plane3D> unitPlanes;
@@ -1760,18 +1816,6 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
     cout << "Original returned parameters are   or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
-    /*
-    if (tilt<0){
-        tilt = 180 + tilt;
-        ori = -ori;
-    }
-
-    if (tilt > 180){
-        tilt = tilt -180;
-    }else if (tilt > 90){
-        tilt = 180- tilt;
-    }
-    */
     disp = disp - mc(1);
     cout << "Parameters computed from symmetry: or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
@@ -1789,7 +1833,6 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
 
 /*************************************************************************/
-// bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const vector<Plane3D> &mainPlanes, const map<string, int > &planeInds,  Point3D& ttSym, double effWeight)
 bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const Matrix &pose,  Point3D& ttSym, double effWeight)
 {    
     // Tooltip is the furthest point on a weighted sum of distance to origin (small weight) and effector plane (large weight)
