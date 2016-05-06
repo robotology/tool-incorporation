@@ -37,6 +37,7 @@ bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl
                 PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
                 return false;
             }
+
         }else if(strcmp(ext.c_str(),"pcd")==0) // Check if it is .pcd
         {
             printf ("Loading .pcd file: %s\n", cloudname.c_str());
@@ -44,34 +45,146 @@ bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl
                 PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
                 return false;
             }
+
+        }else if(strcmp(ext.c_str(),"off")==0) // Check if it is .off
+            {
+                printf ("Loading .off file: %s\n", cloudname.c_str());
+                if (!loadOFFFile (cloudpath + cloudname, cloud_to))	{
+                    PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
+                    return false;
+                }
+        }else if(strcmp(ext.c_str(),"coff")==0) // Check if it is .off
+            {
+                printf ("Loading .off file: %s\n", cloudname.c_str());
+                if (!loadOFFFile (cloudpath + cloudname, cloud_to))	{
+                    PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
+                    return false;
+                }
+
         }else {
-            PCL_ERROR("Please select a .pcd or .ply file.\n");
+            PCL_ERROR("Please select a .pcd , .ply or .off file.\n");
             return false;
         }
+
     }else{
         string cloudnameExt;
         PCL_ERROR(" Name given without format.\n");
-        cout << "-> Trying with .ply" << endl;
-        cloudnameExt = cloudname +  ".ply";
-        if (pcl::io::loadPLYFile (cloudpath + cloudnameExt, *cloud_to) >= 0)	{
-            cout << "Cloud loaded from file "<< cloudnameExt << endl;
-            return true;
-        }
+
         cout << "-> Trying with .pcd" << endl;
         cloudnameExt = cloudname +  ".pcd";
         if (pcl::io::loadPCDFile (cloudpath + cloudnameExt, *cloud_to) >= 0)	{
             cout << "Cloud loaded from file "<< cloudnameExt << endl;
             return true;
         }
-        PCL_ERROR("Couldnt find .pcd or .ply cloud.\n");
+
+        cout << "-> Trying with .ply" << endl;
+        cloudnameExt = cloudname +  ".ply";
+        if (pcl::io::loadPLYFile (cloudpath + cloudnameExt, *cloud_to) >= 0)	{
+            cout << "Cloud loaded from file "<< cloudnameExt << endl;
+            return true;
+        }
+
+        cout << "-> Trying with .off" << endl;
+        cloudnameExt = cloudname +  ".off";
+        if (loadOFFFile (cloudpath + cloudnameExt, cloud_to))	{
+            cout << "Cloud loaded from file "<< cloudnameExt << endl;
+            return true;
+        }
+        cout << "-> Trying with .coff" << endl;
+        cloudnameExt = cloudname +  ".coff";
+        if (loadOFFFile (cloudpath + cloudnameExt, cloud_to))	{
+            cout << "Cloud loaded from file "<< cloudnameExt << endl;
+            return true;
+        }
+
+        PCL_ERROR("Couldnt find .pcd, .ply or .(c)off cloud.\n");
         return false;
     }
 
     return true;
 }
 
-/************************************************************************/
 
+/************************************************************************/
+bool CloudUtils::loadOFFFile(const string& cloudpath, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_to)
+{
+    ifstream cloudFile(cloudpath.c_str());
+    cloud_to->points.clear();
+    cloud_to->clear();
+    int nPoints;
+    int state=0;
+    char line[255];
+    bool color = false;
+
+    if (!cloudFile.is_open())
+    {
+       PCL_ERROR("problem opening point cloud file!");
+       return false;
+    }
+
+    while (!cloudFile.eof())
+    {
+       cloudFile.getline(line,sizeof(line),'\n');
+       yarp::os::Bottle b(line);
+       yarp::os::Value firstItem = b.get(0);
+       bool isNumber = firstItem.isInt() || firstItem.isDouble();
+
+       if (state==0)
+       {
+           string tmp = firstItem.asString().c_str();
+           std::transform(tmp.begin(),tmp.end(),tmp.begin(),::toupper);
+           if (tmp == "OFF")
+               state++;
+           if (tmp == "COFF"){
+               color = true;
+               state++;
+           }
+       }
+       else if (state==1)
+       {
+           if (isNumber)
+           {
+               nPoints=firstItem.asInt();
+               state++;
+           }
+       }
+       else if (state==2)
+       {
+           if (isNumber && (b.size()>=3))
+           {
+               pcl::PointXYZRGB point;
+               point.x = b.get(0).asDouble();
+               point.y = b.get(1).asDouble();
+               point.z = b.get(2).asDouble();
+
+               if (color)
+               {
+                   point.r = b.get(3).asDouble();
+                   point.g = b.get(4).asDouble();
+                   point.b = b.get(5).asDouble();
+                   //cout << "Point has color: (" << point.r << ", "<< point.g << ", "<< point.b << ")."<< endl;
+
+               } else{
+                   point.rgb=0;
+                   point.r=255;
+                   point.g=0;
+                   point.b=0;
+               }
+
+               cloud_to->push_back(point);
+
+               if (--nPoints<=0)
+                   return true;
+           }
+       }
+    }
+    return false;
+}
+
+
+
+
+/************************************************************************/
 void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int &addNum)
 {
     stringstream s;
@@ -108,46 +221,40 @@ void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 }
 
 /************************************************************************/
-/*
-void CloudUtils::mesh2cloud(const iCub::data3D::SurfaceMeshWithBoundingBox& cloudB, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
-{   // Converts mesh from a bottle into pcl pointcloud.
-    for (size_t i = 0; i<cloudB.mesh.points.size(); ++i)
+void CloudUtils::savePointsOff(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int &addNum)
+{
+    stringstream s;
+    s.str("");
+    if (addNum >= 0){
+        s << savepath + "/" + savename.c_str() << addNum;
+        addNum++;
+    } else {
+        s << savepath + "/" + savename.c_str();
+    }
+
+    string filename = s.str();
+    string filenameNumb = filename+".off";
+    ofstream file;
+    file.open(filenameNumb.c_str());
+    if (file.is_open())
     {
-        pcl::PointXYZRGB pointrgb;
-        pointrgb.x=cloudB.mesh.points.at(i).x;
-        pointrgb.y=cloudB.mesh.points.at(i).y;
-        pointrgb.z=cloudB.mesh.points.at(i).z;
-        if (i<cloudB.mesh.rgbColour.size())
+        file<<"COFF"<<endl;
+        file<<cloud->size()<<" 0 0"<<endl;
+        file<<endl;
+        for (size_t i=0; i<cloud->size(); i++)
         {
-            int32_t rgb= cloudB.mesh.rgbColour.at(i).rgba;
-            pointrgb.rgba=rgb;
-            pointrgb.r = (rgb >> 16) & 0x0000ff;
-            pointrgb.g = (rgb >> 8)  & 0x0000ff;
-            pointrgb.b = (rgb)       & 0x0000ff;
+            file << cloud->at(i).x << " " << cloud->at(i).y << " " << cloud->at(i).z << " "
+                    << (int)cloud->at(i).r << " " << (int)cloud->at(i).g << " " << (int)cloud->at(i).b << endl;
         }
-        else
-            pointrgb.rgb=0;
+        file<<endl;
 
-        cloud->push_back(pointrgb);
+    } else {
+        cout<<"Some problems in opening output file!";
     }
-    printf("Mesh fromatted as Point Cloud \n");
-}
 
-/************************************************************************/
-/*
-void CloudUtils::cloud2mesh(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, iCub::data3D::SurfaceMeshWithBoundingBox& meshB, const string &cloudname)
-{   // Converts pointcloud to surfaceMesh bottle.
+    file.close();
 
-    meshB.mesh.points.clear();
-    meshB.mesh.rgbColour.clear();
-    meshB.mesh.meshName = cloudname;
-    for (unsigned int i=0; i<cloud->width; i++)
-    {
-        meshB.mesh.points.push_back(iCub::data3D::PointXYZ(cloud->at(i).x,cloud->at(i).y, cloud->at(i).z));
-        meshB.mesh.rgbColour.push_back(iCub::data3D::RGBA(cloud->at(i).rgba));
-    }
-    iCub::data3D::BoundingBox BB = iCub::data3D::MinimumBoundingBox::getMinimumBoundingBox(cloud);
-    meshB.boundingBox = BB.getBoundingBox();
+    cout << "Cloud saved in file: " << filenameNumb.c_str() << endl;
     return;
 }
 

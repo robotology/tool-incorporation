@@ -2577,6 +2577,9 @@ bool Objects3DExplorer::addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, d
     return true;
 }
 
+
+
+/*************************** -Conf Commands- ******************************/
 /************************************************************************/
 bool Objects3DExplorer::changeSaveName(const string& fname)
 {
@@ -2599,7 +2602,8 @@ bool Objects3DExplorer::changeSaveName(const string& fname)
 return true;
 }
 
-/*************************** -Conf Commands- ******************************/
+
+/************************************************************************/
 bool Objects3DExplorer::setVerbose(const string& verb)
 {
     if (verb == "ON"){
