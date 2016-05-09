@@ -119,7 +119,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     bool ret = true;
     ret = ret && imgInPort.open(("/"+name+"/img:i").c_str());                    // port to receive images from
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());              // port to receive pointclouds from
-    ret = ret && cloudsInPort.open(("/"+name+"/clouds:o").c_str());              // port to send processed pointclouds to
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());              // port to send processed pointclouds to
     ret = ret && imgOutPort.open(("/"+name+"/img:o").c_str());                   // port to send processed images to
     if (!ret){
         printf("\nProblems opening ports\n");
