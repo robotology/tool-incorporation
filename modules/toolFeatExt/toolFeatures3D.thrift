@@ -86,18 +86,18 @@ service tool3DFeat_IDLServer
     bool setCanonicalPose(1: double deg = 0, 2: i32 disp = 0, 3: double tilt = 45.0);
 
     /**
-     * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
+     * @brief setBinNum - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
      * @param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel).
      * @return true/false on success/failure of setting number of bins.
      */
-    bool bins(1: i32 nbins = 2);
+    bool setBinNum(1: i32 nbins = 2);
 
     /**
-     * @brief depth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)).
+     * @brief setDepth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)).
      * @param maxDepth - (int) desired number of times that the bounding box will be iteratively subdivided into octants (default = 2, i.e. 72 vox).
      * @return true/false on success/failure of setting maxDepth
      */
-    bool depth(1: i32 maxDepth = 2);
+    bool setDepth(1: i32 maxDepth = 2);
 
     /**
      * @brief setVerbose - sets verbose of the output on or off.

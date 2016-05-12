@@ -59,13 +59,13 @@ public:
    * @param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel).
    * @return true/false on success/failure of setting number of bins.
    */
-  virtual bool bins(const int32_t nbins = 2);
+  virtual bool setBinNum(const int32_t nbins = 2);
   /**
    * @brief depth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)).
    * @param maxDepth - (int) desired number of times that the bounding box will be iteratively subdivided into octants (default = 2, i.e. 72 vox).
    * @return true/false on success/failure of setting maxDepth
    */
-  virtual bool depth(const int32_t maxDepth = 2);
+  virtual bool setDepth(const int32_t maxDepth = 2);
   /**
    * @brief setVerbose - sets verbose of the output on or off.
    * @param verb - (string ON/OFF) desired state of verbose.

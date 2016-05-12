@@ -62,7 +62,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3DFeat_IDLServer_bins : public yarp::os::Portable {
+class tool3DFeat_IDLServer_setBinNum : public yarp::os::Portable {
 public:
   int32_t nbins;
   bool _return;
@@ -71,7 +71,7 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
-class tool3DFeat_IDLServer_depth : public yarp::os::Portable {
+class tool3DFeat_IDLServer_setDepth : public yarp::os::Portable {
 public:
   int32_t maxDepth;
   bool _return;
@@ -231,15 +231,15 @@ void tool3DFeat_IDLServer_setCanonicalPose::init(const double deg, const int32_t
   this->tilt = tilt;
 }
 
-bool tool3DFeat_IDLServer_bins::write(yarp::os::ConnectionWriter& connection) {
+bool tool3DFeat_IDLServer_setBinNum::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
-  if (!writer.writeTag("bins",1,1)) return false;
+  if (!writer.writeTag("setBinNum",1,1)) return false;
   if (!writer.writeI32(nbins)) return false;
   return true;
 }
 
-bool tool3DFeat_IDLServer_bins::read(yarp::os::ConnectionReader& connection) {
+bool tool3DFeat_IDLServer_setBinNum::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -249,20 +249,20 @@ bool tool3DFeat_IDLServer_bins::read(yarp::os::ConnectionReader& connection) {
   return true;
 }
 
-void tool3DFeat_IDLServer_bins::init(const int32_t nbins) {
+void tool3DFeat_IDLServer_setBinNum::init(const int32_t nbins) {
   _return = false;
   this->nbins = nbins;
 }
 
-bool tool3DFeat_IDLServer_depth::write(yarp::os::ConnectionWriter& connection) {
+bool tool3DFeat_IDLServer_setDepth::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
-  if (!writer.writeTag("depth",1,1)) return false;
+  if (!writer.writeTag("setDepth",1,1)) return false;
   if (!writer.writeI32(maxDepth)) return false;
   return true;
 }
 
-bool tool3DFeat_IDLServer_depth::read(yarp::os::ConnectionReader& connection) {
+bool tool3DFeat_IDLServer_setDepth::read(yarp::os::ConnectionReader& connection) {
   yarp::os::idl::WireReader reader(connection);
   if (!reader.readListReturn()) return false;
   if (!reader.readBool(_return)) {
@@ -272,7 +272,7 @@ bool tool3DFeat_IDLServer_depth::read(yarp::os::ConnectionReader& connection) {
   return true;
 }
 
-void tool3DFeat_IDLServer_depth::init(const int32_t maxDepth) {
+void tool3DFeat_IDLServer_setDepth::init(const int32_t maxDepth) {
   _return = false;
   this->maxDepth = maxDepth;
 }
@@ -363,22 +363,22 @@ bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::bins(const int32_t nbins) {
+bool tool3DFeat_IDLServer::setBinNum(const int32_t nbins) {
   bool _return = false;
-  tool3DFeat_IDLServer_bins helper;
+  tool3DFeat_IDLServer_setBinNum helper;
   helper.init(nbins);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::bins(const int32_t nbins)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setBinNum(const int32_t nbins)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::depth(const int32_t maxDepth) {
+bool tool3DFeat_IDLServer::setDepth(const int32_t maxDepth) {
   bool _return = false;
-  tool3DFeat_IDLServer_depth helper;
+  tool3DFeat_IDLServer_setDepth helper;
   helper.init(maxDepth);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::depth(const int32_t maxDepth)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setDepth(const int32_t maxDepth)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -502,13 +502,13 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
-    if (tag == "bins") {
+    if (tag == "setBinNum") {
       int32_t nbins;
       if (!reader.readI32(nbins)) {
         nbins = 2;
       }
       bool _return;
-      _return = bins(nbins);
+      _return = setBinNum(nbins);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -517,13 +517,13 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
-    if (tag == "depth") {
+    if (tag == "setDepth") {
       int32_t maxDepth;
       if (!reader.readI32(maxDepth)) {
         maxDepth = 2;
       }
       bool _return;
-      _return = depth(maxDepth);
+      _return = setDepth(maxDepth);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -588,8 +588,8 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     helpString.push_back("loadModel");
     helpString.push_back("setPose");
     helpString.push_back("setCanonicalPose");
-    helpString.push_back("bins");
-    helpString.push_back("depth");
+    helpString.push_back("setBinNum");
+    helpString.push_back("setDepth");
     helpString.push_back("setVerbose");
     helpString.push_back("help");
   }
@@ -631,14 +631,14 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("@param tilt - (double) degrees of rotation around Z (tilted forward) ");
       helpString.push_back("@return true/false on success/failure of rotating model according to orientation. ");
     }
-    if (functionName=="bins") {
-      helpString.push_back("bool bins(const int32_t nbins = 2) ");
+    if (functionName=="setBinNum") {
+      helpString.push_back("bool setBinNum(const int32_t nbins = 2) ");
       helpString.push_back("@brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. ");
       helpString.push_back("@param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel). ");
       helpString.push_back("@return true/false on success/failure of setting number of bins. ");
     }
-    if (functionName=="depth") {
-      helpString.push_back("bool depth(const int32_t maxDepth = 2) ");
+    if (functionName=="setDepth") {
+      helpString.push_back("bool setDepth(const int32_t maxDepth = 2) ");
       helpString.push_back("@brief depth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)). ");
       helpString.push_back("@param maxDepth - (int) desired number of times that the bounding box will be iteratively subdivided into octants (default = 2, i.e. 72 vox). ");
       helpString.push_back("@return true/false on success/failure of setting maxDepth ");
