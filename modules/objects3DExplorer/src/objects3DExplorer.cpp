@@ -119,7 +119,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     bool ret = true;
     ret = ret && imgInPort.open(("/"+name+"/img:i").c_str());                    // port to receive images from
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());              // port to receive pointclouds from
-    ret = ret && cloudsInPort.open(("/"+name+"/clouds:o").c_str());              // port to send processed pointclouds to
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());              // port to send processed pointclouds to
     ret = ret && imgOutPort.open(("/"+name+"/img:o").c_str());                   // port to send processed images to
     if (!ret){
         printf("\nProblems opening ports\n");
@@ -1080,8 +1080,8 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 
     // set base position
     xd[0]=-0.25;
-    xd[1]=(hand=="left")?-0.1:0.1;					// move sligthly out of center towards the side of the used hand
-    xd[2]= 0.05;
+    xd[1]=(hand=="left")?-0.15:0.15;					// move sligthly out of center towards the side of the used hand
+    xd[2]= 0.1;
 
     offset[0]=0;
     offset[1]=(hand=="left")?-0.05-(0.01*(rotDegY/10+rotDegX/3)):0.0 + (0.01*(rotDegY/10+rotDegX/3));	// look slightly towards the side where the tool is rotated
@@ -1188,8 +1188,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     otherHandCtrl->getPose(away,awayOr);
     cout << " Pose received: " << away.toString() << endl;
     away[0] = -0.2;
-    away[1] = (hand=="left")?0.3:-0.3;
-    away[2] = 0.1;
+    away[1] = (hand=="left")?0.35:-0.35;
+    away[2] = 0.15;
 
     otherHandCtrl->goToPose(away, awayOr);
     otherHandCtrl->waitMotionDone();
