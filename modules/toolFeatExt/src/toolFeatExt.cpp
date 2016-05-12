@@ -127,6 +127,7 @@ bool ToolFeatExt::updateModule()
         CloudUtils::bottle2cloud(*cloudBottle,cloud);
         cout<< "Cloud of size: " << cloud->points.size() << endl;
         sendCloud(cloud);
+        cloudTransformed = true;
     }
     return !closing;
 }

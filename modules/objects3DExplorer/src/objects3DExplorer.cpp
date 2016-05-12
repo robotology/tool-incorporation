@@ -2267,7 +2267,7 @@ bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>
     //cout << "Found " << nanInd.size() << " NaNs on target cloud." <<endl;
 
     if (initAlignment){
-        printf("Setting initAlgined cloud as input... \n");
+        printf("Setting initAligned cloud as input... \n");
         icp.setInputSource(cloud_IA);
     }else{
         printf("Setting source cloud as input... \n");
