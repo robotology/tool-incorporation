@@ -633,13 +633,13 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     }
     if (functionName=="setBinNum") {
       helpString.push_back("bool setBinNum(const int32_t nbins = 2) ");
-      helpString.push_back("@brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. ");
+      helpString.push_back("@brief setBinNum - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3. ");
       helpString.push_back("@param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel). ");
       helpString.push_back("@return true/false on success/failure of setting number of bins. ");
     }
     if (functionName=="setDepth") {
       helpString.push_back("bool setDepth(const int32_t maxDepth = 2) ");
-      helpString.push_back("@brief depth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)). ");
+      helpString.push_back("@brief setDepth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)). ");
       helpString.push_back("@param maxDepth - (int) desired number of times that the bounding box will be iteratively subdivided into octants (default = 2, i.e. 72 vox). ");
       helpString.push_back("@return true/false on success/failure of setting maxDepth ");
     }

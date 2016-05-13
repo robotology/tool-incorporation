@@ -55,13 +55,13 @@ public:
    */
   virtual bool setCanonicalPose(const double deg = 0, const int32_t disp = 0, const double tilt = 45);
   /**
-   * @brief bins - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
+   * @brief setBinNum - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
    * @param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel).
    * @return true/false on success/failure of setting number of bins.
    */
   virtual bool setBinNum(const int32_t nbins = 2);
   /**
-   * @brief depth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)).
+   * @brief setDepth - sets the number of times that the bounding box will be iteratively subdivided into octants. Total number of voxels = sum(8^(1:depth)).
    * @param maxDepth - (int) desired number of times that the bounding box will be iteratively subdivided into octants (default = 2, i.e. 72 vox).
    * @return true/false on success/failure of setting maxDepth
    */

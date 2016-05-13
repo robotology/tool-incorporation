@@ -79,7 +79,7 @@ protected:
     /* class variables */
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig; // Point cloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;      // Point cloud of the transformed model
-    yarp::sig::Matrix                   rotMat;     // Rotation Matrix specifying grasp pose
+    yarp::sig::Matrix                      rotMat;     // Rotation Matrix specifying grasp pose
 
     bool verbose;
     int maxDepth;
