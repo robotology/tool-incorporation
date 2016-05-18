@@ -1109,18 +1109,18 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
     xTH.resize(4);
 
-    if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
+    //if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.15;              // X
-        xTH[1] = -0.15;             // Y
-        xTH[2] = 0.0;               // Z
-        xTH[3] = 1.0;               // T
-    }else {
-        xTH[0] = tooltip.x;         // X
-        xTH[1] = tooltip.y;         // Y
-        xTH[2] = tooltip.z;         // Z
-        xTH[3] = 1.0;               // T
-    }
+    xTH[0] = 0.15;              // X
+    xTH[1] = -0.15;             // Y
+    xTH[2] = 0.0;               // Z
+    xTH[3] = 1.0;               // T
+    //}else {
+    //    xTH[0] = tooltip.x;         // X
+    //    xTH[1] = tooltip.y;         // Y
+    //    xTH[2] = tooltip.z;         // Z
+    //    xTH[3] = 1.0;               // T
+    //}
 
     // Transform point to robot coordinates:
     xTR = R * xTH;
