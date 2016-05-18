@@ -79,7 +79,7 @@ protected:
     /* class variables */
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig; // Point cloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;      // Point cloud of the transformed model
-    yarp::sig::Matrix                   rotMat;     // Rotation Matrix specifying grasp pose
+    yarp::sig::Matrix                      rotMat;     // Rotation Matrix specifying grasp pose
 
     bool verbose;
     int maxDepth;
@@ -95,7 +95,7 @@ protected:
     bool loadToolModel();
     bool loadModelsFromFile(yarp::os::ResourceFinder &rf);
     bool transform2pose(const yarp::sig::Matrix& toolPose = yarp::math::eye(4,4));
-    int  computeFeats();    
+    int  computeOMSEGI();
     bool sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in);
 
 public:
@@ -107,8 +107,8 @@ public:
     bool                        setPose(const yarp::sig::Matrix& rotMat);
     bool                        setCanonicalPose(const double deg = 0.0, const int disp = 0, const double tilt = 45.0);
 
-    bool                        bins(const int binsN = 2);
-    bool                        depth(const int depthN = 2);
+    bool                        setBinNum(const int binsN = 2);
+    bool                        setDepth(const int depthN = 2);
     bool                        loadModel(const std::string& name = "cloud.ply");
     bool                        setVerbose(const std::string& verb);
 

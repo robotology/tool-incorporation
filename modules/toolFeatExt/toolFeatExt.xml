@@ -23,6 +23,11 @@
             <port carrier="tcp">/toolFeatExt/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
         </input> 
+        <input>
+            <type>Bottle</type>
+            <port>/toolFeatExt/clouds:i</port>
+            <description> Received clouds are stored to extract their features</description>
+        </input>
     
         <!-- output data if available -->
         <output>

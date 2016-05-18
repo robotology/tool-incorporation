@@ -16,11 +16,6 @@
  * Public License for more details
 */
 
-// toolFeatExt deals with extracting features from the oriented cloud model.
-// Therefore it works only on the model.
-// Required rotations/orietations are found by other modules.
-
-
 #include <toolFeatExt.h>
 
 using namespace std;
@@ -29,13 +24,13 @@ using namespace yarp::sig;
 using namespace yarp::math;
 using namespace iCub::YarpCloud;
 
-// XXX XXX Modify this module so that it is mainly concerned with getting OMS-EGI features from a point cloud. Therefore, it should
-// - be able to load cloud from model (loadModel) and orient it with matrix (setPose-setCanonicalPose) - done
-// - be able read a cloud (on updateModule) and set it as the model.                        <-- XXX missing!!
-// - compute features on command and send them out (getFeat), and set paraemters            - done
+// This module is mainly concerned with getting OMS-EGI 3D features from a point cloud. Therefore, it can:
+// - load cloud from model (loadModel) and orient it with matrix (setPose-setCanonicalPose)
+// - read a cloud (on updateModule) and set it as the model.
+// - compute features on command and send them out (getFeat), and set paraemters
 // - Optionally,
-//      - compute automatically all features for all avaiable models. (getAllToolFeats).    - done
-//      - get multiple samples from a single tool-pose with slight variations (getSamples). - done
+//      - compute automatically all features for all available models. (getAllToolFeats).
+//      - get multiple samples from a single tool-pose with slight variations (getSamples).
 
 
 
@@ -127,6 +122,7 @@ bool ToolFeatExt::updateModule()
         CloudUtils::bottle2cloud(*cloudBottle,cloud);
         cout<< "Cloud of size: " << cloud->points.size() << endl;
         sendCloud(cloud);
+        cloudTransformed = true;
     }
     return !closing;
 }
@@ -164,9 +160,8 @@ bool ToolFeatExt::attach(RpcServer &source)
 /**********************************************************/
 bool ToolFeatExt::getFeats()
 {   // computes 3D oriented -normalized voxel wise EGI - tool featues.
-    int ok = computeFeats();
-    if (ok>=0) {
-        fprintf(stdout,"3D Features computed correctly. \n");
+    int ok = computeOMSEGI();
+    if (ok>=0) {        
         return true;
     } else {
         fprintf(stdout,"3D Features not computed correctly. \n");
@@ -197,7 +192,7 @@ bool ToolFeatExt::getSamples(const int n, const double deg)
             fprintf(stdout,"Error transforming frame to canonical position . \n");
         }
 
-        if (!computeFeats()) {
+        if (!computeOMSEGI()) {
             fprintf(stdout,"Error computing features. \n");
         }
     }
@@ -227,22 +222,22 @@ bool ToolFeatExt::getAllToolFeats(const string& robot)
         }
 
         if(robot=="real"){
-            computeFeats();         // Get first the canonical position features
+            computeOMSEGI();         // Get first the canonical position features
             // Transform tools to orientations 90, 0  and -90 , in that order.  And for each, displacements -1, 0
             for ( int ori = 90; ori > -100; ori = ori - 90){            // This is a loop for {90, 0, -90}
                 for (int disp=-1 ; disp<1 ; disp ++){                   // This is a loop for {-1,0}
                     setCanonicalPose(ori, disp);
-                    computeFeats();                                     // Compute features for each desired pose
+                    computeOMSEGI();                                     // Compute features for each desired pose
                 }
             }
 
         }else if (robot=="sim"){
-            computeFeats();         // Get first the canonical position features
+            computeOMSEGI();         // Get first the canonical position features
             // Transform tools to orientations -90, 0  and 90 , in that order. And for each, displacements -2, 0, 2
             for ( int ori = -90; ori < 100; ori +=  90){                  // This is a loop for {-90, 0, 90}
                 for (int disp=-2 ; disp<3 ; disp += 2){                   // This is a loop for {-2,0, 2}
                     setCanonicalPose(ori, disp);
-                    computeFeats();                                       // Compute features for each desired pose
+                    computeOMSEGI();                                       // Compute features for each desired pose
                 }
             }
 
@@ -292,14 +287,14 @@ bool ToolFeatExt::setCanonicalPose(const double deg, const int disp, const doubl
 }
 
 /**********************************************************/
-bool ToolFeatExt::bins(const int binsN)
+bool ToolFeatExt::setBinNum(const int binsN)
 {
     binsPerDim = binsN;
     return true;
 }
 
 /**********************************************************/
-bool ToolFeatExt::depth(const int depthN)
+bool ToolFeatExt::setDepth(const int depthN)
 {
     maxDepth = depthN;
     return true;
@@ -432,7 +427,7 @@ bool ToolFeatExt::transform2pose(const Matrix &toolPose)
 }
 
 /************************************************************************/
-int ToolFeatExt::computeFeats()
+int ToolFeatExt::computeOMSEGI()
     {
     cout << endl <<" +++++++++++++++++++++++++++++ FEATURE EXTRACTION ++++++++++++++++++++++++++++++++++++ " << endl;
 
