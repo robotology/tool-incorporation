@@ -102,7 +102,7 @@ public:
 
     // RPC Accesible methods
     bool                        getFeats();
-    bool                        getAllToolFeats(const std::string& robot = "real");    
+    bool                        getAllToolFeats(const std::string& setup = "real");
     bool                        getSamples(const int n, const double deg);
     bool                        setPose(const yarp::sig::Matrix& rotMat);
     bool                        setCanonicalPose(const double deg = 0.0, const int disp = 0, const double tilt = 45.0);

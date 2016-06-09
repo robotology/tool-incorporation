@@ -52,7 +52,7 @@ service tool3DFeat_IDLServer
      * @brief getFeats - Performs 3D feature extraction of all loaded tools
      * @return true/false on success/failure of extracting features
      */
-    bool getAllToolFeats(1: string robot = "real");
+    bool getAllToolFeats(1: string setup = "real");
 
     /**
      * @brief getSamples - Generates n poses of the tool around a base orientation deg and extract features.

@@ -26,7 +26,7 @@ public:
    * @brief getFeats - Performs 3D feature extraction of all loaded tools
    * @return true/false on success/failure of extracting features
    */
-  virtual bool getAllToolFeats(const std::string& robot = "real");
+  virtual bool getAllToolFeats(const std::string& setup = "real");
   /**
    * @brief getSamples - Generates n poses of the tool around a base orientation deg and extract features.
    * @param n - (int) desired number of poses (default = 10) .

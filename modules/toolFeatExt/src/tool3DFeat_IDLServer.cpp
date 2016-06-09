@@ -16,9 +16,9 @@ public:
 
 class tool3DFeat_IDLServer_getAllToolFeats : public yarp::os::Portable {
 public:
-  std::string robot;
+  std::string setup;
   bool _return;
-  void init(const std::string& robot);
+  void init(const std::string& setup);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -114,7 +114,7 @@ bool tool3DFeat_IDLServer_getAllToolFeats::write(yarp::os::ConnectionWriter& con
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(2)) return false;
   if (!writer.writeTag("getAllToolFeats",1,1)) return false;
-  if (!writer.writeString(robot)) return false;
+  if (!writer.writeString(setup)) return false;
   return true;
 }
 
@@ -128,9 +128,9 @@ bool tool3DFeat_IDLServer_getAllToolFeats::read(yarp::os::ConnectionReader& conn
   return true;
 }
 
-void tool3DFeat_IDLServer_getAllToolFeats::init(const std::string& robot) {
+void tool3DFeat_IDLServer_getAllToolFeats::init(const std::string& setup) {
   _return = false;
-  this->robot = robot;
+  this->setup = setup;
 }
 
 bool tool3DFeat_IDLServer_getSamples::write(yarp::os::ConnectionWriter& connection) {
@@ -313,12 +313,12 @@ bool tool3DFeat_IDLServer::getFeats() {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& robot) {
+bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& setup) {
   bool _return = false;
   tool3DFeat_IDLServer_getAllToolFeats helper;
-  helper.init(robot);
+  helper.init(setup);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& robot)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& setup)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -415,12 +415,12 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       return true;
     }
     if (tag == "getAllToolFeats") {
-      std::string robot;
-      if (!reader.readString(robot)) {
-        robot = "real";
+      std::string setup;
+      if (!reader.readString(setup)) {
+        setup = "real";
       }
       bool _return;
-      _return = getAllToolFeats(robot);
+      _return = getAllToolFeats(setup);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -600,7 +600,7 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("@return true/false on success/failure of extracting features ");
     }
     if (functionName=="getAllToolFeats") {
-      helpString.push_back("bool getAllToolFeats(const std::string& robot = \"real\") ");
+      helpString.push_back("bool getAllToolFeats(const std::string& setup = \"real\") ");
       helpString.push_back("@brief getFeats - Performs 3D feature extraction of all loaded tools ");
       helpString.push_back("@return true/false on success/failure of extracting features ");
     }
