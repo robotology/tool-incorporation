@@ -623,8 +623,11 @@ int ToolFeatExt::computeOMSEGI()
 
             // Instantiate normal histogram at actual depth
             int numLeaves = octree.getLeafCount();                              // Get the number of occupied voxels (leaves) at actual depth
-            float voxelHist[numLeaves][binsPerDim][binsPerDim][binsPerDim];     // Histogram 3D matrix per voxel
-            std::vector< double> featVecHist;                                   // Vector containing a serialized version of the 3D histogram
+            int histSize = pow(binsPerDim,3);
+            float voxelHist[numLeaves][binsPerDim][binsPerDim][binsPerDim];     // Histogram 3D matrix per occupied voxel
+            float voxelsHistMat[voxPerSide][voxPerSide][voxPerSide][histSize]; // Matrix containing the normal histogram at each voxel at actual depth.
+
+            //std::vector< double> featVecHist;                                   // Vector containing a serialized version of the 3D histogram
 
             if(verbose){
                 cout << "BB divided into " << voxPerSide << " voxels per side of size "<< minVoxSize << ", " << numLeaves << " occupied." << endl;
@@ -646,7 +649,7 @@ int ToolFeatExt::computeOMSEGI()
                 // Clear clouds and vectors from previous voxel.
                 voxelCloud->points.clear();
                 voxelCloudNormals->points.clear();
-                featVecHist.clear();
+                //featVecHist.clear();
 
                 // Find Voxel Bounds ...
                 Eigen::Vector3f voxel_min, voxel_max;
@@ -708,16 +711,19 @@ int ToolFeatExt::computeOMSEGI()
                     float xn, yn, zn;
 
                     if ((pcl::isFinite(voxelCloudNormals->points[i]))){
+                        // Get normal orientation in each dimension
                         xn = voxelCloudNormals->points[i].normal_x;
                         yn = voxelCloudNormals->points[i].normal_y;
                         zn = voxelCloudNormals->points[i].normal_z;
                         //std::cout << "Normal  (" << xn << "," << yn << "," << zn << ")" << std::endl;
 
+                        // Get the bin of the normal orientation in each direction.
                         xbin = floor((xn - rangeMin) /sizeBin); // floor because 0-indexed array
                         ybin = floor((yn - rangeMin) /sizeBin);
                         zbin = floor((zn - rangeMin) /sizeBin);
                         //std::cout << "lies on bin (" << xbin << "," << ybin << "," << zbin << ")" << std::endl;
 
+                        // Increase count of the bin where the normal is assigned
                         voxelHist[voxelI][xbin][ybin][zbin]= voxelHist[voxelI][xbin][ybin][zbin] + 1.0f;
                         okNormalsVox ++;
                     }else{
@@ -731,17 +737,34 @@ int ToolFeatExt::computeOMSEGI()
                 std::cout << "Voxel (" << occx << "," << occy << "," << occz << ")" << "has " << okNormalsVox << " valid points and " << nanCountVox << " NaNs." << std::endl;
 
                 //Normalize by the total number of points in voxel so that each histogram has sum 1, independent of the number of points in the voxel.
+                int n =0;
                 for (int i = 0; i < binsPerDim; ++i){
                     for (int j = 0; j < binsPerDim; ++j){
                         for (int k = 0; k < binsPerDim; ++k){
                             if (okNormalsVox){              // Avoid dividing by 0.
-                                voxelHist[voxelI][i][j][k] = voxelHist[voxelI][i][j][k] / (float) okNormalsVox;}
+                                voxelHist[voxelI][i][j][k] = voxelHist[voxelI][i][j][k] / (float) okNormalsVox;
+                                voxelsHistMat[occx][occy][occz][n] = voxelHist[voxelI][i][j][k];
+                                n++;
+                            }
 
                             // Push into feature vector per histogram
-                            featVecHist.push_back(voxelHist[voxelI][i][j][k]);
+                            //featVecHist.push_back(voxelHist[voxelI][i][j][k]);
                         }
                     }
-                }
+                }                
+
+                // Keep all histograms form occupied voxels
+                // featureVectorOccVox.push_back(featVecHist);
+
+                // XXX Need a 3D matrix structure of histograms so I can retrieve them basedon its voxel index
+                // instead of based on a line index which I dont know if its matching. Something like:
+                //voxelsHistMat[occx][occy][occz] = featVecHist;
+
+                // Voxel histograms coincide with voxels set as occupied (obviously), otherwise they are filled with all 0s.
+
+
+
+                voxelI++;
 
                 // Print out angular histogram
                 /*
@@ -757,11 +780,6 @@ int ToolFeatExt::computeOMSEGI()
                 }
                 cout <<  "}" <<std::endl;
                 // */
-
-                // Keep all histograms form occupied voxels
-                featureVectorOccVox.push_back(featVecHist);
-
-                voxelI++;
 
             } // close for voxel
 
@@ -797,12 +815,15 @@ int ToolFeatExt::computeOMSEGI()
             // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             // Fill the complete feature vector, including histograms for empty voxels.
             int occVoxI = 0;
+            std::vector< double > histVec;
             for (int i = 0; i < voxPerSide; ++i){
                 for (int j = 0; j < voxPerSide/2; ++j){   //Limit bounding box to the upper part of the tool only, to remove handle from feature list.
                     for (int k = 0; k < voxPerSide; ++k){
                         if (voxelOccupancy[i][j][k]){        // if the voxel is occupied
-                            std::vector< double > histVec;
-                            histVec = featureVectorOccVox[occVoxI];
+                            histVec.clear();
+                            for (int n = 0; n <histSize; ++n){
+                                histVec.push_back(voxelsHistMat[i][j][k][n]);}
+                            //histVec = featureVectorOccVox[occVoxI];
                             featureVectorAllVox.toolFeats.push_back(histVec); // copy histogram
                             occVoxI++;
                         }else{                               // if the voxel is empty fill with 0s.
@@ -813,7 +834,7 @@ int ToolFeatExt::computeOMSEGI()
                 }
             }
 
-            //if(verbose){cout <<  "Vector has a size of " << featureVectorAllVox.size() << " x " << featVecHist.size() << " at depth "<< depth <<endl;}
+            if(verbose){cout <<  "Vector has a size of " << featureVectorAllVox.toolFeats.size() << " x " << histSize << " at depth "<< depth <<endl;}
 
             // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             // Re-initialize octree with double resolution (half minVoxSize) to analyse next level
