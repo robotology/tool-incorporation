@@ -404,16 +404,17 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         if (ok) {
             sendPointCloud(cloud_merged);
+
+            *cloud_model = *cloud_merged;
+            *cloud_pose = *cloud_merged;
+            cloudLoaded = true;
+            poseFound = true;
+
+            reply.addString("[ack]");
+            return true;
         }
 
-        *cloud_model = *cloud_merged;
-        *cloud_pose = *cloud_merged;
-        cloudLoaded = true;
-        poseFound = true;
-
-        reply.addString("[ack]");
-        return true;
-
+        return false;
 
     }else if (receivedCmd == "turnHand"){
             // Turn the hand 'int' degrees, or go to 0 if no parameter was given.
@@ -633,6 +634,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 
     }else if (receivedCmd == "getOri"){         // Returns the orientation of the tool  (in degrees around -Y axis)
+
         if (!poseFound){
             cout << "Pose needed to get params" << endl;
             reply.addString("[nack] Compute pose first.");
