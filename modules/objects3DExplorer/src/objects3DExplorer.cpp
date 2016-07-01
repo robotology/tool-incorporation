@@ -632,6 +632,55 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
        return true;
 
 
+    }else if (receivedCmd == "getOri"){         // Returns the orientation of the tool  (in degrees around -Y axis)
+        if (!poseFound){
+            cout << "Pose needed to get params" << endl;
+            reply.addString("[nack] Compute pose first.");
+            return false;
+        }
+
+        double ori, dum1, dum2, dum3;
+        paramFromPose(toolPose,ori, dum1, dum2, dum3);
+        reply.addString("[ack]");
+        reply.addDouble(ori);
+        return true;
+    }else if (receivedCmd == "getDisp"){         // Returns the orientation of the tool  (in degrees around -Y axis)
+        if (!poseFound){
+            cout << "Pose needed to get params" << endl;
+            reply.addString("[nack] Compute pose first.");
+            return false;
+        }
+
+        double displ, dum1, dum2, dum3;
+        paramFromPose(toolPose,dum1,displ, dum2, dum3);
+        reply.addString("[ack]");
+        reply.addDouble(displ);
+        return true;
+    }else if (receivedCmd == "getTilt"){         // Returns the orientation of the tool  (in degrees around -Y axis)
+        if (!poseFound){
+            cout << "Pose needed to get params" << endl;
+            reply.addString("[nack] Compute pose first.");
+            return false;
+        }
+
+        double tilt, dum1, dum2, dum3;
+        paramFromPose(toolPose,dum1, dum2, tilt, dum3);
+        reply.addString("[ack]");
+        reply.addDouble(tilt);
+        return true;
+    }else if (receivedCmd == "getShift"){         // Returns the orientation of the tool  (in degrees around -Y axis)
+        if (!poseFound){
+            cout << "Pose needed to get params" << endl;
+            reply.addString("[nack] Compute pose first.");
+            return false;
+        }
+
+        double shift, dum1, dum2, dum3;
+        paramFromPose(toolPose,dum1, dum2, dum3, shift);
+        reply.addString("[ack]");
+        reply.addDouble(shift);
+        return true;
+
 
     }else if (receivedCmd == "clearpose"){
         toolPose.resize(4,4);
@@ -792,7 +841,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-        // Check if pose has been found, use the canonically oriented model        
+        // Check if pose has been found, otherwise use the canonically oriented model
         if (!poseFound){
             *cloud_pose = *cloud_model;}
 
@@ -836,6 +885,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addDouble(tooltip.z);
 
         return true;
+
 
     }else if (receivedCmd == "cleartip"){
         tooltip.x == 0.0;
@@ -1010,6 +1060,10 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("setPoseParam [ori][disp][tilt][shift] - Set the tool pose given the grasp parameters.");
         reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' from .ply/.pcd files (test for aligning algorithms).");
         reply.addString("findPlanes - Finds the pose of the tool by analyzing its main planes and their symmetries.");
+        reply.addString("getOri - Returns the orientation of the tool  (in degrees around -Y axis).");
+        reply.addString("getDisp - Returns the displacement of the tool  (in cm).");
+        reply.addString("getTilt - Returns the tilt of the tool  (in degrees around Z axis).");
+        reply.addString("getShift- Returns the shift of the tool  (in cm along Y axis from hand ref.frame).");
         reply.addString("clearpose - Removes any previously estimated pose.");
 
         reply.addString("---------- TOOLTIP ESTIMATION -----------");
@@ -2099,16 +2153,16 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
     double toolI = -1, poseI = 0;
-    if (tool == "real/pipeHoe3"){
+    if (tool == "real/HOE3"){
         toolI = 0;
     }
-    if (tool == "real/pipeHook3"){
+    if (tool == "real/HOK3"){
         toolI = 1;
     }
-    if (tool == "real/rakeBlue"){
+    if (tool == "real/RAK1"){
         toolI = 2;
     }
-    if (tool == "real/realStick3"){
+    if (tool == "real/STI3"){
         toolI = 3;
     }
     if (toolI == -1){

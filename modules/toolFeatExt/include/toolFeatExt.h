@@ -74,8 +74,6 @@ protected:
     std::string cloudpath;            // path to folder with .ply or .pcd files
     std::string cloudname;           // name of the .ply or .pcd cloud file
 
-// add the port to send out the features via thrift.
-
     /* class variables */
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig; // Point cloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;      // Point cloud of the transformed model
