@@ -74,8 +74,6 @@ protected:
     std::string cloudpath;            // path to folder with .ply or .pcd files
     std::string cloudname;           // name of the .ply or .pcd cloud file
 
-// add the port to send out the features via thrift.
-
     /* class variables */
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig; // Point cloud
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;      // Point cloud of the transformed model
@@ -102,7 +100,7 @@ public:
 
     // RPC Accesible methods
     bool                        getFeats();
-    bool                        getAllToolFeats(const std::string& robot = "real");    
+    bool                        getAllToolFeats(const std::string& setup = "real");
     bool                        getSamples(const int n, const double deg);
     bool                        setPose(const yarp::sig::Matrix& rotMat);
     bool                        setCanonicalPose(const double deg = 0.0, const int disp = 0, const double tilt = 45.0);
