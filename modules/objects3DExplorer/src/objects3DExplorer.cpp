@@ -1953,7 +1953,8 @@ bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 {
     cout << "Computing affordances of the tool-pose in hand " << endl;
-    int rows = 12;
+    int numTools = 5;           // Change if the number of tools changes
+    int rows = 3*numTools;
     int cols = 4;
     Matrix affMatrix(rows,cols);
     // affMatrix contains the pre-learnt affordances of the 4 possible tools. (can be easily extended for new tools).
@@ -1982,6 +1983,11 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
     affMatrix(10,0) = 1.0;  affMatrix(10,1) = 0.0;  affMatrix(10,2) = 0.0;  affMatrix(10,3) = 0.0; // Pose front (0)
     affMatrix(11,0) = 1.0;  affMatrix(11,1) = 0.0;  affMatrix(11,2) = 0.0;  affMatrix(11,3) = 0.0; // Pose right (-90)
 
+    // Tool 4 -> shovel
+    affMatrix(12,0) = 1.0;  affMatrix(12,1) = 0.0;  affMatrix(12,2) = 0.0;  affMatrix(12,3) = 0.0; // Pose left  (90)
+    affMatrix(13,0) = 1.0;  affMatrix(13,1) = 0.0;  affMatrix(13,2) = 0.0;  affMatrix(13,3) = 0.0; // Pose front (0)
+    affMatrix(14,0) = 1.0;  affMatrix(14,1) = 0.0;  affMatrix(14,2) = 0.0;  affMatrix(14,3) = 0.0; // Pose right (-90)
+
 
     affBottle.clear();
 
@@ -2003,6 +2009,9 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
             }
             if (toolI = 3){
                 toolName = "real/realStick3";
+            }
+            if (toolI = 4){
+                toolName = "real/shovelYellow";
             }
             affBottle.addString(toolName);
             Property &affProps = affBottle.addDict();
@@ -2110,6 +2119,9 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     }
     if (tool == "real/realStick3"){
         toolI = 3;
+    }
+    if (tool == "real/shovelYellow"){
+        toolI = 4;
     }
     if (toolI == -1){
         cout << "No tool is loaded" << endl;
