@@ -185,7 +185,7 @@ bool ToolFeatExt::getSamples(const int n, const double deg)
     float maxVar = 5;      //Define the maximum variation, on degrees, wrt the given orientation angle
 
     Rand randG; // YARP random generator
-    Vector degVarVec = randG.vector(n); // Generate a vector of slgiht variations to the main orientation angle
+    Vector degVarVec = randG.vector(n); // Generate a vector of slight variations to the main orientation angle
     for (int s=0;s<n;++s)
     {
         if(!setCanonicalPose(deg + degVarVec[s]*maxVar*2-maxVar))   // Transform model to a close but different position
@@ -228,6 +228,7 @@ bool ToolFeatExt::getAllToolFeats(const string& setup)
             for ( int ori = 90; ori > -100; ori = ori - 90){            // This is a loop for {90, 0, -90}
                 for (int disp=-1 ; disp<1 ; disp ++){                   // This is a loop for {-1,0}
                     setCanonicalPose(ori, disp);
+                    //getSamples(const int n, const double deg)
                     computeOMSEGI();                                     // Compute features for each desired pose
                 }
             }
@@ -265,7 +266,7 @@ bool ToolFeatExt::setPose(const Matrix& toolPose)
 }
 
 /**********************************************************/
-bool ToolFeatExt::setCanonicalPose(const double deg, const int disp, const double tilt)
+bool ToolFeatExt::setCanonicalPose(const double deg, const int disp)
 {   // Rotates the tool model 'deg' degrees around the hand -Y axis
     // Positive angles turn the end effector "inwards" wrt the iCub, while negative ones rotate it "outwards" (for tool on the right hand).
     float rad = deg*M_PI/180.0; // converse deg into rads
