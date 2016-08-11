@@ -16,9 +16,10 @@ public:
 
 class tool3DFeat_IDLServer_getAllToolFeats : public yarp::os::Portable {
 public:
-  std::string setup;
+  int32_t n_samples;
+  bool pics;
   bool _return;
-  void init(const std::string& setup);
+  void init(const int32_t n_samples, const bool pics);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -55,9 +56,8 @@ class tool3DFeat_IDLServer_setCanonicalPose : public yarp::os::Portable {
 public:
   double deg;
   int32_t disp;
-  double tilt;
   bool _return;
-  void init(const double deg, const int32_t disp, const double tilt);
+  void init(const double deg, const int32_t disp);
   virtual bool write(yarp::os::ConnectionWriter& connection);
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
@@ -112,9 +112,10 @@ void tool3DFeat_IDLServer_getFeats::init() {
 
 bool tool3DFeat_IDLServer_getAllToolFeats::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeListHeader(3)) return false;
   if (!writer.writeTag("getAllToolFeats",1,1)) return false;
-  if (!writer.writeString(setup)) return false;
+  if (!writer.writeI32(n_samples)) return false;
+  if (!writer.writeBool(pics)) return false;
   return true;
 }
 
@@ -128,9 +129,10 @@ bool tool3DFeat_IDLServer_getAllToolFeats::read(yarp::os::ConnectionReader& conn
   return true;
 }
 
-void tool3DFeat_IDLServer_getAllToolFeats::init(const std::string& setup) {
+void tool3DFeat_IDLServer_getAllToolFeats::init(const int32_t n_samples, const bool pics) {
   _return = false;
-  this->setup = setup;
+  this->n_samples = n_samples;
+  this->pics = pics;
 }
 
 bool tool3DFeat_IDLServer_getSamples::write(yarp::os::ConnectionWriter& connection) {
@@ -206,11 +208,10 @@ void tool3DFeat_IDLServer_setPose::init(const yarp::sig::Matrix& toolPose) {
 
 bool tool3DFeat_IDLServer_setCanonicalPose::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
-  if (!writer.writeListHeader(4)) return false;
+  if (!writer.writeListHeader(3)) return false;
   if (!writer.writeTag("setCanonicalPose",1,1)) return false;
   if (!writer.writeDouble(deg)) return false;
   if (!writer.writeI32(disp)) return false;
-  if (!writer.writeDouble(tilt)) return false;
   return true;
 }
 
@@ -224,11 +225,10 @@ bool tool3DFeat_IDLServer_setCanonicalPose::read(yarp::os::ConnectionReader& con
   return true;
 }
 
-void tool3DFeat_IDLServer_setCanonicalPose::init(const double deg, const int32_t disp, const double tilt) {
+void tool3DFeat_IDLServer_setCanonicalPose::init(const double deg, const int32_t disp) {
   _return = false;
   this->deg = deg;
   this->disp = disp;
-  this->tilt = tilt;
 }
 
 bool tool3DFeat_IDLServer_setBinNum::write(yarp::os::ConnectionWriter& connection) {
@@ -313,12 +313,12 @@ bool tool3DFeat_IDLServer::getFeats() {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& setup) {
+bool tool3DFeat_IDLServer::getAllToolFeats(const int32_t n_samples, const bool pics) {
   bool _return = false;
   tool3DFeat_IDLServer_getAllToolFeats helper;
-  helper.init(setup);
+  helper.init(n_samples,pics);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::getAllToolFeats(const std::string& setup)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::getAllToolFeats(const int32_t n_samples, const bool pics)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -353,12 +353,12 @@ bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
-bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp, const double tilt) {
+bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp) {
   bool _return = false;
   tool3DFeat_IDLServer_setCanonicalPose helper;
-  helper.init(deg,disp,tilt);
+  helper.init(deg,disp);
   if (!yarp().canWrite()) {
-    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp, const double tilt)");
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setCanonicalPose(const double deg, const int32_t disp)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -415,12 +415,16 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       return true;
     }
     if (tag == "getAllToolFeats") {
-      std::string setup;
-      if (!reader.readString(setup)) {
-        setup = "real";
+      int32_t n_samples;
+      bool pics;
+      if (!reader.readI32(n_samples)) {
+        n_samples = 1;
+      }
+      if (!reader.readBool(pics)) {
+        pics = 0;
       }
       bool _return;
-      _return = getAllToolFeats(setup);
+      _return = getAllToolFeats(n_samples,pics);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -482,18 +486,14 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
     if (tag == "setCanonicalPose") {
       double deg;
       int32_t disp;
-      double tilt;
       if (!reader.readDouble(deg)) {
         deg = 0;
       }
       if (!reader.readI32(disp)) {
         disp = 0;
       }
-      if (!reader.readDouble(tilt)) {
-        tilt = 45;
-      }
       bool _return;
-      _return = setCanonicalPose(deg,disp,tilt);
+      _return = setCanonicalPose(deg,disp);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -600,7 +600,7 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("@return true/false on success/failure of extracting features ");
     }
     if (functionName=="getAllToolFeats") {
-      helpString.push_back("bool getAllToolFeats(const std::string& setup = \"real\") ");
+      helpString.push_back("bool getAllToolFeats(const int32_t n_samples = 1, const bool pics = 0) ");
       helpString.push_back("@brief getFeats - Performs 3D feature extraction of all loaded tools ");
       helpString.push_back("@return true/false on success/failure of extracting features ");
     }
@@ -624,7 +624,7 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
       helpString.push_back("@return true/false on success/failure of rotating model according to  matrix. ");
     }
     if (functionName=="setCanonicalPose") {
-      helpString.push_back("bool setCanonicalPose(const double deg = 0, const int32_t disp = 0, const double tilt = 45) ");
+      helpString.push_back("bool setCanonicalPose(const double deg = 0, const int32_t disp = 0) ");
       helpString.push_back("@brief setCanonicalPose - Rotates the tool model to canonical orientations, i.e. as a rotation along the longest axis which orients the end effector. ");
       helpString.push_back("@param deg - (double) degrees of rotation around the longest axis. ");
       helpString.push_back("@param disp - (int) displacement along the tool axis (grasped closer or further from end-effector). ");

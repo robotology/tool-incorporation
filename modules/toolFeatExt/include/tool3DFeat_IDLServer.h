@@ -26,7 +26,7 @@ public:
    * @brief getFeats - Performs 3D feature extraction of all loaded tools
    * @return true/false on success/failure of extracting features
    */
-  virtual bool getAllToolFeats(const std::string& setup = "real");
+  virtual bool getAllToolFeats(const int32_t n_samples = 1, const bool pics = 0);
   /**
    * @brief getSamples - Generates n poses of the tool around a base orientation deg and extract features.
    * @param n - (int) desired number of poses (default = 10) .
@@ -53,7 +53,7 @@ public:
    * @param tilt - (double) degrees of rotation around Z (tilted forward)
    * @return true/false on success/failure of rotating model according to orientation.
    */
-  virtual bool setCanonicalPose(const double deg = 0, const int32_t disp = 0, const double tilt = 45);
+  virtual bool setCanonicalPose(const double deg = 0, const int32_t disp = 0);
   /**
    * @brief setBinNum - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
    * @param nbins - (int) desired number of bins per angular dimension. (default = 2, i.e. 8 bins per voxel).

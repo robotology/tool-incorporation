@@ -40,7 +40,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
 {
     // add and initialize the port to send out the features via thrift.
     string name = rf.check("name",Value("toolFeatExt")).asString().c_str();
-    string robot = rf.check("robot",Value("icub")).asString().c_str();
+    robot = rf.check("robot",Value("icub")).asString().c_str();
     string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
@@ -83,8 +83,9 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     // open rpc ports
     bool retRPC = true;
     retRPC =  retRPC && rpcInPort.open("/"+name+"/rpc:i");
+    retRPC =  retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
     if (!retRPC){
-        printf("Problems opening ports\n");
+        printf("Problems opening RPC ports\n");
         return false;
     }
     attach(rpcInPort);
@@ -133,6 +134,7 @@ bool ToolFeatExt::interruptModule()
     closing = true;
     rpcInPort.interrupt();
     feat3DoutPort.interrupt();
+    rpcVisualizerPort.interrupt();
     cout<<"Interrupting your module, for port cleanup"<<endl;
     return true;
 }
@@ -143,6 +145,7 @@ bool ToolFeatExt::close()
     cout<<"Calling close function\n";
     rpcInPort.close();
     feat3DoutPort.close();
+    rpcVisualizerPort.close();
     return true;
 }
 
@@ -156,7 +159,8 @@ bool ToolFeatExt::attach(RpcServer &source)
                     PUBLIC METHODS
 /**********************************************************/
 
-// RCP Accesible via trhift.
+// RCP Accesible vi
+// Cloudsa trhift.
 
 /**********************************************************/
 bool ToolFeatExt::getFeats()
@@ -182,7 +186,7 @@ bool ToolFeatExt::getSamples(const int n, const double deg)
         }
     }
 
-    float maxVar = 5;      //Define the maximum variation, on degrees, wrt the given orientation angle
+    float maxVar = 3;      //Define the maximum variation, on degrees, wrt the given orientation angle
 
     Rand randG; // YARP random generator
     Vector degVarVec = randG.vector(n); // Generate a vector of slight variations to the main orientation angle
@@ -202,10 +206,10 @@ bool ToolFeatExt::getSamples(const int n, const double deg)
 }
 
 /**********************************************************/
-bool ToolFeatExt::getAllToolFeats(const string& setup)
+bool ToolFeatExt::getAllToolFeats(const int n_samples, bool pics)
 {
     int iniTool = 0;
-    if (setup ==  "sim")
+    if (robot ==  "icubSim")
         iniTool = 1;    // in sim model 0 is the cube, so skip it
 
     for (int toolI = iniTool ; toolI <models.size(); toolI++)
@@ -214,38 +218,41 @@ bool ToolFeatExt::getAllToolFeats(const string& setup)
         string::size_type idx;
         idx = meshName.rfind('.');
         string cloudName = meshName.substr(0,idx);  //remove format
-        cloudName = setup + "/"+ cloudName;
-        cout << "cloud model: " << cloudName << endl;
+        string fileName;
+        if (robot == "icubSim"){
+            fileName = "sim/"+ cloudName;}
+        else{
+            fileName = "real/"+ cloudName;}
 
-        if (!loadModel(cloudName)){
+        cout << "cloud model: " << fileName << endl;
+
+        if (!loadModel(fileName)){
             cout << "Couldn't load model for tool " << cloudName << endl;
             return false;
         }
 
-        if(setup=="real"){
-            computeOMSEGI();         // Get first the canonical position features
-            // Transform tools to orientations 90, 0  and -90 , in that order.  And for each, displacements -1, 0
-            for ( int ori = 90; ori > -100; ori = ori - 90){            // This is a loop for {90, 0, -90}
-                for (int disp=-1 ; disp<1 ; disp ++){                   // This is a loop for {-1,0}
-                    setCanonicalPose(ori, disp);
-                    //getSamples(const int n, const double deg)
-                    computeOMSEGI();                                     // Compute features for each desired pose
-                }
-            }
+        Time::delay(2);
 
-        }else if (setup=="sim"){
-            computeOMSEGI();         // Get first the canonical position features
-            // Transform tools to orientations -90, 0  and 90 , in that order. And for each, displacements -2, 0, 2
-            for ( int ori = -90; ori < 100; ori +=  90){                  // This is a loop for {-90, 0, 90}
-                for (int disp=-2 ; disp<3 ; disp += 2){                   // This is a loop for {-2,0, 2}
-                    setCanonicalPose(ori, disp);
-                    computeOMSEGI();                                       // Compute features for each desired pose
-                }
+        // Transform tools to orientations 90, 0  and -90 , in that order.  And for each, displacements -1, 0
+        for ( int deg = 90; deg > -100; deg = deg - 90){            // This is a loop for {90, 0, -90}
+            if (n_samples >=1){
+                getSamples(n_samples, deg);                     // Compute n feature vectors for each desired pose
+            } else {
+                setCanonicalPose(deg);
+                Time::delay(2);
             }
+            
+            string ori = deg2ori(deg);
 
-        }else {
-            cout << "Please select 'real' or 'sim' tools" << endl;
-            return false;
+            if (pics)
+            { // Send command to show3D to save image as tp.png
+                string imName = cloudName + "_" + ori +".png";
+                Bottle cmdVis, replyVis;
+                cmdVis.clear();	replyVis.clear();
+                cmdVis.addString("saveIm");
+                cmdVis.addString(imName.c_str());
+                rpcVisualizerPort.write(cmdVis,replyVis);
+            }
         }
     }
 
@@ -449,22 +456,41 @@ int ToolFeatExt::computeOMSEGI()
     cout << "Computing Features to maximum depth = " << maxDepth <<  "." << endl;
     
     /* ===========================================================================*/
-    // Get fixed bounding box to avoid octree automatically figure it out (what might change with resolution)
-    pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
-    feature_extractor.setInputCloud (cloud);
-    feature_extractor.compute ();
-
+    cout << "Getting AABB" <<endl;
     pcl::PointXYZRGB min_point_AABB;
     pcl::PointXYZRGB max_point_AABB;
-    feature_extractor.getAABB (min_point_AABB, max_point_AABB);
+    min_point_AABB.x = 0; min_point_AABB.y = 0; min_point_AABB.z = 0;
+    max_point_AABB.x = 0; max_point_AABB.y = 0; max_point_AABB.z = 0;
+    for (int p=0;p < cloud->points.size(); p++)
+    {
+        pcl::PointXYZRGB *point = &cloud->at(p);
+
+        if (point->x > max_point_AABB.x)
+            max_point_AABB.x = point->x;
+        if (point->y > max_point_AABB.y)
+            max_point_AABB.y = point->y;
+        if (point->z > max_point_AABB.z)
+            max_point_AABB.z = point->z;
+
+        if (point->x < min_point_AABB.x)
+            min_point_AABB.x = point->x;
+        if (point->y < min_point_AABB.y)
+            min_point_AABB.y = point->y;
+        if (point->z < min_point_AABB.z)
+            min_point_AABB.z = point->z;
+    }
+
     max_point_AABB.y = 0; // Limit the bounding box to the bottom of the hand, so only the "usable" part of the tool gets represented.
+    cout << "Computing voxel side length" <<endl;
     double BBlengthX = fabs(max_point_AABB.x - min_point_AABB.x);
     double BBlengthY = fabs(max_point_AABB.y - min_point_AABB.y);
     double BBlengthZ = fabs(max_point_AABB.z - min_point_AABB.z);
 
+    cout << "Voxel side length computed" <<endl;
+
     double maxSize = max(max(BBlengthX,BBlengthY), BBlengthZ);
     cout << "Lenght of the larger size is = " << maxSize <<  "." << endl;
-
+    
     /* =========================================================================== */
     // Divide the bounding box in subregions using octree, and compute the normal histogram (EGI) in each of those subregions at different levels.
 
@@ -491,6 +517,7 @@ int ToolFeatExt::computeOMSEGI()
     pcl::PointCloud<pcl::Normal>::Ptr voxelCloudNormals(new pcl::PointCloud<pcl::Normal> ());
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    cout << "Iinitializing octree" << endl;
     // Initialize octree
     //create octree structure
     octree.setInputCloud(cloud);
@@ -499,20 +526,6 @@ int ToolFeatExt::computeOMSEGI()
                              max_point_AABB.x, max_point_AABB.y, max_point_AABB.z);
     //add points in the tree
     octree.addPointsFromInputCloud();
-
-
-    // Compute all normals from the orignial cloud, and THEN subdivide into voxels (to avoid voxel boundary problems arising when computing normals voxel-wise)
-    // Clear output cloud
-    cloud_normals->points.clear();
-
-    // Pass the input cloud to the normal estimation class
-    ne.setInputCloud (cloud);
-
-    // Use all neighbors in a sphere of radius of size of the voxel length
-    ne.setRadiusSearch (0.05);//(minVoxSize/2);
-
-    // Compute the normals
-    ne.compute (*cloud_normals);
 
 
     // Initialize histogram variables
@@ -546,6 +559,22 @@ int ToolFeatExt::computeOMSEGI()
                              cBB_max_x, cBB_max_y, cBB_max_z);
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
+
+
+    // Compute all normals from the orignial cloud, and THEN subdivide into voxels (to avoid voxel boundary problems arising when computing normals voxel-wise)
+    cout << "Computing cloud normals" << endl;
+    // Clear output cloud
+    cloud_normals->points.clear();
+
+    // Pass the input cloud to the normal estimation class
+    ne.setInputCloud (cloud);
+
+    // Use all neighbors in a sphere of radius of size of the voxel length
+    ne.setRadiusSearch (0.05);//(minVoxSize/2);
+
+    // Compute the normals
+    ne.compute (*cloud_normals);
+
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Perform feature extraction iteratively on increasingly smaller voxels up to maxDepth level.
@@ -874,6 +903,20 @@ bool ToolFeatExt::sendCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
     return true;
 }
 
+string ToolFeatExt::deg2ori(const float deg)
+{
+    string ori;
+    if ((deg > -135.0) && (deg < -45.0))   // oriented right
+        ori = "rght";
+    else if ((deg < 45.0) && (deg > -45.0)) // oriented front
+        ori = "frnt";
+    else if ((deg > 45.0) && (deg < 135.0))     // oriented left
+        ori = "left";
+    else
+        return "outx";
+
+    return ori;
+}
 /************************************************************************/
 /************************************************************************/
 int main(int argc, char * argv[])

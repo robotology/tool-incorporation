@@ -31,6 +31,7 @@ bool VisThread::threadInit()
     displayFilt = false;
     displaySphere = false;
     displayArrow = false;
+    getIm = false;
 
     normalsComputed = false;
 
@@ -107,6 +108,12 @@ void VisThread::run()
                 {
                     filterCloud(dFror, dFsor, dFmls, dFds);
                     displayFilt = false;
+                }
+
+                if (getIm)
+                {
+                    viewer->saveScreenshot(imName);
+                    getIm = false;
                 }
 
                 // Clear display
@@ -589,6 +596,7 @@ void VisThread::plotArrow(const std::vector<double> &coordsIni,const std::vector
     end.y = coordsEnd[1];
     end.z = coordsEnd[2];
 
+
     // for PCL 1.8
     // viewer->addArrow (const P1 &pt1, const P2 &pt2, double r, double g, double b, const std::string &id="line", int viewport=0)
     // PCL < 1.8
@@ -706,3 +714,17 @@ void VisThread::accumulateClouds(bool accum)
     }
 }
 
+
+// Normal computation interface
+void VisThread::saveIm(const string &name)
+{
+    if (initialized){
+        getIm = true;
+        imName = name;
+        updateVis();
+        Time::delay(1);
+        cout << "Image saved as " << imName <<endl;
+    }else{
+        printf("Please load a cloud before trying capture image\n");
+    }
+}

@@ -75,6 +75,11 @@ public:
    */
   virtual bool filter(const bool ror = 0, const bool sor = 0, const bool mks = 0, const bool ds = 0);
   /**
+   * @brief saveIm(name) gets a png image of the image being displayed, and saves it as "name.png"
+   * @return true/false on success/failure of setting verbose
+   */
+  virtual bool saveIm(const std::string& name);
+  /**
    * @brief quit - quits the module
    * @return true/false on success/failure of extracting features
    */

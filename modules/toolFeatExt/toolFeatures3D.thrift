@@ -52,7 +52,7 @@ service tool3DFeat_IDLServer
      * @brief getFeats - Performs 3D feature extraction of all loaded tools
      * @return true/false on success/failure of extracting features
      */
-    bool getAllToolFeats(1: string setup = "real");
+    bool getAllToolFeats(1: i32 n_samples =1, 2: bool pics = false);
 
     /**
      * @brief getSamples - Generates n poses of the tool around a base orientation deg and extract features.
@@ -83,7 +83,7 @@ service tool3DFeat_IDLServer
      * @param tilt - (double) degrees of rotation around Z (tilted forward)
      * @return true/false on success/failure of rotating model according to orientation.
      */
-    bool setCanonicalPose(1: double deg = 0, 2: i32 disp = 0, 3: double tilt = 45.0);
+    bool setCanonicalPose(1: double deg = 0, 2: i32 disp = 0);
 
     /**
      * @brief setBinNum - sets the number of bins per angular dimension (yaw-pitch-roll) used to compute the normal histogram. Total number of bins per voxel = bins^3.
