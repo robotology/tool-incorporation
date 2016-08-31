@@ -101,6 +101,12 @@ bool ShowModule::filter(bool ror, bool sor, bool mls, bool ds)
     return true;
 }
 
+bool ShowModule::saveIm(const string& name)
+{
+    visThrd->saveIm(name);
+    return true;
+}
+
 bool ShowModule::quit()
 {
     std::cout << "Quitting!" << std::endl;
