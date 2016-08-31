@@ -316,6 +316,14 @@ bool ToolFeatExt::loadModel(const string& name)
     return loadToolModel();
 }
 
+
+/**********************************************************/
+bool ToolFeatExt::setName(const string& name)
+{   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
+    cloudname = name;
+    return true;
+}
+
 /**********************************************************/
 bool ToolFeatExt::setVerbose(const string& verb)
 {

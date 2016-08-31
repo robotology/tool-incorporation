@@ -2198,13 +2198,35 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
 /************************************************************************/
 bool Objects3DExplorer::extractFeats()
 {
-    sendPointCloud(cloud_pose);     // Send the oriented poincloud, TFE should receive it and make it its model.
+    
+    double ori, displ, tilt, shift;
+    paramFromPose(toolPose, ori, displ, tilt, shift);
+    
+    // In order to get feats from tool upright, we need to undo tilt
+    tilt = 0;
+    Matrix feat_pose;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_feat (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+    poseFromParam(ori, displ, tilt, shift, feat_pose);
+    setToolPose(cloud_model, feat_pose, cloud_feat);
+    sendPointCloud(cloud_feat);     // Send the oriented (non tilted) poincloud, TFE should receive it and make it its model.
+
     Time::delay(0.5);
 
-    // Sends an RPC command to the toolFeatExt module to extract the 3D features of the merged point cloud/
     Bottle cmdTFE, replyTFE;
     cmdTFE.clear();	replyTFE.clear();
-    cmdTFE.addString("getFeat");
+    cmdTFE.addString("setName");
+    cmdTFE.addString(saveName);
+    rpcFeatExtPort.write(cmdTFE,replyTFE);
+
+    Time::delay(0.5);
+
+
+
+    // Sends an RPC command to the toolFeatExt module to extract the 3D features of the merged point cloud/
+
+    cmdTFE.clear();	replyTFE.clear();
+    cmdTFE.addString("getFeats");
 
     rpcFeatExtPort.write(cmdTFE,replyTFE);
 

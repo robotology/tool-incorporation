@@ -41,6 +41,12 @@ public:
    */
   virtual bool loadModel(const std::string& cloudname = "cloud.ply");
   /**
+   * @brief setName - changes the name of the cloud in memory. Useful when it has been read from port instead of loaded in-function
+   * @param cloudname - (string) name of the file to load cloud from (and path from base path if needed) (default = "cloud.ply") .
+   * @return true/false on success/failure loading the desired cloud.
+   */
+  virtual bool setName(const std::string& cloudname = "cloud.ply");
+  /**
    * @brief setPose - Rotates the tool model according to any given rotation matrix
    * @param rotationMatrix - (yarp::sig::Matrix) rotation matrix to apply to the cloud.
    * @return true/false on success/failure of rotating model according to  matrix.

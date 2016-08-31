@@ -115,6 +115,7 @@ public:
     bool                        setBinNum(const int binsN = 2);
     bool                        setDepth(const int depthN = 2);
     bool                        loadModel(const std::string& name = "cloud.ply");
+    bool                        setName(const std::string& name = "cloud.ply");
     bool                        setVerbose(const std::string& verb);
 
     // module control //

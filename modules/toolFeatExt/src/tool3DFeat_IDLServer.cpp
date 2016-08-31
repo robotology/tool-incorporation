@@ -43,6 +43,15 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class tool3DFeat_IDLServer_setName : public yarp::os::Portable {
+public:
+  std::string cloudname;
+  bool _return;
+  void init(const std::string& cloudname);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class tool3DFeat_IDLServer_setPose : public yarp::os::Portable {
 public:
   yarp::sig::Matrix toolPose;
@@ -179,6 +188,29 @@ bool tool3DFeat_IDLServer_loadModel::read(yarp::os::ConnectionReader& connection
 }
 
 void tool3DFeat_IDLServer_loadModel::init(const std::string& cloudname) {
+  _return = false;
+  this->cloudname = cloudname;
+}
+
+bool tool3DFeat_IDLServer_setName::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("setName",1,1)) return false;
+  if (!writer.writeString(cloudname)) return false;
+  return true;
+}
+
+bool tool3DFeat_IDLServer_setName::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void tool3DFeat_IDLServer_setName::init(const std::string& cloudname) {
   _return = false;
   this->cloudname = cloudname;
 }
@@ -343,6 +375,16 @@ bool tool3DFeat_IDLServer::loadModel(const std::string& cloudname) {
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
 }
+bool tool3DFeat_IDLServer::setName(const std::string& cloudname) {
+  bool _return = false;
+  tool3DFeat_IDLServer_setName helper;
+  helper.init(cloudname);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool tool3DFeat_IDLServer::setName(const std::string& cloudname)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
 bool tool3DFeat_IDLServer::setPose(const yarp::sig::Matrix& toolPose) {
   bool _return = false;
   tool3DFeat_IDLServer_setPose helper;
@@ -459,6 +501,21 @@ bool tool3DFeat_IDLServer::read(yarp::os::ConnectionReader& connection) {
       }
       bool _return;
       _return = loadModel(cloudname);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
+    if (tag == "setName") {
+      std::string cloudname;
+      if (!reader.readString(cloudname)) {
+        cloudname = "cloud.ply";
+      }
+      bool _return;
+      _return = setName(cloudname);
       yarp::os::idl::WireWriter writer(reader);
       if (!writer.isNull()) {
         if (!writer.writeListHeader(1)) return false;
@@ -586,6 +643,7 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     helpString.push_back("getAllToolFeats");
     helpString.push_back("getSamples");
     helpString.push_back("loadModel");
+    helpString.push_back("setName");
     helpString.push_back("setPose");
     helpString.push_back("setCanonicalPose");
     helpString.push_back("setBinNum");
@@ -614,6 +672,12 @@ std::vector<std::string> tool3DFeat_IDLServer::help(const std::string& functionN
     if (functionName=="loadModel") {
       helpString.push_back("bool loadModel(const std::string& cloudname = \"cloud.ply\") ");
       helpString.push_back("@brief loadModel - loads a model from a .pcd or .ply file for further processing. ");
+      helpString.push_back("@param cloudname - (string) name of the file to load cloud from (and path from base path if needed) (default = \"cloud.ply\") . ");
+      helpString.push_back("@return true/false on success/failure loading the desired cloud. ");
+    }
+    if (functionName=="setName") {
+      helpString.push_back("bool setName(const std::string& cloudname = \"cloud.ply\") ");
+      helpString.push_back("@brief setName - changes the name of the cloud in memory. Useful when it has been read from port instead of loaded in-function ");
       helpString.push_back("@param cloudname - (string) name of the file to load cloud from (and path from base path if needed) (default = \"cloud.ply\") . ");
       helpString.push_back("@return true/false on success/failure loading the desired cloud. ");
     }
