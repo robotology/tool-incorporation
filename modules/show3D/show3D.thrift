@@ -94,6 +94,14 @@ service show3D_IDLServer
      */
      bool filter(1: bool ror = false, 2: bool sor = false, 3: bool mks = false, 4: bool ds = false);
 
+
+     /**
+      * @brief saveIm(name) gets a png image of the image being displayed, and saves it as "name.png"
+      * @return true/false on success/failure of setting verbose
+      */
+     bool saveIm(1: string name);
+
+
     /**
      * @brief setVerbose (ON/OFF) - sets verbose of the output on or off
      * @return true/false on success/failure of setting verbose

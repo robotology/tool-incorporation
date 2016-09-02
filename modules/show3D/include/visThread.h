@@ -28,6 +28,7 @@
 
 #include <yarp/os/RateThread.h>
 #include <yarp/os/Network.h>
+#include <yarp/os/Time.h>
 
 #include <pcl/io/io.h>
 #include <pcl/io/ply_io.h>
@@ -76,6 +77,7 @@ protected:
     bool displayBB;
     bool displaySphere;
     bool displayArrow;
+    bool getIm;
 
     // Processing parameters
     int dBBstyle;
@@ -96,6 +98,8 @@ protected:
     std::vector<double> arrowCoordsIni;
     std::vector<double> arrowCoordsEnd;
     int arrowNum;
+
+    std::string imName;
 
     
     void updateVis();
@@ -181,6 +185,13 @@ public:
      * @param accum - True to accumulate clouds on display. False to display them independently
      */
     void accumulateClouds(bool accum);
+
+
+    /**
+     * @brief saveIm - Takes screenshot of viewer and saves as .png
+     * @param name - name of the file where image will be saved
+     */
+    void saveIm(const std::string &name );
 
 
 };

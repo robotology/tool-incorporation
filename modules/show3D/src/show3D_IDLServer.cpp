@@ -94,6 +94,15 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class show3D_IDLServer_saveIm : public yarp::os::Portable {
+public:
+  std::string name;
+  bool _return;
+  void init(const std::string& name);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 class show3D_IDLServer_quit : public yarp::os::Portable {
 public:
   bool _return;
@@ -363,6 +372,29 @@ void show3D_IDLServer_filter::init(const bool ror, const bool sor, const bool mk
   this->ds = ds;
 }
 
+bool show3D_IDLServer_saveIm::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("saveIm",1,1)) return false;
+  if (!writer.writeString(name)) return false;
+  return true;
+}
+
+bool show3D_IDLServer_saveIm::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void show3D_IDLServer_saveIm::init(const std::string& name) {
+  _return = false;
+  this->name = name;
+}
+
 bool show3D_IDLServer_quit::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
@@ -473,6 +505,16 @@ bool show3D_IDLServer::filter(const bool ror, const bool sor, const bool mks, co
   helper.init(ror,sor,mks,ds);
   if (!yarp().canWrite()) {
     yError("Missing server method '%s'?","bool show3D_IDLServer::filter(const bool ror, const bool sor, const bool mks, const bool ds)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool show3D_IDLServer::saveIm(const std::string& name) {
+  bool _return = false;
+  show3D_IDLServer_saveIm helper;
+  helper.init(name);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool show3D_IDLServer::saveIm(const std::string& name)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -725,6 +767,22 @@ bool show3D_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
+    if (tag == "saveIm") {
+      std::string name;
+      if (!reader.readString(name)) {
+        reader.fail();
+        return false;
+      }
+      bool _return;
+      _return = saveIm(name);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
     if (tag == "quit") {
       bool _return;
       _return = quit();
@@ -779,6 +837,7 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
     helpString.push_back("addArrow");
     helpString.push_back("addSphere");
     helpString.push_back("filter");
+    helpString.push_back("saveIm");
     helpString.push_back("quit");
     helpString.push_back("help");
   }
@@ -843,6 +902,11 @@ std::vector<std::string> show3D_IDLServer::help(const std::string& functionName)
       helpString.push_back("@param mls - bool: Activates MovingLeastSquares (rad = 0.02, order 2, usRad = 0.005, usStep = 0.003) ");
       helpString.push_back("@param ds - bool: Activates Voxel Grid Downsampling (rad = 0.002). ");
       helpString.push_back("@return true/false on showing the poitnclouddar = ");
+    }
+    if (functionName=="saveIm") {
+      helpString.push_back("bool saveIm(const std::string& name) ");
+      helpString.push_back("@brief saveIm(name) gets a png image of the image being displayed, and saves it as \"name.png\" ");
+      helpString.push_back("@return true/false on success/failure of setting verbose ");
     }
     if (functionName=="quit") {
       helpString.push_back("bool quit() ");
