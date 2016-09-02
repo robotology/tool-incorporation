@@ -1209,18 +1209,18 @@ bool Objects3DExplorer::lookAtTool(){
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
     xTH.resize(4);
 
-    if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
+    //if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.15;              // X
-        xTH[1] = -0.15;             // Y
+        xTH[0] = 0.16 + Rand::scalar(-0.01,0.01);;              // X
+        xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
-    }else {
-        xTH[0] = tooltip.x;         // X
-        xTH[1] = tooltip.y;         // Y
-        xTH[2] = tooltip.z;         // Z
-        xTH[3] = 1.0;               // T
-    }
+    //}else {
+    //    xTH[0] = tooltip.x;         // X
+    //    xTH[1] = tooltip.y;         // Y
+    //    xTH[2] = tooltip.z;         // Z
+    //    xTH[3] = 1.0;               // T
+    //}
 
     // Transform point to robot coordinates:
     xTR = H2R * xTH;
@@ -1571,7 +1571,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
 
         trial++;  // to limit number of trials
         if (trial > numT){
-            cout << "Could not find a valid grasp in 10 trials" << endl;
+            cout << "Could not find a valid grasp in " << numT << "trials" << endl;
 
 
             cmdVis.clear();	replyVis.clear();
@@ -2055,19 +2055,19 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 
             // Select the tool
             if (toolI == 0){
-                toolName = "real/pipeHoe3";
+                toolName = "real/HOE3";  // Metal Hoe
             }
             if (toolI == 1){
-                toolName = "real/pipeHook3";
+                toolName = "real/HOK3";  // All round hook
             }
             if (toolI = 2){
-                toolName = "real/rakeBlue";
+                toolName = "real/RAK2";   // Blue Rake
             }
             if (toolI = 3){
-                toolName = "real/realStick3";
+                toolName = "real/STI3";   // 2-Markers stick
             }
             if (toolI = 4){
-                toolName = "real/shovelYellow";
+                toolName = "real/SHO3";   // Yellow shovel
             }
             affBottle.addString(toolName);
             Property &affProps = affBottle.addDict();
@@ -2164,19 +2164,19 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
     double toolI = -1, poseI = 0;
-    if (tool == "real/HOE3"){
+    if (tool == "real/HOE3"){  // Metal Hoe
         toolI = 0;
     }
-    if (tool == "real/HOK3"){
+    if (tool == "real/HOK3"){  // All round hook
         toolI = 1;
     }
-    if (tool == "real/RAK1"){
+    if (tool == "real/RAK2"){   // Blue Rake
         toolI = 2;
     }
-    if (tool == "real/STI3"){
+    if (tool == "real/STI3"){   // 2-Markers stick
         toolI = 3;
     }
-    if (tool == "real/shovelYellow"){
+    if (tool == "real/SHO3"){   // Yellow shovel
         toolI = 4;
     }
     if (toolI == -1){
