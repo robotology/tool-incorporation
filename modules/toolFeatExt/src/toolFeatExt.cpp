@@ -63,7 +63,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
 
     verbose = rf.check("verbose",Value(true)).asBool();
     maxDepth = rf.check("maxDepth",Value(2)).asInt();
-    binsPerDim = rf.check("depth",Value(2)).asInt();
+    binsPerDim = rf.check("binRes",Value(2)).asInt();
 
     loadModelsFromFile(rf);
 
