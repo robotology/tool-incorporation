@@ -80,6 +80,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     saveName = rf.check("saveName", Value("cloud")).asString();         // Sets the root name to save recorded clouds
 
     // Flow control variables
+    displayTooltip = true;
     closing = false;
     numCloudsSaved = 0;
     NO_FILENUM = -1;
@@ -288,6 +289,7 @@ bool Objects3DExplorer::updateModule()
     {        
         if (ImageOf<PixelBgr> *pImgBgrIn=imgInPort.read(false))
         {        
+            // Find and display endeffector with reference frame
             Vector xa,oa;
             iCartCtrl->getPose(xa,oa);
 
@@ -307,8 +309,6 @@ bool Objects3DExplorer::updateModule()
             v=0.0; v[2]=0.05; v[3]=1.0;
             Vector z=Ha*v;
 
-            v[0] = tooltip.x;   v[1] = tooltip.y;   v[2] = tooltip.z;   v[3] = 1.0;
-            Vector t=Ha*v;
 
             Vector pc,px,py,pz,pt;
             int camSel=(camera=="left")?0:1;
@@ -316,21 +316,26 @@ bool Objects3DExplorer::updateModule()
             iGaze->get2DPixel(camSel,x,px);
             iGaze->get2DPixel(camSel,y,py);
             iGaze->get2DPixel(camSel,z,pz);
-            iGaze->get2DPixel(camSel,t,pt);
 
             CvPoint point_c = cvPoint((int)pc[0],(int)pc[1]);
             CvPoint point_x = cvPoint((int)px[0],(int)px[1]);
             CvPoint point_y = cvPoint((int)py[0],(int)py[1]);
             CvPoint point_z = cvPoint((int)pz[0],(int)pz[1]);
-            CvPoint point_t = cvPoint((int)pt[0],(int)pt[1]);
 
             cvCircle(pImgBgrIn->getIplImage(),point_c,4,cvScalar(0,255,0),4);
-            cvCircle(pImgBgrIn->getIplImage(),point_t,4,cvScalar(255,0,0),4);
-
             cvLine(pImgBgrIn->getIplImage(),point_c,point_x,cvScalar(0,0,255),2);
             cvLine(pImgBgrIn->getIplImage(),point_c,point_y,cvScalar(0,255,0),2);
             cvLine(pImgBgrIn->getIplImage(),point_c,point_z,cvScalar(255,0,0),2);
-            cvLine(pImgBgrIn->getIplImage(),point_c,point_t,cvScalar(255,255,255),2);
+
+            // Display tooltip
+            if (displayTooltip) {
+                v[0] = tooltip.x;   v[1] = tooltip.y;   v[2] = tooltip.z;   v[3] = 1.0;
+                Vector t=Ha*v;
+                iGaze->get2DPixel(camSel,t,pt);
+                CvPoint point_t = cvPoint((int)pt[0],(int)pt[1]);
+                cvCircle(pImgBgrIn->getIplImage(),point_t,4,cvScalar(255,0,0),4);
+                cvLine(pImgBgrIn->getIplImage(),point_c,point_t,cvScalar(255,255,255),2);
+            }
 
             imgOutPort.prepare()=*pImgBgrIn;
             imgOutPort.write();
@@ -499,7 +504,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;
         }else {
             fprintf(stdout,"Grasp pose could not be obtained. \n");
-            reply.addString("[nack] Grasp pose could not be obtained \n");
+            reply.addString("[nack]\n");
             return false;
         }
 
@@ -705,7 +710,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Find grasp by comparing partial view with model
         if(!findTooltipCanon(cloud_model, tooltipCanon)){
             cout << "Could not compute canonical tooltip fom model" << endl;
-            reply.addString("[nack] Could not compute canonical tooltip.");
+            reply.addString("[nack]");
+            reply.addString("Could not compute canonical tooltip.");
             return false;
         }
 
@@ -733,7 +739,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Find tooltip of tool in canonical position
         if(!findTooltipCanon(cloud_model, tooltipCanon)){
             cout << "Could not compute canonical tooltip fom model" << endl;
-            reply.addString("[nack] Could not compute canonical tooltip.");
+            reply.addString("[nack]");
+            reply.addString("Could not compute canonical tooltip.");
             return false;
         }
 
@@ -779,46 +786,46 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Check if model is loaded, else return false
         if (!cloudLoaded){
             cout << "Model needed to find tooltip. Load model" << endl;
-            reply.addString("[nack] Load model first to find tooltip.");
+            reply.addString("[nack]");
+            reply.addString("Load model first to find tooltip.");
             return false;
         }
 
         // Find tooltip of tool in canonical position
         if(!findTooltipCanon(cloud_model, tooltipCanon)){
             cout << "Could not compute canonical tooltip fom model" << endl;
-            reply.addString("[nack] Could not compute canonical tooltip.");
+            reply.addString("[nack]");
+            reply.addString("Could not compute canonical tooltip.");
             return false;
         }
 
-        // Check if pose has been found, else return false
-        if (!poseFound){
-            cout << "Pose needed to estimate tooltip, please call 'findPoseAlign' or 'setPoseParam' first." << endl;
-            reply.addString("[nack] Pose must be known first to find tooltip.");
-            return false;
+        // Find grasp by comparing partial view with model
+        int trials = 5;
+        if (command.size() > 1)
+            trials = command.get(1).asDouble();
+        if(!findPoseAlign(cloud_model, cloud_pose, toolPose, trials)){
+                cout << "Could not estimate pose by aligning models" << endl;
+                reply.addString("[nack]");
+                reply.addString("Could not estimate pose by aligning models");
+                return false;
         }
+        cout << "Pose estimated "<< endl;
 
         // Rotate tooltip to given toolPose
         if(!placeTipOnPose(tooltipCanon, toolPose, tooltip)){
             cout << "Could not compute tooltip from the canonical one and the pose matrix" << endl;
-            reply.addString("[nack] Could not compute tooltip.");
+            reply.addString("[nack]");
+            reply.addString("Could not compute tooltip.");
             return false;
         }
-
-        // Add point to indicate tooltip.
-        addPoint(cloud_model, tooltipCanon, green);
-        sendPointCloud(cloud_model);
 
         // Rotate canonical cloud to found pose
         cout << "Transforming the model with pose" << endl;
         setToolPose(cloud_model, toolPose, cloud_pose);
-        cloud_pose->erase(cloud_pose->end()); // Remove last point
-        addPoint(cloud_pose, tooltip, true);
-        Time::delay(1.0);
         sendPointCloud(cloud_pose);
 
         double ori, displ, tilt, shift;
         paramFromPose(toolPose, ori, displ, tilt, shift);
-
         cout << "Param returned from paramFromPose = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
         showTooltip(tooltip,green);
@@ -984,6 +991,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("[ack]");
         return true;
 
+    }else if (receivedCmd == "showTipProj"){
+        bool ok = showTipProj(command.get(1).asString());
+        if (ok){
+            reply.addString("[ack]");
+            return true;
+        }
+        else {
+            fprintf(stdout,"Actionvation of tooltip projection can only be set to ON or OFF. \n");
+            reply.addString("[nack]");
+            reply.addString("Verbose can only be set to ON or OFF.");
+            return false;
+        }
+
 
     }else if (receivedCmd == "seg2D"){
         bool ok = setSeg(command.get(1).asString());
@@ -993,7 +1013,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         else {
             fprintf(stdout,"2D Segmentation can only be set to ON or OFF. \n");
-            reply.addString("[nack] Verbose can only be set to ON or OFF.");
+            reply.addString("[nack]");
+            reply.addString("Verbose can only be set to ON or OFF.");
             return false;
         }
 
@@ -1013,7 +1034,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;
         }else {
             fprintf(stdout,"Couldnt change the name. \n");
-            reply.addString("[nack] Couldnt change the name. ");
+            reply.addString("[nack]");
+            reply.addString("Couldnt change the name. ");
             return false;
         }
 
@@ -1025,8 +1047,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[ack]");
             return true;
         }else {
-            fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-            reply.addString("[nack] Verbose can only be set to ON or OFF.");
+            fprintf(stdout,"Saving can only be set to ON or OFF. \n");
+            reply.addString("[nack]");
+            reply.addString("Saving can only be set to ON or OFF.");
             return false;
         }
 
@@ -1038,7 +1061,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         else {
             fprintf(stdout,"Verbose can only be set to ON or OFF. \n");
-            reply.addString("[nack] Verbose can only be set to ON or OFF.");
+            reply.addString("[nack]");
+            reply.addString("Verbose can only be set to ON or OFF.");
             return false;
         }
 
@@ -1087,6 +1111,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("seg2D (ON/OFF) - Set the segmentation to 2D (ON) from graphBasedSegmentation, or 3D (OFF), from 'flood3d' .");
         reply.addString("savename (string) - Changes the name with which the pointclouds will be saved.");
         reply.addString("saving (ON/OFF) - Controls whether recorded clouds are saved or not.");
+        reply.addString("showTipProj (ON/OFF) - Controls whether tooltip projection is displayed or not.");
         reply.addString("verbose (ON/OFF) - Sets ON/OFF printouts of the program, for debugging or visualization.");
         reply.addString("help - produces this help.");
 		reply.addString("quit - closes the module.");
@@ -1588,6 +1613,12 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
     cmdVis.addString("accumClouds");
     cmdVis.addInt(0);
     rpcVisualizerPort.write(cmdVis,replyVis);
+
+    // Clean the depth visualization.
+    Bottle cmdOR, replyOR;
+    cmdOR.clear();	replyOR.clear();
+    cmdOR.addString("clear");
+    rpcObjRecPort.write(cmdOR,replyOR);
 
     poseFound = true;
     return true;
@@ -2260,8 +2291,8 @@ bool Objects3DExplorer::alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::
         cout << "Trying alignment, with scale "<< scale << endl;
         alignOK = alignPointClouds(cloud_source, cloud_target, cloud_align, transfMat);
         if (!alignOK){
-
-            step = -1*getSign(step)* stepSize* tryI;
+            // Explore scales in both directions: 1 -> 1.1 -> 0.9 -> 1.2 -> 0.8, etc
+            step = -1*getSign(step)* stepSize* tryI; // Changes sign and size of step every iteration, to go up and down all the time
             scale = scale + step;
             tryI += 1;
             scaleCloud(cloud_source, scale);
@@ -2525,7 +2556,7 @@ bool Objects3DExplorer::showTooltip(const  Point3D coords, int color[])
     Bottle& bCoords = cmdVis.addList();
     bCoords.addDouble(coords.x);
     bCoords.addDouble(coords.y);
-    bCoords.addDouble(coords.z);
+    bCoords.addDouble(coords.z - 0.03); //Compensate for the added 3 cm of displacemnt on Z point is also correct on pointcloud.
     Bottle& bColor = cmdVis.addList();
     bColor.addInt(color[0]);
     bColor.addInt(color[1]);
@@ -2703,6 +2734,20 @@ bool Objects3DExplorer::setVerbose(const string& verb)
     } else if (verb == "OFF"){
         verbose = false;
         fprintf(stdout,"Verbose is : %s\n", verb.c_str());
+        return true;
+    }
+    return false;
+}
+
+bool Objects3DExplorer::showTipProj(const string& tipF)
+{
+    if (tipF == "ON"){
+        displayTooltip = true;
+        fprintf(stdout,"tooltip projection is ON");
+        return true;
+    } else if (tipF == "OFF"){
+        displayTooltip = false;
+        fprintf(stdout,"tooltip projection is OFF");
         return true;
     }
     return false;

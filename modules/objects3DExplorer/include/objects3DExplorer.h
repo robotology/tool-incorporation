@@ -116,7 +116,8 @@ protected:
     bool                                symFound;
     bool                                initAlignment;
     bool                                seg2D;
-    bool                                closing;    
+    bool                                closing;
+    bool                                displayTooltip;
     int                                 numCloudsSaved;
     int                                 NO_FILENUM;
 
@@ -190,6 +191,7 @@ protected:
     
     /* Configuration commands */ 
     bool                setVerbose(const std::string& verb);
+    bool                showTipProj(const std::string& tipF);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
     bool                setSeg(const std::string& seg);
