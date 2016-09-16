@@ -470,9 +470,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         symFound = false;
 
         //clear tip
-        tooltip.x == 0.0;
-        tooltip.y == 0.0;
-        tooltip.z == 0.0;
+        tooltip.x = 0.0;
+        tooltip.y = 0.0;
+        tooltip.z = 0.0;
 
         tooltipCanon = tooltip;
         reply.addString("[ack]");
@@ -897,9 +897,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 
     }else if (receivedCmd == "cleartip"){
-        tooltip.x == 0.0;
-        tooltip.y == 0.0;
-        tooltip.z == 0.0;
+        tooltip.x = 0.0;
+        tooltip.y = 0.0;
+        tooltip.z = 0.0;
 
         tooltipCanon = tooltip;
         reply.addString("[ack]");
