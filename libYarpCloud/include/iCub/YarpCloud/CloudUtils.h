@@ -75,7 +75,7 @@ public:
      * @param savename Desired name (without extension) for the .ply file
      * @param addNum In order to save multiple registrations of the same object, a number can be added after the name. -1 to not add any number.
      */
-    static void        savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename, int &addNum);
+    static void        savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename, int addNum = -1);
 
     /**
      * @brief savePointsOff Saves a PointXYZRGB Cloud into a .off ascii file
@@ -84,7 +84,7 @@ public:
      * @param savename Desired name (without extension) for the .off file
      * @param addNum In order to save multiple registrations of the same object, a number can be added after the name. -1 to not add any number.
      */
-    static void        savePointsOff(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename, int &addNum);
+    static void        savePointsOff(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const std::string& savepath, const std::string& savename, int addNum);
 
 
     /**

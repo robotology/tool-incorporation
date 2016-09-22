@@ -185,7 +185,7 @@ bool CloudUtils::loadOFFFile(const string& cloudpath, pcl::PointCloud<pcl::Point
 
 
 /************************************************************************/
-void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int &addNum)
+void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int addNum)
 {
     stringstream s;
     s.str("");

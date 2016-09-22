@@ -1331,6 +1331,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         } else {
             cout << " Could not reconstruct the cloud" << endl;
+            return false;
         }
     }
 
@@ -1374,6 +1375,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         } else {
             cout << " Could not reconstruct the cloud" << endl;
+            return false;
         }
     }
     cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
@@ -1388,6 +1390,10 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         ror.filter(*cloud_rec_merged);
     }
     sendPointCloud(cloud_rec_merged);
+
+    if (saving){
+        string modelname = saveName + "_merged.ply";
+        CloudUtils::savePointsPly(cloud_rec_merged, cloudsPathTo, modelname);}
 }
 
 double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
@@ -2716,7 +2722,7 @@ bool Objects3DExplorer::changeSaveName(const string& fname)
     Bottle cmdFext, replyFext;
     cmdFext.clear();	replyFext.clear();
     cmdFext.addString("setName");
-    cmdFext.addString(saveName + "_merged.ply");
+    cmdFext.addString(saveName);
     rpcFeatExtPort.write(cmdFext,replyFext);
 
     printf("Name changed to %s.\n", saveName.c_str());
