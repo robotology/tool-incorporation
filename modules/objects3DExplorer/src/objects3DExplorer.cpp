@@ -74,7 +74,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     verbose = rf.check("verbose", Value(true)).asBool();
 
     handFrame = rf.check("handFrame", Value(true)).asBool();            // Sets whether the recorded cloud is automatically transformed w.r.t the hand reference frame
-    initAlignment = rf.check("initAlign", Value(true)).asBool();        // Sets whether FPFH initial alignment is used for cloud alignment
+    initAlignment = rf.check("initAlign", Value(false)).asBool();        // Sets whether FPFH initial alignment is used for cloud alignment
     seg2D = rf.check("seg2D", Value(false)).asBool();                   // Sets whether segmentation would be doen in 2D (true) or 3D (false)
     saving = rf.check("saving", Value(true)).asBool();                  // Sets whether recorded pointlcouds are saved or not.
     saveName = rf.check("saveName", Value("cloud")).asString();         // Sets the root name to save recorded clouds
@@ -470,9 +470,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         symFound = false;
 
         //clear tip
-        tooltip.x == 0.0;
-        tooltip.y == 0.0;
-        tooltip.z == 0.0;
+        tooltip.x = 0.0;
+        tooltip.y = 0.0;
+        tooltip.z = 0.0;
 
         tooltipCanon = tooltip;
         reply.addString("[ack]");
@@ -897,9 +897,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 
     }else if (receivedCmd == "cleartip"){
-        tooltip.x == 0.0;
-        tooltip.y == 0.0;
-        tooltip.z == 0.0;
+        tooltip.x = 0.0;
+        tooltip.y = 0.0;
+        tooltip.z = 0.0;
 
         tooltipCanon = tooltip;
         reply.addString("[ack]");
