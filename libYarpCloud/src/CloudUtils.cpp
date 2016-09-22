@@ -221,7 +221,7 @@ void CloudUtils::savePointsPly(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 }
 
 /************************************************************************/
-void CloudUtils::savePointsOff(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int &addNum)
+void CloudUtils::savePointsOff(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const string& savepath, const string& savename, int addNum)
 {
     stringstream s;
     s.str("");

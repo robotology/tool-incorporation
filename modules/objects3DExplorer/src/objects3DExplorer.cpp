@@ -74,12 +74,13 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     verbose = rf.check("verbose", Value(true)).asBool();
 
     handFrame = rf.check("handFrame", Value(true)).asBool();            // Sets whether the recorded cloud is automatically transformed w.r.t the hand reference frame
-    initAlignment = rf.check("initAlign", Value(false)).asBool();        // Sets whether FPFH initial alignment is used for cloud alignment
+    //initAlignment = rf.check("initAlign", Value(false)).asBool();        // Sets whether FPFH initial alignment is used for cloud alignment
     seg2D = rf.check("seg2D", Value(false)).asBool();                   // Sets whether segmentation would be doen in 2D (true) or 3D (false)
     saving = rf.check("saving", Value(true)).asBool();                  // Sets whether recorded pointlcouds are saved or not.
     saveName = rf.check("saveName", Value("cloud")).asString();         // Sets the root name to save recorded clouds
 
     // Flow control variables
+    initAlignment = false;
     displayTooltip = true;
     closing = false;
     numCloudsSaved = 0;
@@ -358,7 +359,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     //================================= GET MODEL COMMANDS ================================
 
     if (receivedCmd == "loadCloud"){
-            string cloud_file_name = command.get(1).asString();
+            string cloud_file_name;
+            string cloud_name = command.get(1).asString();
+            if (robot == "icubSim"){
+                cloud_file_name = "sim/" + cloud_name;
+            }else{
+                cloud_file_name = "real/" + cloud_name;
+            }
+
             cout << "Attempting to load " << (cloudsPathFrom + cloud_file_name).c_str() << "... "<< endl;
 
             // load cloud to be displayed
@@ -802,7 +810,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Find grasp by comparing partial view with model
         int trials = 5;
         if (command.size() > 1)
-            trials = command.get(1).asDouble();
+            trials = command.get(1).asInt();
         if(!findPoseAlign(cloud_model, cloud_pose, toolPose, trials)){
                 cout << "Could not estimate pose by aligning models" << endl;
                 reply.addString("[nack]");
@@ -838,6 +846,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addDouble(displ);
         reply.addDouble(tilt);
         reply.addDouble(shift);
+
+        cout << "Reply Formatted" << endl;
         return true;
 
 
@@ -1253,7 +1263,7 @@ bool Objects3DExplorer::lookAtTool(){
 
     iGaze->blockEyes(5.0);
     iGaze->lookAtFixationPoint(xTR);
-    iGaze->waitMotionDone();
+    iGaze->waitMotionDone(0.1);
 
     return true;
 }
@@ -1536,7 +1546,8 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Bottle cmdVis, replyVis;
     bool poseValid = false;
-    int trial = 0;
+    int trial_align = 0;
+    int trial_rec = 0;
 
     cmdVis.clear();	replyVis.clear();
     cmdVis.addString("accumClouds");
@@ -1559,8 +1570,17 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         lookAtTool();
         if(!getPointCloud(cloud_rec, spDist))          // Registration get and normalized to hand-reference frame.
         {            
-            spDist = adaptDepth(cloud_rec,spDist);
-            cout << " Cloud not valid" << endl;
+            spDist = adaptDepth(cloud_rec,spDist);            
+            trial_rec++;
+            cout << " Cloud not valid, retrial #" << trial_rec << endl;
+            if (trial_rec > numT){
+                cmdVis.clear();	replyVis.clear();
+                cmdVis.addString("accumClouds");
+                cmdVis.addInt(0);
+                rpcVisualizerPort.write(cmdVis,replyVis);
+
+                return false;
+            }
             continue;
         }
         changeCloudColor(cloud_rec, blue);             // Plot reconstructed view blue
@@ -1600,8 +1620,9 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
             cout << "The estimated grasp is not possible, retry with a new pointcloud" << endl;
         }
 
-        trial++;  // to limit number of trials
-        if (trial > numT){
+        trial_align++;  // to limit number of trials
+        cout << " Alignment not valid, retrial #" << trial_align << endl;
+        if (trial_align > numT){
             cout << "Could not find a valid grasp in " << numT << "trials" << endl;
 
 
@@ -1657,8 +1678,8 @@ bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>
     // cout << "Max AABB z: " << max_point_AABB.z << ". Min AABB z: " << min_point_AABB.z << endl;
 
     double effLength = fabs(max_point_AABB.x- min_point_AABB.x);        //Length of the effector
-    ttCanon.x = max_point_AABB.x;//-effLength/3;                        // tooltip not on the extreme, but sligthly in  -  x coord of ttCanon
-    ttCanon.y = min_point_AABB.y;                                       // y coord of ttCanon
+    ttCanon.x = max_point_AABB.x - effLength/3;                         // tooltip not on the extreme, but sligthly in  -X coord of ttCanon
+    ttCanon.y = min_point_AABB.y + 0.02;                                // y coord of ttCanon              slightly inside the tool (+Y)
     ttCanon.z = (max_point_AABB.z + min_point_AABB.z)/2;                // z coord of ttCanon
 
     cout << "Canonical tooltip at ( " << ttCanon.x << ", " << ttCanon.y << ", " << ttCanon.z <<")." << endl;    

@@ -186,15 +186,16 @@ void VisThread::updateCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_i
         //viewer->setBackgroundColor (0.05, 0.05, 0.05, 0); // Setting background to a dark grey
         //Position [x,y,z] -0.257256, -0.610845, 0.477541
         //View up [x,y,z] 0.54243, -0.720812, -0.431509
-
+        cout << "Background: " << endl;
         viewer->setBackgroundColor (1,1,1, 0); // Setting background to white
+        cout << "Coord Sys: " << endl;
         viewer->addCoordinateSystem (0.05);
-        viewer->setCameraPosition(-0.410313, -0.622468, -0.489596,  0.0549865, -0.0645066, 0.035931, 0.500162, -0.786725, 0.361802);
-        viewer->setCameraClipDistances(0.0, 5.0);
-
-
-
-        viewer->resetCameraViewpoint(id);
+        //cout << "Cam pos: " << endl;
+        //viewer->setCameraPosition(-0.410313, -0.622468, -0.489596,  0.0549865, -0.0645066, 0.035931, 0.500162, -0.786725, 0.361802);
+        //cout << "Clip dist: " << endl;
+        //viewer->setCameraClipDistances(0.0, 5.0);
+        //cout << "cam viewpoint: " << endl;
+        //viewer->resetCameraViewpoint(id);
 
         initialized = true;
     }
