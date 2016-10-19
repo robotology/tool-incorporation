@@ -2276,6 +2276,8 @@ bool Objects3DExplorer::extractFeats()
     
     // In order to get feats from tool upright, we need to undo tilt
     tilt = 0;
+    displ = 0;
+    shift =0;
     Matrix feat_pose;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_feat (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
