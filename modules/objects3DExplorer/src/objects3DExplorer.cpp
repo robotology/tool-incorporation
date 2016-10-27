@@ -329,6 +329,9 @@ bool Objects3DExplorer::updateModule()
             cvLine(pImgBgrIn->getIplImage(),point_c,point_y,cvScalar(0,255,0),2);
             cvLine(pImgBgrIn->getIplImage(),point_c,point_z,cvScalar(255,0,0),2);
 
+
+            handFrame2D.x = pc[0];
+            handFrame2D.y = pc[1];
             // Display tooltip
             if (displayTooltip) {
                 v[0] = tooltip.x;   v[1] = tooltip.y;   v[2] = tooltip.z;   v[3] = 1.0;
@@ -337,6 +340,12 @@ bool Objects3DExplorer::updateModule()
                 CvPoint point_t = cvPoint((int)pt[0],(int)pt[1]);
                 cvCircle(pImgBgrIn->getIplImage(),point_t,4,cvScalar(255,0,0),4);
                 cvLine(pImgBgrIn->getIplImage(),point_c,point_t,cvScalar(255,255,255),2);
+
+                tooltip2D.x = pt[0];
+                tooltip2D.y = pt[1];
+
+            }else{
+                tooltip2D = handFrame2D;
             }
 
             imgOutPort.prepare()=*pImgBgrIn;
@@ -1321,6 +1330,23 @@ bool Objects3DExplorer::lookAtTool(){
 
     return true;
 }
+
+/************************************************************************/
+bool Objects3DExplorer::lookAtHand(){
+    // Uses the knowledge of the kinematics of the arm to look on the direction of the Hand
+    // The hand reference frame stays on the lower part of the image, while the orientation depends on the -Y axis.
+
+    Vector xH,oH;                                                   // Pose of the hand ref. frame
+    iCartCtrl->getPose(xH,oH);
+
+    // Transform point to robot coordinates:
+    iGaze->blockEyes(5.0);
+    iGaze->lookAtFixationPoint(xH);
+    iGaze->waitMotionDone(0.1);
+
+    return true;
+}
+
 
 bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
 {

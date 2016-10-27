@@ -128,6 +128,7 @@ protected:
 
     yarp::sig::Matrix                           toolPose;
     Point3D                                     tooltip, tooltipCanon;
+    Point2D                                     tooltip2D, handFrame2D;
 
     yarp::sig::Vector                           eigenValues;
     std::vector<Plane3D>                        eigenPlanes;
@@ -143,6 +144,7 @@ protected:
     bool                turnHand(const int rotDegX = 0, const int rotDegY = 0, const bool followTool = false);
     bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged);
     bool                lookAtTool();
+    bool                lookAtHand();
     bool                lookAround();
     double              adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance);
 
