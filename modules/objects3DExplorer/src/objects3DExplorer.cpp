@@ -135,6 +135,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to communicate with object reconstruction module
     retRPC = retRPC && rpcFeatExtPort.open(("/"+name+"/featExt:rpc").c_str());           // port to command the pointcloud feature extraction module
     retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
+    retRPC = retRPC && rpcClassifierPort.open(("/"+name+"/class:rpc").c_str());     // port to command the classifier module
     if (!retRPC){
         printf("\nProblems opening RPC ports\n");
         return false;
@@ -291,6 +292,9 @@ bool Objects3DExplorer::updateModule()
     {        
         if (ImageOf<PixelBgr> *pImgBgrIn=imgInPort.read(false))
         {        
+            imgW = pImgBgrIn->width();
+            imgH = pImgBgrIn->height();
+
             // Find and display endeffector with reference frame
             Vector xa,oa;
             iCartCtrl->getPose(xa,oa);
@@ -330,8 +334,8 @@ bool Objects3DExplorer::updateModule()
             cvLine(pImgBgrIn->getIplImage(),point_c,point_z,cvScalar(255,0,0),2);
 
 
-            handFrame2D.x = pc[0];
-            handFrame2D.y = pc[1];
+            handFrame2D.u = pc[0];
+            handFrame2D.v = pc[1];
             // Display tooltip
             if (displayTooltip) {
                 v[0] = tooltip.x;   v[1] = tooltip.y;   v[2] = tooltip.z;   v[3] = 1.0;
@@ -341,8 +345,8 @@ bool Objects3DExplorer::updateModule()
                 cvCircle(pImgBgrIn->getIplImage(),point_t,4,cvScalar(255,0,0),4);
                 cvLine(pImgBgrIn->getIplImage(),point_c,point_t,cvScalar(255,255,255),2);
 
-                tooltip2D.x = pt[0];
-                tooltip2D.y = pt[1];
+                tooltip2D.u = pt[0];
+                tooltip2D.v = pt[1];
 
             }else{
                 tooltip2D = handFrame2D;
@@ -509,15 +513,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         string label_train = command.get(1).asString();
 
-        bool tool;
-        if (command.size() < 3){
-            tool = true;
-        }else{
-            tool  = command.get(2).asBool();
-        }
-
-
-        bool ok = learn(label_train, tool);
+        bool ok = learn(label_train);
 
         if (ok){
             reply.addString("[ack]");
@@ -525,22 +521,16 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;
         }else {
             fprintf(stdout,"Could not learn the tool. \n");
-            reply.addString("[nack]\n");
+            reply.addString("[nack]");
             return false;
         }
 
 
     }else if (receivedCmd == "recog"){
-        bool tool;
-        if (command.size() < 2){
-            tool = true;
-        }else{
-            tool  = command.get(1).asBool();
-        }
 
         string label_pred;
 
-        bool ok = recognize(label_pred, tool);
+        bool ok = recognize(label_pred);
 
         if (ok){
             reply.addString("[ack]");
@@ -548,7 +538,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;
         }else {
             fprintf(stdout,"Could not recognize the tool. \n");
-            reply.addString("[nack]\n");
+            reply.addString("[nack]");
             return false;
         }
 
@@ -1150,8 +1140,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("lookAtTool - Moves gaze to look where the tooltip is (or a guess if it is not defined).");
         reply.addString("cleartool - Removes previously loaded or computed tool model, pose and tip.");
 
-        reply.addString("learn - (string)label bool(tool). Train the classifier with cropped image to given label");
-        reply.addString("recog - bool(tool). Communicates with the learning pipeline to classify the cropped image");
+        reply.addString("learn - (string)label. Train the classifier with cropped image to given label");
+        reply.addString("recog - Communicates with the learning pipeline to classify the cropped image");
 
 
         reply.addString("---------- GET POSE -----------");
@@ -1517,34 +1507,68 @@ bool Objects3DExplorer::lookAround()
 }
 
 /**********************************************************/
-bool Objects3DExplorer::learn(const string &label, const bool tool ){
+bool Objects3DExplorer::learn(const string &label){
 
-    if (tool){
-        // XXX get tooltip
-        // XXX look at tool
-        // XXX get BB around it
-        // XXX send to toolRecognizer module /applications
-    } else {
-        // XXX look at hand with "observe"
-        // XXX get pixel hand ref.frame (as in lookAtTool)
-        // XXX get BB around it
-        // XXX send to graspChecker module /applications
-    }
+    // look at tool
+    turnHand(0,0);
+
+    // get tooltip and define a BB around it (check bb does not exceed image size).
+    Vector BB(4,0.0);
+    BB[0] = tooltip2D.u - bbsize/2;         // tlx
+    if (BB[0]< 0){        BB[0]= 0;    }
+    BB[1] = tooltip2D.v - bbsize/2;         // tly
+    if (BB[1]< 0){        BB[1]= 0;    }
+    BB[2] = tooltip2D.u + bbsize/2;         // brx
+    if (BB[2]> imgW){        BB[2]= imgW;    }
+    BB[3] = tooltip2D.v + bbsize/2;         // bry
+    if (BB[3]> imgH){        BB[3]= imgH;    }
+
+    // Send to toolRecognizer module /applications
+    Bottle cmdClas, replyClas;
+    cmdClas.clear();	replyClas.clear();
+    cmdClas.addString("train");
+    cmdClas.addString(label);
+    cmdClas.addInt(BB[0]);
+    cmdClas.addInt(BB[1]);
+    cmdClas.addInt(BB[2]);
+    cmdClas.addInt(BB[3]);
+    rpcClassifierPort.write(cmdClas,replyClas);
+
+    cout << "Tool Recognizer replied: " << replyClas.toString() << endl;
+    return true;
+
 }
 
-bool Objects3DExplorer::recognize(string &label, const bool tool ){
+bool Objects3DExplorer::recognize(string &label){
 
-    if (tool){
-        // XXX get tooltip
-        // XXX look at tool
-        // XXX get BB around it
-        // XXX send to toolRecognizer module /applications
-    } else {
-        // XXX get hand ref.frame
-        // XXX look at hand ref.frame
-        // XXX get BB around it
-        // XXX send to graspChecker module /applications
-    }
+    // look at tool
+    turnHand(0,0);
+
+    // get tooltip and define a BB around it (check bb does not exceed image size).
+    Vector BB(4,0.0);
+    BB[0] = tooltip2D.u - bbsize/2;         // tlx
+    if (BB[0]< 0){        BB[0]= 0;    }
+    BB[1] = tooltip2D.v - bbsize/2;         // tly
+    if (BB[1]< 0){        BB[1]= 0;    }
+    BB[2] = tooltip2D.u + bbsize/2;         // brx
+    if (BB[2]> imgW){        BB[2]= imgW;    }
+    BB[3] = tooltip2D.v + bbsize/2;         // bry
+    if (BB[3]> imgH){        BB[3]= imgH;    }
+
+    // Send to toolRecognizer module /applications
+    Bottle cmdClas, replyClas;
+    cmdClas.clear();	replyClas.clear();
+    cmdClas.addString("recognize");
+    cmdClas.addInt(BB[0]);
+    cmdClas.addInt(BB[1]);
+    cmdClas.addInt(BB[2]);
+    cmdClas.addInt(BB[3]);
+    rpcClassifierPort.write(cmdClas,replyClas);
+
+    label = replyClas.toString();
+
+    cout << "Tool Recognized as: " << label << endl;
+    return true;
 
 }
 

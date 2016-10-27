@@ -9,10 +9,10 @@
 
 struct BoundingBox
 {
-  1: double tlx;
-  2: double tly;
-  3: double brx;
-  4: double bry;
+  1: i32 tlx;
+  2: i32 tly;
+  3: i32 brx;
+  4: i32 bry;
 }
 
 service toolRecognizer_IDLServer
@@ -33,11 +33,11 @@ service toolRecognizer_IDLServer
      * Command to train tools by their label
      * @return true/false on success/failure to train classifiers.
      */
-    bool train(1: string label, 2:double tlx = 0.0, 3:double tly = 0.0, 4:double brx = 0.0 , 5:double bry = 0.0);
+    bool train(1: string label, 2:i32 tlx = 0, 3:i32 tly = 0, 4:i32 brx = 0 , 5:i32 bry = 0);
 
     /**
      * Checks whether the hand is full or empty
      * @return true/false  corresponding to full or empty hand
      */
-    string recognize(1:double tlx = 0.0, 2:double tly = 0.0, 3:double brx = 0.0 , 4:double bry = 0.0);
+    string recognize(1:i32 tlx = 0, 2:i32 tly = 0, 3:i32 brx = 0 , 4:i32 bry = 0);
 }

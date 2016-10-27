@@ -4,56 +4,56 @@
 #include <BoundingBox.h>
 
 bool BoundingBox::read_tlx(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(tlx)) {
+  if (!reader.readI32(tlx)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::nested_read_tlx(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(tlx)) {
+  if (!reader.readI32(tlx)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::read_tly(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(tly)) {
+  if (!reader.readI32(tly)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::nested_read_tly(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(tly)) {
+  if (!reader.readI32(tly)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::read_brx(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(brx)) {
+  if (!reader.readI32(brx)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::nested_read_brx(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(brx)) {
+  if (!reader.readI32(brx)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::read_bry(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(bry)) {
+  if (!reader.readI32(bry)) {
     reader.fail();
     return false;
   }
   return true;
 }
 bool BoundingBox::nested_read_bry(yarp::os::idl::WireReader& reader) {
-  if (!reader.readDouble(bry)) {
+  if (!reader.readI32(bry)) {
     reader.fail();
     return false;
   }
@@ -74,35 +74,35 @@ bool BoundingBox::read(yarp::os::ConnectionReader& connection) {
 }
 
 bool BoundingBox::write_tlx(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(tlx)) return false;
+  if (!writer.writeI32(tlx)) return false;
   return true;
 }
 bool BoundingBox::nested_write_tlx(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(tlx)) return false;
+  if (!writer.writeI32(tlx)) return false;
   return true;
 }
 bool BoundingBox::write_tly(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(tly)) return false;
+  if (!writer.writeI32(tly)) return false;
   return true;
 }
 bool BoundingBox::nested_write_tly(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(tly)) return false;
+  if (!writer.writeI32(tly)) return false;
   return true;
 }
 bool BoundingBox::write_brx(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(brx)) return false;
+  if (!writer.writeI32(brx)) return false;
   return true;
 }
 bool BoundingBox::nested_write_brx(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(brx)) return false;
+  if (!writer.writeI32(brx)) return false;
   return true;
 }
 bool BoundingBox::write_bry(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(bry)) return false;
+  if (!writer.writeI32(bry)) return false;
   return true;
 }
 bool BoundingBox::nested_write_bry(yarp::os::idl::WireWriter& writer) {
-  if (!writer.writeDouble(bry)) return false;
+  if (!writer.writeI32(bry)) return false;
   return true;
 }
 bool BoundingBox::write(yarp::os::idl::WireWriter& writer) {
@@ -174,19 +174,19 @@ bool BoundingBox::Editor::read(yarp::os::ConnectionReader& connection) {
       if (!reader.readString(field)) return false;
       if (field=="tlx") {
         if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeString("double tlx")) return false;
+        if (!writer.writeString("int32_t tlx")) return false;
       }
       if (field=="tly") {
         if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeString("double tly")) return false;
+        if (!writer.writeString("int32_t tly")) return false;
       }
       if (field=="brx") {
         if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeString("double brx")) return false;
+        if (!writer.writeString("int32_t brx")) return false;
       }
       if (field=="bry") {
         if (!writer.writeListHeader(1)) return false;
-        if (!writer.writeString("double bry")) return false;
+        if (!writer.writeString("int32_t bry")) return false;
       }
     }
     if (!writer.writeListHeader(5)) return false;

@@ -36,7 +36,7 @@ bool ToolRecognizer::trainObserve(const string &label, BoundingBox &bb)
         items.addDouble(bb.bry);
     }
 
-    yInfo("[trainObserve] got bounding Box is %lf %lf %lf %lf", bb.tlx, bb.tly, bb.brx, bb.bry);
+    yInfo("[trainObserve] got bounding Box is %i %i %i %i", bb.tlx, bb.tly, bb.brx, bb.bry);
 
     Bottle cmd,reply;
     cmd.addVocab(Vocab::encode("train"));
@@ -223,7 +223,7 @@ bool ToolRecognizer::quit(){
 }
 
 //Thrifted
-bool ToolRecognizer::train(const string &label, const double tlx ,const double tly, const double brx, const double bry)
+bool ToolRecognizer::train(const string &label, const int tlx ,const int tly, const int brx, const int bry)
 {
     BoundingBox bb;
     bb.tlx = tlx;
@@ -234,7 +234,7 @@ bool ToolRecognizer::train(const string &label, const double tlx ,const double t
     return trainObserve(label, bb);
 }
 
-string ToolRecognizer::recognize(const double tlx ,const double tly, const double brx, const double bry)
+string ToolRecognizer::recognize(const int tlx ,const int tly, const int brx, const int bry)
 {
     string label;
 

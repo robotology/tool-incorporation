@@ -62,8 +62,8 @@ public:
         bool						updateModule();
         double						getPeriod();
 
-        bool                        train(const std::string &label, const double tlx = 0.0,const double tly = 0.0, const double brx = 0.0, const double bry = 0.0);
-        std::string                        recognize(const double tlx = 0.0,const double tly = 0.0, const double brx = 0.0, const double bry = 0.0);
+        bool                        train(const std::string &label, const int tlx = 0.0,const int tly = 0.0, const int brx = 0.0, const int bry = 0.0);
+        std::string                 recognize(const int tlx = 0.0,const int tly = 0.0, const int brx = 0.0, const int bry = 0.0);
 
 
 };

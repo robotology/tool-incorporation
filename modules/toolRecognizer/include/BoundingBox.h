@@ -17,17 +17,17 @@ class BoundingBox;
 class BoundingBox : public yarp::os::idl::WirePortable {
 public:
   // Fields
-  double tlx;
-  double tly;
-  double brx;
-  double bry;
+  int32_t tlx;
+  int32_t tly;
+  int32_t brx;
+  int32_t bry;
 
   // Default constructor
   BoundingBox() : tlx(0), tly(0), brx(0), bry(0) {
   }
 
   // Constructor with field values
-  BoundingBox(const double tlx,const double tly,const double brx,const double bry) : tlx(tlx), tly(tly), brx(brx), bry(bry) {
+  BoundingBox(const int32_t tlx,const int32_t tly,const int32_t brx,const int32_t bry) : tlx(tlx), tly(tly), brx(brx), bry(bry) {
   }
 
   // Copy constructor
@@ -120,44 +120,44 @@ public:
       group--;
       if (group==0&&is_dirty) communicate();
     }
-    void set_tlx(const double tlx) {
+    void set_tlx(const int32_t tlx) {
       will_set_tlx();
       obj->tlx = tlx;
       mark_dirty_tlx();
       communicate();
       did_set_tlx();
     }
-    void set_tly(const double tly) {
+    void set_tly(const int32_t tly) {
       will_set_tly();
       obj->tly = tly;
       mark_dirty_tly();
       communicate();
       did_set_tly();
     }
-    void set_brx(const double brx) {
+    void set_brx(const int32_t brx) {
       will_set_brx();
       obj->brx = brx;
       mark_dirty_brx();
       communicate();
       did_set_brx();
     }
-    void set_bry(const double bry) {
+    void set_bry(const int32_t bry) {
       will_set_bry();
       obj->bry = bry;
       mark_dirty_bry();
       communicate();
       did_set_bry();
     }
-    double get_tlx() {
+    int32_t get_tlx() {
       return obj->tlx;
     }
-    double get_tly() {
+    int32_t get_tly() {
       return obj->tly;
     }
-    double get_brx() {
+    int32_t get_brx() {
       return obj->brx;
     }
-    double get_bry() {
+    int32_t get_bry() {
       return obj->bry;
     }
     virtual bool will_set_tlx() { return true; }

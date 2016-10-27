@@ -75,6 +75,7 @@ protected:
     yarp::os::RpcClient         		rpcObjRecPort;          //rpc port to communicate with objectReconst module
     yarp::os::RpcClient         		rpcVisualizerPort;      //rpc port to communicate with tool3Dshow module to display pointcloud
     yarp::os::RpcClient         		rpcFeatExtPort;         //rpc port to communicate with the 3D feature extraction module
+    yarp::os::RpcClient         		rpcClassifierPort;         //rpc port to communicate with the 3D feature extraction module
 
     // Drivers
     yarp::dev::PolyDriver               driverG;
@@ -129,6 +130,7 @@ protected:
     yarp::sig::Matrix                           toolPose;
     Point3D                                     tooltip, tooltipCanon;
     Point2D                                     tooltip2D, handFrame2D;
+    int                                         bbsize, imgW, imgH;
 
     yarp::sig::Vector                           eigenValues;
     std::vector<Plane3D>                        eigenPlanes;
@@ -175,8 +177,8 @@ protected:
 
     /* Learn - recognize tools from vision */
 
-    bool                learn(const std::string &label, const bool tool = true);
-    bool                recognize(std::string &label, const bool tool = true);
+    bool                learn(const std::string &label);
+    bool                recognize(std::string &label);
 
     /* Cloud Utils */
     bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
