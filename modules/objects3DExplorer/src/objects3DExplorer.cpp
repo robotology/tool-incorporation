@@ -29,8 +29,9 @@ using namespace iCub::YarpCloud;
 // This module deals with 3D object/tool exploration, partial reconstruction extraction, alignment, pose estimation, etc.
 // - Provides some functions to explore an object in hand.
 // - Communicates with toolFeatExt for OMS-EGI feature extraction.
-// - Automatizes partial object reconstruction (communicating with obj3Drec), and alignment
+// - Automatizes partial object reconstruction (communicating with obj3Dfus), and alignment (not quite)
 // - Performs pose estimation from model using alignment.
+// - Performs tool 3D reconstruction from partial views.
 // - Computes tooltip from model and estimated pose
   
 /**********************************************************
@@ -429,6 +430,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
         return false;
 
+
+
+
     }else if (receivedCmd == "turnHand"){
             // Turn the hand 'int' degrees, or go to 0 if no parameter was given.
             int rotDegX = 0;
@@ -488,6 +492,56 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
 
+    }else if (receivedCmd == "learn"){
+        if (command.size() < 2){
+            cout << "Need a label to learn" << endl;
+            reply.addString("[nack] Need a label to learn. \n");
+            return false;
+        }
+        string label_train = command.get(1).asString();
+
+        bool tool;
+        if (command.size() < 3){
+            tool = true;
+        }else{
+            tool  = command.get(2).asBool();
+        }
+
+
+        bool ok = learn(label_train, tool);
+
+        if (ok){
+            reply.addString("[ack]");
+            reply.addString(label_train);
+            return true;
+        }else {
+            fprintf(stdout,"Could not learn the tool. \n");
+            reply.addString("[nack]\n");
+            return false;
+        }
+
+
+    }else if (receivedCmd == "recog"){
+        bool tool;
+        if (command.size() < 2){
+            tool = true;
+        }else{
+            tool  = command.get(1).asBool();
+        }
+
+        string label_pred;
+
+        bool ok = recognize(label_pred, tool);
+
+        if (ok){
+            reply.addString("[ack]");
+            reply.addString(label_pred);
+            return true;
+        }else {
+            fprintf(stdout,"Could not recognize the tool. \n");
+            reply.addString("[nack]\n");
+            return false;
+        }
 
 //================================= POSE COMMANDS ================================
 
@@ -515,9 +569,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack]\n");
             return false;
         }
-
-        reply.addString("[ack]");
-        return true;
 
 
     }else if (receivedCmd == "setPoseParam"){
@@ -1090,6 +1141,9 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("lookAtTool - Moves gaze to look where the tooltip is (or a guess if it is not defined).");
         reply.addString("cleartool - Removes previously loaded or computed tool model, pose and tip.");
 
+        reply.addString("learn - (string)label bool(tool). Train the classifier with cropped image to given label");
+        reply.addString("recog - bool(tool). Communicates with the learning pipeline to classify the cropped image");
+
 
         reply.addString("---------- GET POSE -----------");
         reply.addString("findPoseAlign - Find the actual grasp by comparing the actual registration to the given model of the tool.");
@@ -1435,6 +1489,40 @@ bool Objects3DExplorer::lookAround()
 
     return true;
 }
+
+/**********************************************************/
+bool Objects3DExplorer::learn(const string &label, const bool tool ){
+
+    if (tool){
+        // XXX get tooltip
+        // XXX look at tool
+        // XXX get BB around it
+        // XXX send to toolRecognizer module /applications
+    } else {
+        // XXX look at hand with "observe"
+        // XXX get pixel hand ref.frame (as in lookAtTool)
+        // XXX get BB around it
+        // XXX send to graspChecker module /applications
+    }
+}
+
+bool Objects3DExplorer::recognize(string &label, const bool tool ){
+
+    if (tool){
+        // XXX get tooltip
+        // XXX look at tool
+        // XXX get BB around it
+        // XXX send to toolRecognizer module /applications
+    } else {
+        // XXX get hand ref.frame
+        // XXX look at hand ref.frame
+        // XXX get BB around it
+        // XXX send to graspChecker module /applications
+    }
+
+}
+
+
 
 
 /* CLOUD INFO */
@@ -2314,7 +2402,7 @@ bool Objects3DExplorer::alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::
     bool alignOK = false;
     double scale = 1.0;
     int tryI = 0;
-    double step = 0.1;
+    double step = 0.05;
     while (!alignOK)
     {
         cout << "Trying alignment, with scale "<< scale << endl;
@@ -2450,6 +2538,7 @@ void Objects3DExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZ
 
     printf("Computing Local Features\n");
     pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh_est;
+    //pcl::FPFHEstimationOMP<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh_est;  // Paralellized computation verison
     fpfh_est.setInputCloud(cloud);
     fpfh_est.setInputNormals(normals);
     fpfh_est.setSearchMethod(tree);
@@ -2497,6 +2586,7 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
 
     return true;
 }
+
 
 
 /************************************************************************/

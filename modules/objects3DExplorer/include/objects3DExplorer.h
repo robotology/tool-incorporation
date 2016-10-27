@@ -171,7 +171,10 @@ protected:
     int                 getTPindex(const std::string &tool, const yarp::sig::Matrix &pose);
     bool                getAffProps(const yarp::sig::Matrix &affMatrix, yarp::os::Property &affProps);
 
+    /* Learn - recognize tools from vision */
 
+    bool                learn(const std::string &label, const bool tool = true);
+    bool                recognize(std::string &label, const bool tool = true);
 
     /* Cloud Utils */
     bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
