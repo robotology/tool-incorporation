@@ -98,10 +98,10 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 
     //icp variables
     // XXX eventually make this selectable by .ini or cmd line.
-    icp_maxIt = 100;
-    icp_maxCorr = 0.03;
+    icp_maxIt = 10000;
+    icp_maxCorr = 0.07;
     icp_ranORT = 0.05;
-    icp_transEp = 1e-6;
+    icp_transEp = 0.0001;
 
     // Noise generation variables
     noise_mean = 0.0;
