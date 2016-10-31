@@ -1363,11 +1363,8 @@ bool Objects3DExplorer::lookAtHand(){
 
 bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const string &label, const bool flag2D, const bool flag3D)
 {
-    // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
-    cloud_rec_merged->points.clear();
-
-    cout << " Moving other hand away" << endl;
     // Move not exploring hand out of the way:
+    cout << " Moving other hand away" << endl;    
     Vector away, awayOr;
     otherHandCtrl->getPose(away,awayOr);
     cout << " Pose received: " << away.toString() << endl;
@@ -1378,21 +1375,33 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     otherHandCtrl->goToPose(away, awayOr);
     otherHandCtrl->waitMotionDone();
 
-    double spDist = 0.004;
-    cout << " Get first cloud" << endl;
-    // Get inital cloud model on central orientation
-    turnHand(0,0);
-    while(!getPointCloud(cloud_rec_merged, spDist)){          // Keep on getting clouds until one is valid (should be the first)
-        lookAround();
-        spDist = adaptDepth(cloud_rec_merged,spDist);
-    }
-    sendPointCloud(cloud_rec_merged);
-
+    // Rotates the tool in hand
     cout << " ====================================== Starting Exploration  =======================================" <<endl;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Eigen::Matrix4f alignMatrix;
     Eigen::Matrix4f poseMatrix;
+    double spDist = 0.004;
+
+    turnHand(0,0);
+
+    if (flag3D){
+    // gets successive partial reconstructions and returns a merge-> cloud_model
+        cloud_rec_merged->points.clear();
+
+        cout << " Get first cloud" << endl;
+        // Get inital cloud model on central orientation
+
+        while(!getPointCloud(cloud_rec_merged, spDist)){          // Keep on getting clouds until one is valid (should be the first)
+            lookAround();
+            spDist = adaptDepth(cloud_rec_merged,spDist);
+        }
+        sendPointCloud(cloud_rec_merged);
+    }
+    if (flag2D){
+        cout << " Learning first view" << endl;
+        learn(label);
+    }
 
     // Rotate tool in hand
     bool mergeAlign = true;            // XXX make rpc selectable
@@ -1406,35 +1415,42 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         //lookAtTool();
         Time::delay(1.0);
 
-        // Get partial reconstruction
-        cloud_rec->points.clear();
-        cloud_rec->clear();
+        if (flag3D){
+            // Get partial reconstruction
+            cloud_rec->points.clear();
+            cloud_rec->clear();
 
-        // If cloud was found by any of the previous methods
-        if(getPointCloud(cloud_rec, spDist)){
-            spDist = adaptDepth(cloud_rec, spDist);
-            if (!mergeAlign){
-                // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-                *cloud_rec_merged += *cloud_rec;
-            }else{
-                // Align new reconstructions to model so far.
-                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
-                poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
-                Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
-                bool poseValid = checkGrasp(pose);
+            // If cloud was found by any of the previous methods
+            if(getPointCloud(cloud_rec, spDist)){
+                spDist = adaptDepth(cloud_rec, spDist);
+                if (!mergeAlign){
+                    // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
+                    *cloud_rec_merged += *cloud_rec;
+                }else{
+                    // Align new reconstructions to model so far.
+                    alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
+                    poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
+                    Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
+                    bool poseValid = checkGrasp(pose);
 
-                if (poseValid)
-                    *cloud_rec_merged += *cloud_aligned;
+                    if (poseValid)
+                        *cloud_rec_merged += *cloud_aligned;
+                }
+
+                // Downsample to reduce size and fasten computation
+                downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+                cout << " Cloud at angle X" << degX << " reconstructed " << endl;
+                sendPointCloud(cloud_rec_merged);
+
+            } else {
+                cout << " Could not reconstruct the cloud" << endl;
+                return false;
             }
+        }
 
-            // Downsample to reduce size and fasten computation
-            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-            cout << " Cloud at angle X" << degX << " reconstructed " << endl;
-            sendPointCloud(cloud_rec_merged);
-
-        } else {
-            cout << " Could not reconstruct the cloud" << endl;
-            return false;
+        if (flag2D){
+            cout << " Learning new view of tool: " << label << endl;
+            learn(label);
         }
     }
 
@@ -1449,54 +1465,69 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         turnHand(0,degY);
         //lookAtTool();
         Time::delay(1.0);
+        if (flag3D){
+            // Get partial reconstruction
+            cloud_rec->points.clear();
+            cloud_rec->clear();
 
-        // Get partial reconstruction
-        cloud_rec->points.clear();
-        cloud_rec->clear();
+            // If cloud was found by any of the prrevious methods
+            if(getPointCloud(cloud_rec, spDist)){
+                spDist = adaptDepth(cloud_rec,spDist);
+                if (!mergeAlign){
+                    // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
+                    *cloud_rec_merged += *cloud_rec;
+                }else{
+                    // Align new reconstructions to model so far.
+                    alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
+                    poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
+                    Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
+                    bool poseValid = checkGrasp(pose);
 
-        // If cloud was found by any of the prrevious methods
-        if(getPointCloud(cloud_rec, spDist)){
-            spDist = adaptDepth(cloud_rec,spDist);
-            if (!mergeAlign){
-                // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-                *cloud_rec_merged += *cloud_rec;
-            }else{
-                // Align new reconstructions to model so far.
-                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 0.7, 1.3);
-                poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
-                Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
-                bool poseValid = checkGrasp(pose);
+                    if (poseValid)
+                        *cloud_rec_merged += *cloud_aligned;
+                }
 
-                if (poseValid)
-                    *cloud_rec_merged += *cloud_aligned;
+                // Downsample to reduce size and fasten computation
+                downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+                cout << " Cloud at angle Y" << degY << " reconstructed " << endl;
+                sendPointCloud(cloud_rec_merged);
+
+            } else {
+                cout << " Could not reconstruct the cloud" << endl;
+                return false;
             }
-
-            // Downsample to reduce size and fasten computation
-            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-            cout << " Cloud at angle Y" << degY << " reconstructed " << endl;
-            sendPointCloud(cloud_rec_merged);
-
-        } else {
-            cout << " Could not reconstruct the cloud" << endl;
-            return false;
         }
+        if (flag2D){
+            cout << " Learning new view of tool: " << label << endl;
+            learn(label);
+        }
+
     }
     cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
 
 
     // filter spurious noise
-    for (int i = 0; i < 3; i++){
-        pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
-        ror.setInputCloud(cloud_rec_merged);
-        ror.setRadiusSearch(0.01);
-        ror.setMinNeighborsInRadius(5);
-        ror.filter(*cloud_rec_merged);
-    }
-    sendPointCloud(cloud_rec_merged);
+    if (flag3D){
+        for (int i = 0; i < 3; i++){
+            pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
+            ror.setInputCloud(cloud_rec_merged);
+            ror.setRadiusSearch(0.01);
+            ror.setMinNeighborsInRadius(5);
+            ror.filter(*cloud_rec_merged);
+        }
+        sendPointCloud(cloud_rec_merged);
 
-    if (saving){
-        string modelname = saveName + "_merged.ply";
-        CloudUtils::savePointsPly(cloud_rec_merged, cloudsPathTo, modelname);}
+        cout << "Cloud model reconstructed" << endl;
+        if (saving){
+            string modelname = saveName + "_merged.ply";
+            CloudUtils::savePointsPly(cloud_rec_merged, cloudsPathTo, modelname);
+            cout << "Cloud model saved as "<<  modelname << endl;
+        }
+    }
+    if (flag2D){
+        cout << "Tool features learnt from many prespectives" << endl;
+    }
+    return true;
 }
 
 double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
@@ -1531,9 +1562,6 @@ bool Objects3DExplorer::lookAround()
 
 /**********************************************************/
 bool Objects3DExplorer::learn(const string &label){
-
-    // look at tool
-    turnHand(0,0);
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
     Vector BB(4,0.0);
