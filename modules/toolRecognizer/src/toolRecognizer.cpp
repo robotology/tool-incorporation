@@ -138,7 +138,7 @@ string ToolRecognizer::processScores(const Bottle &scores)
 /*******************************************************************************/
 bool ToolRecognizer::configure(ResourceFinder &rf)
 {
-    name = rf.check("name", Value("graspChecker"), "Getting module name").asString();
+    name = rf.check("name", Value("toolRecognizer"), "Getting module name").asString();
     running = true;
 
     printf("Opening ports\n" );
@@ -225,6 +225,8 @@ bool ToolRecognizer::quit(){
 //Thrifted
 bool ToolRecognizer::train(const string &label, const int tlx ,const int tly, const int brx, const int bry)
 {
+
+    cout << "Received command 'train'  on bb " << tlx << ", " << tly << "; "  << brx << ", " << bry << ". "<< endl;
     BoundingBox bb;
     bb.tlx = tlx;
     bb.tly = tly;
@@ -237,6 +239,7 @@ bool ToolRecognizer::train(const string &label, const int tlx ,const int tly, co
 string ToolRecognizer::recognize(const int tlx ,const int tly, const int brx, const int bry)
 {
     string label;
+    cout << "Received command 'recognize'  on bb " << tlx << ", " << tly << "; "  << brx << ", " << bry << ". "<< endl;
 
     BoundingBox bb;
     bb.tlx = tlx;
