@@ -144,7 +144,7 @@ protected:
     
     /* Actions */
     bool                turnHand(const int rotDegX = 0, const int rotDegY = 0, const bool followTool = false);
-    bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged);
+    bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const std::string &label, const bool flag2D = true, const bool flag3D = true);
     bool                lookAtTool();
     bool                lookAtHand();
     bool                lookAround();

@@ -426,8 +426,31 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
     }else if (receivedCmd == "exploreTool"){
 
+        // Retrieve mandatory parameter label
+        if (command.size() < 2){
+            cout << "Need a label to learn" << endl;
+            reply.addString("[nack] Need a label to learn. \n");
+            return false;
+        }
+        string label_exp = command.get(1).asString();
+
+        // Retrieve optional parameter mode_exp (default 2D + 3d -> "both")
+        string exp_mode = "both";
+        if (command.size() == 3){
+            exp_mode = command.get(2).asString();
+        }
+
+        bool flag2D = true;
+        bool flag3D = true;
+        if ((exp_mode == "2D") || (exp_mode == "2d")){
+            flag3D = false;     }
+        if ((exp_mode == "3D") || (exp_mode == "3d")){
+            flag2D = false;     }
+
+
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_merged (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        bool ok = exploreTool(cloud_merged);
+        bool ok = exploreTool(cloud_merged, label_exp, flag2D, flag3D);
+
 
         if (ok) {
             sendPointCloud(cloud_merged);
@@ -1338,7 +1361,7 @@ bool Objects3DExplorer::lookAtHand(){
 }
 
 
-bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged)
+bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const string &label, const bool flag2D, const bool flag3D)
 {
     // Rotates the tool in hand, gets successive partial reconstructions and returns a merge-> cloud_model
     cloud_rec_merged->points.clear();
@@ -1387,7 +1410,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         cloud_rec->points.clear();
         cloud_rec->clear();
 
-        // If cloud was found by any of the prrevious methods
+        // If cloud was found by any of the previous methods
         if(getPointCloud(cloud_rec, spDist)){
             spDist = adaptDepth(cloud_rec, spDist);
             if (!mergeAlign){
@@ -1571,8 +1594,6 @@ bool Objects3DExplorer::recognize(string &label){
     return true;
 
 }
-
-
 
 
 /* CLOUD INFO */

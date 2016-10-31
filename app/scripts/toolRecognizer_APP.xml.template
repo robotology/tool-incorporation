@@ -44,14 +44,21 @@
     </module>
     <module>
         <name>yarpview</name>
-        <parameters>--name /ToolViewer/nearBlob --compact</parameters>
+        <parameters>--name /toolViewer/nearBlob --compact</parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 794) (y 148.9))</geometry>
+    </module> 
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /toolViewer/crop --compact</parameters>
         <node>console</node>
         <prefix></prefix>
         <geometry>(Pos (x 794) (y 148.9))</geometry>
     </module>
     <connection>
         <from external="true">/icub/camcalib/left/out</from>
-        <to external="true">/ToolChecker/img:i</to>
+        <to external="true">/toolRecognizer/img:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 965.5) (y 628)) ((x 859) (y 629)) ((x 1101) (y 625))  )</geometry>
     </connection>
@@ -64,6 +71,12 @@
     <connection>
         <from external="true">/toolRecognizer/img:o</from>
         <to external="true">/himrepClassifierTool/img:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 965.5) (y 628)) ((x 859) (y 629)) ((x 1101) (y 625))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/toolRecognizer/img:o</from>
+        <to external="true">/toolViewer/crop</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 965.5) (y 628)) ((x 859) (y 629)) ((x 1101) (y 625))  )</geometry>
     </connection>
