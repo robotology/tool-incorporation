@@ -78,7 +78,7 @@ bool ToolRecognizer::classifyObserve(string &label, BoundingBox &bb)
         }
     }else{
         Bottle &item=options.addList();                 // cmd = classify (())
-        item.addString("blob_1");                       // cmd = classify ((blob_i))
+        item.addString("blob_0");                       // cmd = classify ((blob_i))
         Bottle &bbox = item.addList();                  // cmd = classify ((blob_i ()))
         bbox.addDouble(bb.tlx);
         bbox.addDouble(bb.tly);
@@ -250,6 +250,8 @@ string ToolRecognizer::recognize(const int tlx ,const int tly, const int brx, co
     cout << "Classifying image from crop " << tlx <<", "<< tly <<", "<< brx <<", "<< bry <<". "<<endl;
 
     classifyObserve(label, bb);
+
+    cout << " Tool classified as: " << label << endl;
 
     return label;
 }

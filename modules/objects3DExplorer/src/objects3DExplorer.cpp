@@ -56,8 +56,10 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
         string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
         cloudsPathFrom  = icubContribEnvPath + localModelsPath;
+        cloudsPathTo  = icubContribEnvPath + localModelsPath;
     }
 
+    /* -- Now they are saved on app context, so they can be loaded automatically.
     // Set the path where new pointclouds will be saved
     string defSaveDir = "/saveModels";
     string cloudsSaveDir = rf.check("save")?rf.find("save").asString().c_str():defSaveDir;
@@ -65,6 +67,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
         cloudsSaveDir = "/"+cloudsSaveDir;
     cloudsPathTo = "."+cloudsSaveDir;
     yarp::os::mkdir_p(cloudsPathTo.c_str());            // Create the save folder if it didnt exist
+    */
 
     printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
     printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
@@ -1369,8 +1372,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     changeSaveName(label);
 
     // As tool is unknown, define generic tooltip for exploration:
-    tooltip.x = 0.16;
-    tooltip.y = -0.16;
+    tooltip.x = 0.15;
+    tooltip.y = -0.15;
     tooltip.z = 0.0;
 
     // Move not exploring hand out of the way:
@@ -1543,7 +1546,12 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         cout << "Cloud model reconstructed" << endl;
         if (saving){
-            string modelname = saveName + "_merged";
+            string modelname;
+            if (robot == "icubSim"){
+                modelname = "sim/" + saveName;
+            }else{
+                modelname = "real/" + saveName;
+            }
             CloudUtils::savePointsPly(cloud_rec_merged, cloudsPathTo, modelname);
             cout << "Cloud model saved as "<<  modelname << endl;
         }
@@ -1624,6 +1632,12 @@ bool Objects3DExplorer::learn(const string &label){
 }
 
 bool Objects3DExplorer::recognize(string &label){
+
+
+    // As tool is unknown, define generic tooltip for exploration:
+    tooltip.x = 0.15;
+    tooltip.y = -0.15;
+    tooltip.z = 0.0;
 
     // look at tool
     turnHand(0,0);
@@ -1753,8 +1767,9 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
     if (verbose){ cout << " Cloud of size " << cloud_rec->points.size() << " obtained from 3D reconstruction" << endl;}
 
-    if (saving){
-        CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);}
+    //if (saving){
+    //    CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);
+    //}
 
     return true;
 }
