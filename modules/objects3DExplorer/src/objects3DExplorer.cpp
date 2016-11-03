@@ -633,6 +633,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("[ack]");
         return true;
 
+    }else if (receivedCmd == "makecanon"){
+        sendPointCloud(cloud_model);
+
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_canon (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+        cloud2canonical(cloud_model, cloud_canon);
+
+        // Display the loaded cloud
+        sendPointCloud(cloud_canon);
+        reply.addString("[ack]");
+        return true;
+
 
     }else if (receivedCmd == "alignFromFiles"){
 
@@ -1532,16 +1545,18 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     }
     cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
 
-
     // filter spurious noise
+    cout << endl << " + Applying radius outlier removal + " << endl <<endl;
     if (flag3D){
         for (int i = 0; i < 3; i++){
+            Time::delay(1.0);
             pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
             ror.setInputCloud(cloud_rec_merged);
             ror.setRadiusSearch(0.01);
             ror.setMinNeighborsInRadius(5);
             ror.filter(*cloud_rec_merged);
         }
+        filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
         sendPointCloud(cloud_rec_merged);
 
         cout << "Cloud model reconstructed" << endl;
@@ -2789,6 +2804,26 @@ bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     if (verbose){	printf("Transformation done \n");	}
 
     return true;
+}
+
+
+/************************************************************************/
+bool Objects3DExplorer::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_canon)
+{
+    Matrix tool(4,4);
+    Eigen::Matrix4f toolMatrix;
+    if (!symFound)
+    {
+        findPlanes(cloud_pose, toolPose);
+    }
+
+    tool = toolPose;
+    toolMatrix = CloudUtils::yarpMat2eigMat(tool);
+    Eigen::Matrix4f tool2origin = toolMatrix.inverse();
+    pcl::transformPointCloud(*cloud_orig, *cloud_canon, tool2origin);
+
+    // XXX this should put the center of the tool on the origin. Need to be translated "up", so that the lower point is at -6 on Y axis (6 is the radius we remove when recording the tool)
+
 }
 
 /************************************************************************/
