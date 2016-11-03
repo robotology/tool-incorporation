@@ -56,8 +56,10 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
         string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
         cloudsPathFrom  = icubContribEnvPath + localModelsPath;
+        cloudsPathTo  = icubContribEnvPath + localModelsPath;
     }
 
+    /* -- Now they are saved on app context, so they can be loaded automatically.
     // Set the path where new pointclouds will be saved
     string defSaveDir = "/saveModels";
     string cloudsSaveDir = rf.check("save")?rf.find("save").asString().c_str():defSaveDir;
@@ -65,6 +67,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
         cloudsSaveDir = "/"+cloudsSaveDir;
     cloudsPathTo = "."+cloudsSaveDir;
     yarp::os::mkdir_p(cloudsPathTo.c_str());            // Create the save folder if it didnt exist
+    */
 
     printf("Base path to read clouds from: %s",cloudsPathFrom.c_str());
     printf("Path to save new clouds to: %s",cloudsPathTo.c_str());
@@ -92,6 +95,8 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     toolPose = eye(4);
     tooltip.x = 0.0; tooltip.y = 0.0; tooltip.z = 0.0;
     tooltipCanon = tooltip;
+
+    bbsize = 150;
 
     eigenValues.resize(3,0.0);
     eigenPlanes.clear();
@@ -1363,6 +1368,14 @@ bool Objects3DExplorer::lookAtHand(){
 
 bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const string &label, const bool flag2D, const bool flag3D)
 {
+    // Update tool name
+    changeSaveName(label);
+
+    // As tool is unknown, define generic tooltip for exploration:
+    tooltip.x = 0.15;
+    tooltip.y = -0.15;
+    tooltip.z = 0.0;
+
     // Move not exploring hand out of the way:
     cout << " Moving other hand away" << endl;    
     Vector away, awayOr;
@@ -1395,6 +1408,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         while(!getPointCloud(cloud_rec_merged, spDist)){          // Keep on getting clouds until one is valid (should be the first)
             lookAround();
             spDist = adaptDepth(cloud_rec_merged,spDist);
+            cout <<" Spatial distance adapted to " << spDist <<endl;
         }
         sendPointCloud(cloud_rec_merged);
     }
@@ -1421,8 +1435,15 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             cloud_rec->clear();
 
             // If cloud was found by any of the previous methods
-            if(getPointCloud(cloud_rec, spDist)){
-                spDist = adaptDepth(cloud_rec, spDist);
+            //if(getPointCloud(cloud_rec, spDist)){
+                while(!getPointCloud(cloud_rec, spDist)){          // Keep on getting clouds until one is valid (should be the first)
+                    lookAround();
+                    spDist = adaptDepth(cloud_rec,spDist);
+                    cout <<" Spatial distance adapted to " << spDist <<endl;
+                }
+
+
+                //spDist = adaptDepth(cloud_rec, spDist);
                 if (!mergeAlign){
                     // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
                     *cloud_rec_merged += *cloud_rec;
@@ -1442,10 +1463,10 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
                 cout << " Cloud at angle X" << degX << " reconstructed " << endl;
                 sendPointCloud(cloud_rec_merged);
 
-            } else {
-                cout << " Could not reconstruct the cloud" << endl;
-                return false;
-            }
+            //} else {
+            //    cout << " Could not reconstruct the cloud" << endl;
+            //    return false;
+            //}
         }
 
         if (flag2D){
@@ -1471,8 +1492,14 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             cloud_rec->clear();
 
             // If cloud was found by any of the prrevious methods
-            if(getPointCloud(cloud_rec, spDist)){
-                spDist = adaptDepth(cloud_rec,spDist);
+            //if(getPointCloud(cloud_rec, spDist)){
+                //spDist = adaptDepth(cloud_rec,spDist);
+                while(!getPointCloud(cloud_rec, spDist)){          // Keep on getting clouds until one is valid (should be the first)
+                    lookAround();
+                    spDist = adaptDepth(cloud_rec,spDist);
+                    cout <<" Spatial distance adapted to " << spDist <<endl;
+                }
+
                 if (!mergeAlign){
                     // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
                     *cloud_rec_merged += *cloud_rec;
@@ -1492,10 +1519,10 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
                 cout << " Cloud at angle Y" << degY << " reconstructed " << endl;
                 sendPointCloud(cloud_rec_merged);
 
-            } else {
-                cout << " Could not reconstruct the cloud" << endl;
-                return false;
-            }
+            //} else {
+             //   cout << " Could not reconstruct the cloud" << endl;
+             //   return false;
+            //}
         }
         if (flag2D){
             cout << " Learning new view of tool: " << label << endl;
@@ -1519,7 +1546,12 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         cout << "Cloud model reconstructed" << endl;
         if (saving){
-            string modelname = saveName + "_merged.ply";
+            string modelname;
+            if (robot == "icubSim"){
+                modelname = "sim/" + saveName;
+            }else{
+                modelname = "real/" + saveName;
+            }
             CloudUtils::savePointsPly(cloud_rec_merged, cloudsPathTo, modelname);
             cout << "Cloud model saved as "<<  modelname << endl;
         }
@@ -1565,14 +1597,22 @@ bool Objects3DExplorer::learn(const string &label){
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
     Vector BB(4,0.0);
-    BB[0] = tooltip2D.u - bbsize/2;         // tlx
+    BB[0] = tooltip2D.u - bbsize/4;         // tlx
     if (BB[0]< 0){        BB[0]= 0;    }
-    BB[1] = tooltip2D.v - bbsize/2;         // tly
+    BB[1] = tooltip2D.v - bbsize/4;         // tly
     if (BB[1]< 0){        BB[1]= 0;    }
-    BB[2] = tooltip2D.u + bbsize/2;         // brx
-    if (BB[2]> imgW){        BB[2]= imgW;    }
-    BB[3] = tooltip2D.v + bbsize/2;         // bry
-    if (BB[3]> imgH){        BB[3]= imgH;    }
+    BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
+    if (BB[2]> imgW){
+        BB[2]= imgW-1;
+        cout << " BB brx lmited to: " << BB[2] << endl;
+    }
+    BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
+    if (BB[3]> imgH){
+        BB[3]= imgH-1;
+    cout << " BB bry lmited to: " << BB[3] << endl;
+    }
+
+    cout << "BB around tooltip " << tooltip2D.u << ", " << tooltip2D.v << " is : " << BB[0]<< ", " << BB[1]<< "; " << BB[2]<< ", "<< BB[3]<< ". " <<endl;
 
     // Send to toolRecognizer module /applications
     Bottle cmdClas, replyClas;
@@ -1583,6 +1623,7 @@ bool Objects3DExplorer::learn(const string &label){
     cmdClas.addInt(BB[1]);
     cmdClas.addInt(BB[2]);
     cmdClas.addInt(BB[3]);
+    cout << "Sending Command to classifier: " << cmdClas.toString() << endl;
     rpcClassifierPort.write(cmdClas,replyClas);
 
     cout << "Tool Recognizer replied: " << replyClas.toString() << endl;
@@ -1592,18 +1633,24 @@ bool Objects3DExplorer::learn(const string &label){
 
 bool Objects3DExplorer::recognize(string &label){
 
+
+    // As tool is unknown, define generic tooltip for exploration:
+    tooltip.x = 0.15;
+    tooltip.y = -0.15;
+    tooltip.z = 0.0;
+
     // look at tool
     turnHand(0,0);
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
     Vector BB(4,0.0);
-    BB[0] = tooltip2D.u - bbsize/2;         // tlx
+    BB[0] = tooltip2D.u - bbsize/4;         // tlx
     if (BB[0]< 0){        BB[0]= 0;    }
-    BB[1] = tooltip2D.v - bbsize/2;         // tly
+    BB[1] = tooltip2D.v - bbsize/4;         // tly
     if (BB[1]< 0){        BB[1]= 0;    }
-    BB[2] = tooltip2D.u + bbsize/2;         // brx
+    BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
     if (BB[2]> imgW){        BB[2]= imgW;    }
-    BB[3] = tooltip2D.v + bbsize/2;         // bry
+    BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
     if (BB[3]> imgH){        BB[3]= imgH;    }
 
     // Send to toolRecognizer module /applications
@@ -1720,8 +1767,9 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
     if (verbose){ cout << " Cloud of size " << cloud_rec->points.size() << " obtained from 3D reconstruction" << endl;}
 
-    if (saving){
-        CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);}
+    //if (saving){
+    //    CloudUtils::savePointsPly(cloud_rec, cloudsPathTo, saveName, numCloudsSaved);
+    //}
 
     return true;
 }

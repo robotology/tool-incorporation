@@ -3,56 +3,49 @@
     <module>
         <name>toolRecognizer</name>
         <parameters></parameters>
-        <node>pwrNode1</node>
+        <node>icub21</node>
         <prefix></prefix>
         <geometry></geometry>
     </module>
     <module>
         <name>caffeCoder</name>
         <parameters>--name caffeCoderTool</parameters>
-        <node>gpuNode</node>
+        <node>icub-cuda</node>
         <prefix></prefix>
         <geometry>(Pos (x 608.9) (y 495.9))</geometry>
     </module>
     <module>
         <name>dispBlobber</name>
         <parameters>--minBlobSize 1000</parameters>
-        <node>pwrNode1</node>
+        <node>icub22</node>
         <prefix></prefix>
         <geometry>(Pos (x 310) (y 10))</geometry>
     </module>
     <module>
         <name>himrepClassifier</name>
         <parameters>--name himrepClassifierTool</parameters>
-        <node>pwrNode1</node>
+        <node>icub22</node>
         <prefix></prefix>
         <geometry>(Pos (x 1085.9) (y 467.9))</geometry>
     </module>
     <module>
         <name>linearClassifierModule</name>
         <parameters>--name linearClassifierModuleTool --BufferSize 1 --CSVM 1.0 --databaseFolder ToolDatabase --WeightedSVM 1</parameters>
-        <node>pwrNode2</node>
+        <node>icub22</node>
         <prefix></prefix>
         <geometry>(Pos (x 677.9) (y 342.9))</geometry>
     </module>
     <module>
-        <name>objectsPropertiesCollector</name>
-        <parameters>--name memoryTool --db memory_CAFFE_TOOL.ini</parameters>
-        <node>pwrNode3</node>
-        <prefix></prefix>
-        <geometry>(Pos (x 1066.9) (y 237.9))</geometry>
-    </module>
-    <module>
         <name>yarpview</name>
         <parameters>--name /toolViewer/nearBlob --compact</parameters>
-        <node>console</node>
+        <node>icub22</node>
         <prefix></prefix>
         <geometry>(Pos (x 794) (y 148.9))</geometry>
     </module> 
     <module>
         <name>yarpview</name>
         <parameters>--name /toolViewer/crop --compact</parameters>
-        <node>console</node>
+        <node>icub22</node>
         <prefix></prefix>
         <geometry>(Pos (x 794) (y 148.9))</geometry>
     </module>
@@ -75,7 +68,7 @@
         <geometry>(Pos ((x 965.5) (y 628)) ((x 859) (y 629)) ((x 1101) (y 625))  )</geometry>
     </connection>
     <connection>
-        <from external="true">/toolRecognizer/img:o</from>
+        <from external="true">/himrepClassifierTool/img:o</from>
         <to external="true">/toolViewer/crop</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 965.5) (y 628)) ((x 859) (y 629)) ((x 1101) (y 625))  )</geometry>
@@ -121,12 +114,6 @@
         <to external="true">/himrepClassifierTool/SIFTimg:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 929) (y 548.5)) ((x 785) (y 542)) ((x 1102) (y 553))  )</geometry>
-    </connection>
-    <connection>
-        <from external="true">/himrepClassifier/opc</from>
-        <to external="true">/memoryTool/rpc</to>
-        <protocol>tcp</protocol>
-        <geometry>(Pos ((x 824.5) (y 287.5)) ((x 500) (y 286)) ((x 1178) (y 287))  )</geometry>
     </connection>
     <connection>
         <from external="true">/SFM/disp:o</from>
