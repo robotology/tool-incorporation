@@ -399,6 +399,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             saveName = cloud_file_name;
             cloudLoaded = true;
             poseFound = false;
+            symFound = false;
 
             // Display the loaded cloud
             sendPointCloud(cloud_model);
@@ -640,6 +641,10 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_canon (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
         cloud2canonical(cloud_model, cloud_canon);
+
+        // Make the oriented cloud the one in pose, and the canonical one, the model.
+        cloud_pose = cloud_model;
+        cloud_model = cloud_canon;
 
         // Display the loaded cloud
         sendPointCloud(cloud_canon);
@@ -942,7 +947,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
 
-    }else if (receivedCmd == "findPlanes"){
+    }else if (receivedCmd == "findSyms"){
 
         // Check if model is loaded, else return false
         if (!cloudLoaded){
@@ -955,8 +960,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         if (!poseFound){
             *cloud_pose = *cloud_model;}
 
-        //if(!findPlanes(cloud_pose, eigenValues,  eigenPlanes, planeInds)){
-        if(!findPlanes(cloud_pose, toolPose)){
+        //if(!findSyms(cloud_pose, eigenValues,  eigenPlanes, planeInds)){
+        if(!findSyms(cloud_pose, toolPose)){
             cout << "Could not compute the tool main planes and symmetries" << endl;
             reply.addString("[nack] Could not compute symmetries.");
             return false;
@@ -970,7 +975,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         // Check if symmetry has been found already, else return false
         if (!symFound){
             cout << "Need to find main planes before finding the tooltip this way" << endl;
-            reply.addString("[nack] First compute main planes. Try 'findPlanes'.");
+            reply.addString("[nack] First compute main plane symmetries. Try 'findSyms'.");
             return false;
         }
 
@@ -1189,7 +1194,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("findPoseAlign - Find the actual grasp by comparing the actual registration to the given model of the tool.");
         reply.addString("setPoseParam [ori][disp][tilt][shift] - Set the tool pose given the grasp parameters.");
         reply.addString("alignFromFiles (sting)part (string)model - merges cloud 'part' to cloud 'model' from .ply/.pcd files (test for aligning algorithms).");
-        reply.addString("findPlanes - Finds the pose of the tool by analyzing its main planes and their symmetries.");
+        reply.addString("findSyms - Finds the pose of the tool by analyzing its main planes and their symmetries.");
         reply.addString("getOri - Returns the orientation of the tool  (in degrees around -Y axis).");
         reply.addString("getDisp - Returns the displacement of the tool  (in cm).");
         reply.addString("getTilt - Returns the tilt of the tool  (in degrees around Z axis).");
@@ -1432,13 +1437,27 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
     // Rotate tool in hand
     bool mergeAlign = true;            // XXX make rpc selectable
-    int minX = -70, maxX = 70;
-    int minY = -40, maxY = 60;
-    for (int degX = minX; degX<=maxX; degX += 40)
+    int x_angle_array[] = {-70,-30,10, 40,70};
+    std::vector<int> x_angles (x_angle_array, x_angle_array + sizeof(x_angle_array) / sizeof(int) );
+    int y_angle_array[] = {-40,-15,10, 30,60};
+    std::vector<int> y_angles (y_angle_array, y_angle_array + sizeof(y_angle_array) / sizeof(int) );
+
+    int num_ang = x_angles.size() + y_angles.size();
+    for (int i = 0; i< num_ang; i++)
     {
-        cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << " ++++++++++++++++++++" << endl <<endl;
-        // Move hand to new position
-        turnHand(degX,minY);
+        if (i < x_angles.size()){
+            int degX = x_angles[i];
+            cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << "++++++++++++++++++" << endl <<endl;
+            // Move hand to new position
+            turnHand(degX,y_angles[0]);
+        }else{
+            int degY = y_angles[i-x_angles.size()];
+            cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++" << endl <<endl;
+            // Move hand to new position
+            turnHand(0,degY);
+        }
+
+
         //lookAtTool();
         Time::delay(1.0);
 
@@ -1455,6 +1474,9 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
                     cout <<" Spatial distance adapted to " << spDist <<endl;
                 }
 
+                // Extra filter cloud_rec (noise adds up from so many clouds).
+                filterCloud(cloud_rec,cloud_rec, 1.5);
+
 
                 //spDist = adaptDepth(cloud_rec, spDist);
                 if (!mergeAlign){
@@ -1469,11 +1491,11 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
                     if (poseValid)
                         *cloud_rec_merged += *cloud_aligned;
-                }
+                }                
 
                 // Downsample to reduce size and fasten computation
                 downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-                cout << " Cloud at angle X" << degX << " reconstructed " << endl;
+                cout << " Cloud reconstructed " << endl;
                 sendPointCloud(cloud_rec_merged);
 
             //} else {
@@ -1488,62 +1510,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         }
     }
 
-    cout << endl << " + + FINISHED X ROTATION + + " << endl <<endl;
-
-
-    // Rotate tool in hand
-    for (int degY = minY; degY<=maxY; degY += 25)
-    {
-        cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++" << endl <<endl;
-        // Move hand to new position
-        turnHand(0,degY);
-        //lookAtTool();
-        Time::delay(1.0);
-        if (flag3D){
-            // Get partial reconstruction
-            cloud_rec->points.clear();
-            cloud_rec->clear();
-
-            // If cloud was found by any of the prrevious methods
-            //if(getPointCloud(cloud_rec, spDist)){
-                //spDist = adaptDepth(cloud_rec,spDist);
-                while(!getPointCloud(cloud_rec, spDist)){          // Keep on getting clouds until one is valid (should be the first)
-                    lookAround();
-                    spDist = adaptDepth(cloud_rec,spDist);
-                    cout <<" Spatial distance adapted to " << spDist <<endl;
-                }
-
-                if (!mergeAlign){
-                    // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-                    *cloud_rec_merged += *cloud_rec;
-                }else{
-                    // Align new reconstructions to model so far.
-                    alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix);
-                    poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
-                    Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
-                    bool poseValid = checkGrasp(pose);
-
-                    if (poseValid)
-                        *cloud_rec_merged += *cloud_aligned;
-                }
-
-                // Downsample to reduce size and fasten computation
-                downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-                cout << " Cloud at angle Y" << degY << " reconstructed " << endl;
-                sendPointCloud(cloud_rec_merged);
-
-            //} else {
-             //   cout << " Could not reconstruct the cloud" << endl;
-             //   return false;
-            //}
-        }
-        if (flag2D){
-            cout << " Learning new view of tool: " << label << endl;
-            learn(label);
-        }
-
-    }
-    cout << endl << " + + FINISHED Y ROTATION + + " << endl <<endl;
+    cout << endl << " + + FINISHED TOOL ROTATION + + " << endl <<endl;
 
     // filter spurious noise
     cout << endl << " + Applying radius outlier removal + " << endl <<endl;
@@ -1960,16 +1927,8 @@ bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pos
 
 
 /*************************************************************************/
-bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
+bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, vector<Plane3D> &mainplanes, vector< Eigen::Vector3f> &eigVec, Eigen::Vector3f &eigVal, Eigen::Vector3f &mc)
 {
-    // Clear previous data
-    //mainPlanes.clear();
-
-
-
-    // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    downsampleCloud(cloud_raw, cloud, 0.005);
 
     // 1- Find the Major axes of the cloud -> Find major planes as normal to those vectors
     pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
@@ -1977,21 +1936,10 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     feature_extractor.compute();
 
     // Find major axes as eigenVectors
-    vector< Eigen::Vector3f> eigVec(3);                         // Normals to the 3 main planes
-    Eigen::Vector3f eigVal(3);                                  // Relative length in each eigenVector direction.
-    Eigen::Vector3f mc;                                         // Center of mass
-
     feature_extractor.getEigenValues(eigVal[0], eigVal[1], eigVal[2]);
     feature_extractor.getEigenVectors(eigVec[0], eigVec[1], eigVec[2]);
     feature_extractor.getMassCenter(mc);
 
-    Point3D center;
-    center.x = mc[0];           center.y = mc[1];           center.z = mc[2];
-
-    vector<Plane3D> mainPlanes;
-    vector<Plane3D> unitPlanes;
-    int symPlane_i= -1;
-    float minSymDist = 1e9;
     // Find major planes as normal to those vectors
     for (int plane_i = 0; plane_i < eigVec.size(); plane_i ++){
         // Compute coefficients of plane equation ax + by + cz + d = 0
@@ -2001,9 +1949,92 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
         P.c = eigVec[plane_i](2);
         P.d = -P.a*mc(0)-P.b*mc(1)-P.c*mc(2);
 
-        mainPlanes.push_back(P);
+        mainplanes.push_back(P);
+    }
+}
+
+/*************************************************************************//*
+bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
+{
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    downsampleCloud(cloud_raw, cloud, 0.005);
+
+    vector<Plane3D> mainPlanes;
+    vector<Plane3D> unitPlanes;
+
+    vector< Eigen::Vector3f> eigVec(3);                         // Normals to the 3 main planes
+    Eigen::Vector3f eigVal(3);                                  // Relative length in each eigenVector direction.
+    Eigen::Vector3f mc;                                         // Center of mass
+    Point3D center;
+
+    findPlanes(cloud, mainPlanes, eigVec, eigVal, mc);
+    center.x = mc[0];           center.y = mc[1];           center.z = mc[2];
+
+    float dist2origin_min = 1e9;
+    int hanPlane_i = -1;
+    // 2- Compute the minimum distance from plane to origin.
+    // : The effector and symmetry planes go alogn the handle, so they will pass close to the origin,
+    //  while the handle plane (perpendicular to the handle axis), will be far away.
+    for (int plane_i = 0; plane_i < mainPlanes.size(); plane_i ++){
+        Plane3D P;
+        P = mainPlanes[plane_i];
+        uP =
+        Point3D origin;
+        origin.x = 0.0; origin.y = 0.0; origin.z = 0.0;
+
+
+        float d2orig = uP.a*origin.x + uP.b*origin.y + uP.c*origin.z + uP.d;     // Normalized signed distance from origin point to plane_i
+        if (d2orig < dist2origin_min){
+            dist2origin_min = d2orig;
+            hanPlane_i = plane_i;
+        }
+    }
+
+}
+*/
+
+
+/*************************************************************************/
+bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
+{
+
+    // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    filterCloud(cloud_raw, cloud, 1.5);
+    downsampleCloud(cloud, cloud, 0.005);
+
+    sendPointCloud(cloud);
+
+
+    vector<Plane3D> mainPlanes;
+    vector<Plane3D> unitPlanes;
+
+    vector< Eigen::Vector3f> eigVec(3);                         // Normals to the 3 main planes
+    Eigen::Vector3f eigVal(3);                                  // Relative length in each eigenVector direction.
+    Eigen::Vector3f mc;                                         // Center of mass
+    Point3D center;
+
+    findPlanes(cloud, mainPlanes, eigVec, eigVal, mc);
+    center.x = mc[0];           center.y = mc[1];           center.z = mc[2];
+
+    int symPlane_i= -1;
+    float minSymDist = 1e9;
+
+    int hanPlane_i = -1;
+    float dist2origin_min = 1e9;
+
+    Point3D origin;
+    origin.x = 0.0; origin.y = 0.0; origin.z = 0.0;
 
     // 2- Compute symmetry coeffcients w.r.t each of the planes -> Select symmetry plane as one with higher symCoeff
+    for (int plane_i = 0; plane_i < mainPlanes.size(); plane_i ++){
+        Plane3D P;
+        P = mainPlanes[plane_i];
+
+        // Get the normalized plane parameters -> unit planes
+        Plane3D uP = main2unitPlane(P);
+        unitPlanes.push_back(uP);
+
         pcl::PointIndices::Ptr pointsA (new pcl::PointIndices ());
         pcl::PointIndices::Ptr pointsB (new pcl::PointIndices ());
         // Loop through all the points in the cloud and select which side of the plane they belong to.
@@ -2032,9 +2063,6 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
         cout << "The original cloud of size " << cloud->size() << " is divided in two clouds of size " << cloudA->size() << " and " << cloudB->size() << ". "<< endl;
 
-        // Get the normalized plane parameters -> unit planes
-        Plane3D uP = main2unitPlane(P);
-        unitPlanes.push_back(uP);
 
         // Mirror one of the half clouds wrt the plane_i.
         cloudMirror->clear();
@@ -2082,6 +2110,16 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
             minSymDist = sqrt(avgCloudKNNdist);
         }
 
+
+        // 3- Compute the minimum distance from plane to origin.
+        // : The effector and symmetry planes go alogn the handle, so they will pass close to the origin,
+        //  while the handle plane (perpendicular to the handle axis), will be far away.
+        float d2orig = uP.a*origin.x + uP.b*origin.y + uP.c*origin.z + uP.d;     // Normalized signed distance from origin point to plane_i
+        if (d2orig < dist2origin_min){
+            dist2origin_min = d2orig;
+            hanPlane_i = plane_i;
+        }
+
         // merge cloud A and B in cloud AB for visualization
         if (vis)
         {
@@ -2103,6 +2141,15 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     //planesI["sym"] = symPlane_i;
 
 
+    int effPlane_i= -1;
+    for (int i = 0; i< mainPlanes.size();i++)
+    {
+        if ((i != hanPlane_i) && (i != symPlane_i)) {      // min eigenvalue not of symmetry plane
+            effPlane_i = i;
+        }
+    }
+
+    /*
     // find the effector plane: shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
     eigVal[symPlane_i]= 1e09;                         // Make the value of symmetrical plane huge so that it will never be the minimum;
     float effEV = 1e08;
@@ -2134,6 +2181,8 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
         return false;
     }
     //planesI["han"] = hanPlane_i;
+   */
+
 
     //cout << "Planes correspond to indices: sym_i = " << planesI["sym"] << ", eff_i = " << planesI["eff"] << ", han_i = " << planesI["han"] << "." << endl;
 
@@ -2148,18 +2197,18 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     xTool.push_back(eigVec[effPlane_i][0]);     xTool.push_back(eigVec[effPlane_i][1]);     xTool.push_back(eigVec[effPlane_i][2]);
     yTool.push_back(eigVec[hanPlane_i][0]);     yTool.push_back(eigVec[hanPlane_i][1]);     yTool.push_back(eigVec[hanPlane_i][2]);
 
-    // XXX Figure out what to do when the tool is rotated more than 90 degrees (XdotX is positive, so it believes ts oriented backwards)
-    double x_sign = dot(xTool,xRef);
+    // XXX Figure out what to do when the tool is rotated more than 90 degrees (XdotX is positive, so it believes ts oriented backwards)    
+    double x_sign = dot(xTool,xRef);    
     if (x_sign<0){
         xTool = xTool*(-1);
         cout << "X sign changed"<< endl;
     }
-
     double y_sign = dot(yTool,yRef);
     if (y_sign<0){
         yTool = yTool*(-1);
         cout << "Y sign changed"<< endl;
     }
+
 
     zTool = cross(xTool, yTool);
 
@@ -2167,9 +2216,9 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
     Matrix R(4,4);
     // effector eigVec-> X     handle eigVec-> Y      symmetry eigVec-> Z
-    R(0,0) = xTool[0];         R(0,1) = yTool[0];     R(0,2) = zTool[0];         R(0,3) = mc[0];
-    R(1,0) = xTool[1];         R(1,1) = yTool[1];     R(1,2) = zTool[1];         R(1,3) = mc[1];
-    R(2,0) = xTool[2];         R(2,1) = yTool[2];     R(2,2) = zTool[2];         R(2,3) = mc[2];
+    R(0,0) = xTool[0];         R(0,1) = yTool[0];     R(0,2) = zTool[0];         R(0,3) = center.x;
+    R(1,0) = xTool[1];         R(1,1) = yTool[1];     R(1,2) = zTool[1];         R(1,3) = center.y;
+    R(2,0) = xTool[2];         R(2,1) = yTool[2];     R(2,2) = zTool[2];         R(2,3) = center.z;
     R(3,0) = 0.0;              R(3,1) = 0.0;          R(3,2) = 0.0;              R(3,3) = 1.0;
 
     cout << "Found rotation matrix " << endl << R.toString() << endl;
@@ -2182,7 +2231,7 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
     cout << "Original returned parameters are   or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
-    disp = disp - mc(1);
+    disp = disp - center.y;
     cout << "Parameters computed from symmetry: or= " << ori << ", disp= " << disp << ", tilt= " << tilt << ", shift= " << shift << "." <<endl;
 
     // Plot tool reference frame comptued from main planes in viewer
@@ -2814,16 +2863,34 @@ bool Objects3DExplorer::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>:
     Eigen::Matrix4f toolMatrix;
     if (!symFound)
     {
-        findPlanes(cloud_pose, toolPose);
+        findSyms(cloud_model, toolPose);
     }
 
     tool = toolPose;
     toolMatrix = CloudUtils::yarpMat2eigMat(tool);
     Eigen::Matrix4f tool2origin = toolMatrix.inverse();
+
     pcl::transformPointCloud(*cloud_orig, *cloud_canon, tool2origin);
 
-    // XXX this should put the center of the tool on the origin. Need to be translated "up", so that the lower point is at -6 on Y axis (6 is the radius we remove when recording the tool)
+    // find lower point along handle axis (-Y), i.e. max on Y
+    double dist_Y_max = 0.0;
+    for (unsigned int pt_i=0; pt_i<cloud_canon->points.size(); pt_i++)
+    {
+        pcl::PointXYZRGB *pt = &cloud_canon->at(pt_i);
+        double dist_Y = pt->y;           // Compute distance around hand reference frame
+        if (dist_Y > dist_Y_max){
+            dist_Y_max = dist_Y;
+        }
+    }
 
+    // Use that distance plus the removed hand radius to set the tool in right position
+    //Eigen::Matrix4f handle_trans = Eigen::MatrixBase::Identity(4,4);
+    Eigen::Matrix4f handle_trans = Eigen::Matrix4f::Identity();
+    handle_trans(1,3) = -(dist_Y_max + 0.06);     // Add the removed hand sphere radius to the distance.
+
+    pcl::transformPointCloud(*cloud_canon, *cloud_canon, handle_trans);
+
+    return true;
 }
 
 /************************************************************************/

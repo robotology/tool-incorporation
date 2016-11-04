@@ -160,7 +160,8 @@ protected:
     bool                checkGrasp(const yarp::sig::Matrix &pose);
 
     bool                findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D &ttCanon);    
-    bool                findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::sig::Matrix &pose, int K = 5, bool vis = true);    
+    bool                findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, yarp::sig::Matrix &pose, int K = 5, bool vis = true);
+    bool                findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, std::vector<Plane3D> &mainplanes, std::vector< Eigen::Vector3f> &eigVec, Eigen::Vector3f &eigVal, Eigen::Vector3f &mc );
     bool                findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, Point3D& ttSym, double effW = 0.8);
     Plane3D             main2unitPlane(const Plane3D main);
 
