@@ -1437,9 +1437,11 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
     // Rotate tool in hand
     bool mergeAlign = true;            // XXX make rpc selectable
-    int x_angle_array[] = {-70,-30,10, 40,70};
+    //int x_angle_array[] = {-70,-30,10, 40, 70};
+    int x_angle_array[] = {-70, 10, 60};
     std::vector<int> x_angles (x_angle_array, x_angle_array + sizeof(x_angle_array) / sizeof(int) );
-    int y_angle_array[] = {-40,-15,10, 30,60};
+    //int y_angle_array[] = {-40,-15,10, 30,60};
+    int y_angle_array[] = {-30,10, 50};
     std::vector<int> y_angles (y_angle_array, y_angle_array + sizeof(y_angle_array) / sizeof(int) );
 
     int num_ang = x_angles.size() + y_angles.size();
@@ -1739,6 +1741,12 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     }
 
     //scaleCloud(cloud_rec, cloud_rec);
+
+    // Clean the depth visualization.
+    Time::delay(0.5);
+    cmdOR.clear();	replyOR.clear();
+    cmdOR.addString("clear");
+    rpcObjRecPort.write(cmdOR,replyOR);
 
 
     if (cloud_rec->size() < 100){
