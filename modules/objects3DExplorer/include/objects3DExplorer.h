@@ -151,6 +151,9 @@ protected:
     double              adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance);
 
     /* Object info from Cloud */
+    bool                loadCloud(const std::string &cloud_name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+    bool                saveCloud(const std::string &cloud_name, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+
     bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam = -1.0);
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 

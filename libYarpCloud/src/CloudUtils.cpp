@@ -53,7 +53,7 @@ bool CloudUtils::loadCloud(const string& cloudpath, const string& cloudname, pcl
                     PCL_ERROR("Error loading cloud %s.\n", cloudname.c_str());
                     return false;
                 }
-        }else if(strcmp(ext.c_str(),"coff")==0) // Check if it is .off
+        }else if(strcmp(ext.c_str(),"coff")==0) // Check if it is .coff
             {
                 printf ("Loading .off file: %s\n", cloudname.c_str());
                 if (!loadOFFFile (cloudpath + cloudname, cloud_to))	{

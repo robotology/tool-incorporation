@@ -378,33 +378,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     //================================= GET MODEL COMMANDS ================================
 
     if (receivedCmd == "loadCloud"){
-            string cloud_file_name;
-            string cloud_name = command.get(1).asString();
-            if (robot == "icubSim"){
-                cloud_file_name = "sim/" + cloud_name;
-            }else{
-                cloud_file_name = "real/" + cloud_name;
-            }
+        string cloud_name = command.get(1).asString();
+        loadCloud(cloud_name, cloud_model);
 
-            cout << "Attempting to load " << (cloudsPathFrom + cloud_file_name).c_str() << "... "<< endl;
+        // Display the loaded cloud
+        sendPointCloud(cloud_model);
 
-            // load cloud to be displayed
-            if (!CloudUtils::loadCloud(cloudsPathFrom, cloud_file_name, cloud_model))  {
-                std::cout << "Error loading point cloud " << cloud_file_name.c_str() << endl << endl;
-                return false;
-            }
+        reply.addString("[ack]");
+        return true;
 
-            cout << "cloud of size "<< cloud_model->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
-
-            saveName = cloud_file_name;
-            cloudLoaded = true;
-            poseFound = false;
-            symFound = false;
-
-            // Display the loaded cloud
-            sendPointCloud(cloud_model);
-            reply.addString("[ack]");
-            return true;
+    }else if (receivedCmd == "saveCloud"){
+        saveCloud(cloud_name, cloud_pose);
+        reply.addString("[ack]");
+        return true;
 
 
     }else if (receivedCmd == "get3D"){
@@ -1528,14 +1514,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
         cout << "Cloud model reconstructed" << endl;
         if (saving){
-            string modelname;
-            if (robot == "icubSim"){
-                modelname = "sim/" + saveName;
-            }else{
-                modelname = "real/" + saveName;
-            }
-            CloudUtils::savePointsPly(cloud_rec_merged, cloudsPathTo, modelname);
-            cout << "Cloud model saved as "<<  modelname << endl;
+            string modelname = saveName + "_rec";
+            saveCloud(modelname, cloud_rec_merged);
         }
     }
     if (flag2D){
@@ -1649,11 +1629,56 @@ bool Objects3DExplorer::recognize(string &label){
 
     cout << "Tool Recognized as: " << label << endl;
     return true;
-
 }
 
 
 /* CLOUD INFO */
+/************************************************************************/
+bool Objects3DExplorer::loadCloud(const std::string &cloud_name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+{
+    string cloud_file_name;
+    if (robot == "icubSim"){
+        cloud_file_name = "sim/" + cloud_name;
+    }else{
+        cloud_file_name = "real/" + cloud_name;
+    }
+
+    cout << "Attempting to load " << (cloudsPathFrom + cloud_file_name).c_str() << "... "<< endl;
+
+    // load cloud to be displayed
+    if (!CloudUtils::loadCloud(cloudsPathFrom, cloud_file_name, cloud))  {
+        std::cout << "Error loading point cloud " << cloud_file_name.c_str() << endl << endl;
+        return false;
+    }
+
+    cout << "cloud of size "<< cloud->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
+
+    saveName = cloud_name;
+    cloudLoaded = true;
+    poseFound = false;
+    symFound = false;
+
+    return true;
+}
+
+
+/************************************************************************/
+bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+{
+    string cloud_file_name;
+    if (robot == "icubSim"){
+        cloud_file_name = "sim/" + cloud_name;
+    }else{
+        cloud_file_name = "real/" + cloud_name;
+    }
+    CloudUtils::savePointsPly(cloud, cloudsPathTo, cloud_file_name);
+    cout << "Cloud model of size " << cloud->size() << "saved as "<<  cloud_file_name << endl;
+
+    return true;
+}
+
+
+
 /************************************************************************/
 bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam)
 {
