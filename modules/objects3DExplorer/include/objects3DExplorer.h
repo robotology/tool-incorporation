@@ -181,8 +181,8 @@ protected:
 
     /* Learn - recognize tools from vision */
 
-    bool                learn(const std::string &label);
-    bool                recognize(std::string &label);
+    bool                learn(const std::string &label, bool depthBB = true);
+    bool                recognize(std::string &label, bool depthBB = true);
 
     /* Cloud Utils */
     bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);

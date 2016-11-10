@@ -71,9 +71,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     //open ports
     bool ret = true;
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());    // port to receive pointclouds from
-    ret =  ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
-
-    // XXX eventually might be ok to remove this port, and all the functions to send out clouds, as that is now handled by obj3Dexp
+    ret = ret && feat3DoutPort.open("/"+name+"/feats3D:o");			// Port which outputs the vector containing all the extracted features
     ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());    // port to receive pointclouds from
     if (!ret){
         printf("Problems opening ports\n");
@@ -96,7 +94,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     /*Init variables*/
     cloudLoaded = false;
     cloudTransformed = false;
-    cloudname = "cloud_merged.ply";
+    cloudname = "cloud.ply";
     cloud_orig = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
     cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
     rotMat = eye(4,4);
@@ -132,6 +130,8 @@ bool ToolFeatExt::updateModule()
 bool ToolFeatExt::interruptModule()
 {
     closing = true;
+    cloudsOutPort.interrupt();
+    cloudsInPort.interrupt();
     rpcInPort.interrupt();
     feat3DoutPort.interrupt();
     rpcVisualizerPort.interrupt();
@@ -144,6 +144,8 @@ bool ToolFeatExt::close()
 {
     cout<<"Calling close function\n";
     rpcInPort.close();
+    cloudsOutPort.close();
+    cloudsInPort.close();
     feat3DoutPort.close();
     rpcVisualizerPort.close();
     return true;
@@ -179,7 +181,7 @@ bool ToolFeatExt::getFeats()
 bool ToolFeatExt::getSamples(const int n, const double deg)
 {
     if (!cloudLoaded){
-        if (!loadToolModel())
+        if (!loadToolModel(cloudname))
         {
             fprintf(stdout,"Couldn't load cloud");
             return -1;
@@ -218,15 +220,10 @@ bool ToolFeatExt::getAllToolFeats(const int n_samples, bool pics)
         string::size_type idx;
         idx = meshName.rfind('.');
         string cloudName = meshName.substr(0,idx);  //remove format
-        string fileName;
-        if (robot == "icubSim"){
-            fileName = "sim/"+ cloudName;}
-        else{
-            fileName = "real/"+ cloudName;}
 
-        cout << "cloud model: " << fileName << endl;
+        cout << "cloud model: " << cloudName << endl;
 
-        if (!loadModel(fileName)){
+        if (!loadModel(cloudName)){
             cout << "Couldn't load model for tool " << cloudName << endl;
             return false;
         }
@@ -311,9 +308,9 @@ bool ToolFeatExt::setDepth(const int depthN)
 
 /**********************************************************/
 bool ToolFeatExt::loadModel(const string& name)
-{   //Changes the name of the .ply file to display. Default 'cloud_merged.ply'"
+{   //Changes the name of the .ply file to display. Default 'cloud.ply'"
     cloudname = name;
-    return loadToolModel();
+    return loadToolModel(name);
 }
 
 
@@ -386,10 +383,16 @@ bool ToolFeatExt::loadModelsFromFile(ResourceFinder &rf)
 }
 
 /************************************************************************/
-bool ToolFeatExt::loadToolModel()
+bool ToolFeatExt::loadToolModel(const std::string &tool)
 {
+    string fileName;
+    if (robot == "icubSim"){
+        fileName = "sim/"+ tool;}
+    else{
+        fileName = "real/"+ tool;}
+
     cout << endl <<" +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
-    cout << "Loading tool model cloud from file" << cloudpath.c_str() << cloudname.c_str() << endl;
+    cout << "Loading tool model cloud from file" << cloudpath << fileName << endl;
 
     // (Re-) initialize cloud transformations
     cloud_orig->points.clear();
@@ -397,7 +400,7 @@ bool ToolFeatExt::loadToolModel()
     cloudTransformed = false;
     rotMat = eye(4,4);
 
-    if (CloudUtils::loadCloud(cloudpath, cloudname, cloud_orig))
+    if (CloudUtils::loadCloud(cloudpath, fileName, cloud_orig))
     {
         cout << "Loaded tool model of size: " << cloud_orig->points.size () << endl;
         cloudLoaded = true;
@@ -418,7 +421,7 @@ bool ToolFeatExt::transform2pose(const Matrix &toolPose)
 
     //Load cloud if ain't yet loaded
     if (!cloudLoaded){
-        if (!loadToolModel())
+        if (!loadToolModel(cloudname))
         {
             printf("Couldn't load cloud");
             return false;
@@ -449,7 +452,7 @@ int ToolFeatExt::computeOMSEGI()
     cout << endl <<" +++++++++++++++++++++++++++++ FEATURE EXTRACTION ++++++++++++++++++++++++++++++++++++ " << endl;
 
     if (!cloudLoaded){
-        if (!loadToolModel())
+        if (!loadToolModel(cloudname))
         {
             printf("Couldn't load cloud");
             return -1;

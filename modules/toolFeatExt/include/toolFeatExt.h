@@ -96,7 +96,7 @@ protected:
     bool cloudTransformed;
 
     /* functions*/    
-    bool loadToolModel();
+    bool loadToolModel(const std::string &tool);
     bool loadModelsFromFile(yarp::os::ResourceFinder &rf);
     bool transform2pose(const yarp::sig::Matrix& toolPose = yarp::math::eye(4,4));
     int  computeOMSEGI();

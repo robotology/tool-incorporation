@@ -388,6 +388,15 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
     }else if (receivedCmd == "saveCloud"){
+
+        string cloud_name;
+        if (command.size() < 2){
+            cloud_name = saveName;
+        }else{
+            cloud_name = command.get(1).asString();
+        }
+
+
         saveCloud(cloud_name, cloud_pose);
         reply.addString("[ack]");
         return true;
@@ -528,7 +537,12 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         string label_train = command.get(1).asString();
 
-        bool ok = learn(label_train);
+        bool depthBB = true;
+        if (command.size() ==3 ){
+            depthBB = command.get(2).asBool();;
+        }
+
+        bool ok = learn(label_train, depthBB);
 
         if (ok){
             reply.addString("[ack]");
@@ -544,8 +558,11 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     }else if (receivedCmd == "recog"){
 
         string label_pred;
-
-        bool ok = recognize(label_pred);
+        bool depthBB = true;
+        if (command.size() ==2 ){
+            depthBB = command.get(1).asBool();;
+        }
+        bool ok = recognize(label_pred, depthBB);
 
         if (ok){
             reply.addString("[ack]");
@@ -1557,26 +1574,31 @@ bool Objects3DExplorer::lookAround()
 }
 
 /**********************************************************/
-bool Objects3DExplorer::learn(const string &label){
+bool Objects3DExplorer::learn(const string &label, bool depthBB ){
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
-    Vector BB(4,0.0);
-    BB[0] = tooltip2D.u - bbsize/4;         // tlx
-    if (BB[0]< 0){        BB[0]= 0;    }
-    BB[1] = tooltip2D.v - bbsize/4;         // tly
-    if (BB[1]< 0){        BB[1]= 0;    }
-    BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
-    if (BB[2]> imgW){
-        BB[2]= imgW-1;
-        cout << " BB brx lmited to: " << BB[2] << endl;
-    }
-    BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
-    if (BB[3]> imgH){
-        BB[3]= imgH-1;
-    cout << " BB bry lmited to: " << BB[3] << endl;
-    }
 
-    cout << "BB around tooltip " << tooltip2D.u << ", " << tooltip2D.v << " is : " << BB[0]<< ", " << BB[1]<< "; " << BB[2]<< ", "<< BB[3]<< ". " <<endl;
+    Vector BB(4,0.0);
+    if (depthBB){
+        BB[0] = 0;     BB[1] = 0;    BB[2] = 0;      BB[3] = 0;
+    }else{
+        BB[0] = tooltip2D.u - bbsize/4;         // tlx
+        if (BB[0]< 0){        BB[0]= 0;    }
+        BB[1] = tooltip2D.v - bbsize/4;         // tly
+        if (BB[1]< 0){        BB[1]= 0;    }
+        BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
+        if (BB[2]> imgW){
+            BB[2]= imgW-1;
+            cout << " BB brx lmited to: " << BB[2] << endl;
+        }
+        BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
+        if (BB[3]> imgH){
+            BB[3]= imgH-1;
+        cout << " BB bry lmited to: " << BB[3] << endl;
+        }
+
+        cout << "BB around tooltip " << tooltip2D.u << ", " << tooltip2D.v << " is : " << BB[0]<< ", " << BB[1]<< "; " << BB[2]<< ", "<< BB[3]<< ". " <<endl;
+    }
 
     // Send to toolRecognizer module /applications
     Bottle cmdClas, replyClas;
@@ -1595,7 +1617,7 @@ bool Objects3DExplorer::learn(const string &label){
 
 }
 
-bool Objects3DExplorer::recognize(string &label){
+bool Objects3DExplorer::recognize(string &label,  bool depthBB){
 
 
     // As tool is unknown, define generic tooltip for exploration:
@@ -1606,21 +1628,27 @@ bool Objects3DExplorer::recognize(string &label){
     // look at tool
     turnHand(0,0);
 
-    // get tooltip and define a BB around it (check bb does not exceed image size).
+    // It probably works better with the depth extracted bounding box
     Vector BB(4,0.0);
-    BB[0] = tooltip2D.u - bbsize/4;         // tlx
-    if (BB[0]< 0){        BB[0]= 0;    }
-    BB[1] = tooltip2D.v - bbsize/4;         // tly
-    if (BB[1]< 0){        BB[1]= 0;    }
-    BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
-    if (BB[2]> imgW){        BB[2]= imgW;    }
-    BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
-    if (BB[3]> imgH){        BB[3]= imgH;    }
+    if (depthBB){
+        BB[0] = 0;     BB[1] = 0;    BB[2] = 0;      BB[3] = 0;
+    }else{
+    // get tooltip and define a BB around it (check bb does not exceed image size).
+
+        BB[0] = tooltip2D.u - bbsize/4;         // tlx
+        if (BB[0]< 0){        BB[0]= 0;    }
+        BB[1] = tooltip2D.v - bbsize/4;         // tly
+        if (BB[1]< 0){        BB[1]= 0;    }
+        BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
+        if (BB[2]> imgW){        BB[2]= imgW;    }
+        BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
+        if (BB[3]> imgH){        BB[3]= imgH;    }
+    }
 
     // Send to toolRecognizer module /applications
     Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
-    cmdClas.addString("recognize");
+    cmdClas.addString("recognize");    
     cmdClas.addInt(BB[0]);
     cmdClas.addInt(BB[1]);
     cmdClas.addInt(BB[2]);
@@ -2447,19 +2475,19 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 
             // Select the tool
             if (toolI == 0){
-                toolName = "real/HOE3";  // Metal Hoe
+                toolName = "HOE3";  // Metal Hoe
             }
             if (toolI == 1){
-                toolName = "real/HOK3";  // All round hook
+                toolName = "HOK3";  // All round hook
             }
             if (toolI = 2){
-                toolName = "real/RAK2";   // Blue Rake
+                toolName = "RAK2";   // Blue Rake
             }
             if (toolI = 3){
-                toolName = "real/STI3";   // 2-Markers stick
+                toolName = "STI3";   // 2-Markers stick
             }
             if (toolI = 4){
-                toolName = "real/SHO3";   // Yellow shovel
+                toolName = "SHO3";   // Yellow shovel
             }
             affBottle.addString(toolName);
             Property &affProps = affBottle.addDict();
@@ -2556,19 +2584,19 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
     double toolI = -1, poseI = 0;
-    if (tool == "real/HOE3"){  // Metal Hoe
+    if (tool == "HOE3"){  // Metal Hoe
         toolI = 0;
     }
-    if (tool == "real/HOK3"){  // All round hook
+    if (tool == "HOK3"){  // All round hook
         toolI = 1;
     }
-    if (tool == "real/RAK2"){   // Blue Rake
+    if (tool == "RAK2"){   // Blue Rake
         toolI = 2;
     }
-    if (tool == "real/STI3"){   // 2-Markers stick
+    if (tool == "STI3"){   // 2-Markers stick
         toolI = 3;
     }
-    if (tool == "real/SHO3"){   // Yellow shovel
+    if (tool == "SHO3"){   // Yellow shovel
         toolI = 4;
     }
     if (toolI == -1){
