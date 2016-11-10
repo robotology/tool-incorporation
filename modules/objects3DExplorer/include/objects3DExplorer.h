@@ -53,6 +53,7 @@
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/surface/mls.h>
 
 
 #include <cv.h>
@@ -107,6 +108,11 @@ protected:
     double                              icp_ranORT;
     double                              icp_transEp;
 
+    // mls variables
+    double                              mls_rad;
+    double                              mls_usRad;
+    double                              mls_usStep;
+
     // noise params
     double                              noise_mean;
     double                              noise_sigma;
@@ -154,7 +160,7 @@ protected:
     bool                loadCloud(const std::string &cloud_name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                saveCloud(const std::string &cloud_name, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
-    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam = -1.0);
+    bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam = -1.0, double handRad = 0.06);
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
     bool                findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, yarp::sig::Matrix &pose, const int T = 5);

@@ -108,6 +108,10 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     icp_ranORT = 0.05;
     icp_transEp = 0.0001;
 
+    mls_rad = 0.02;
+    mls_usRad = 0.005;
+    mls_usStep = 0.003;
+
     // Noise generation variables
     noise_mean = 0.0;
     noise_sigma = 0.003;
@@ -1416,6 +1420,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     Eigen::Matrix4f alignMatrix;
     Eigen::Matrix4f poseMatrix;
     double spDist = 0.004;
+    double hand_rad = 0.04; // Set a small radius for hand removal, so as much handle as possible is preserved.
 
     turnHand(0,0);
 
@@ -1426,7 +1431,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         cout << " Get first cloud" << endl;
         // Get inital cloud model on central orientation
 
-        while(!getPointCloud(cloud_rec_merged, spDist)){          // Keep on getting clouds until one is valid (should be the first)
+        while(!getPointCloud(cloud_rec_merged, spDist, hand_rad)){          // Keep on getting clouds until one is valid (should be the first)
             lookAround();
             spDist = adaptDepth(cloud_rec_merged,spDist);
             cout <<" Spatial distance adapted to " << spDist <<endl;
@@ -1471,42 +1476,35 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             cloud_rec->points.clear();
             cloud_rec->clear();
 
-            // If cloud was found by any of the previous methods
-            //if(getPointCloud(cloud_rec, spDist)){
-                while(!getPointCloud(cloud_rec, spDist)){          // Keep on getting clouds until one is valid (should be the first)
-                    lookAround();
-                    spDist = adaptDepth(cloud_rec,spDist);
-                    cout <<" Spatial distance adapted to " << spDist <<endl;
-                }
+            while(!getPointCloud(cloud_rec, spDist, hand_rad)){          // Keep on getting clouds until one is valid (should be the first)
+                lookAround();
+                spDist = adaptDepth(cloud_rec,spDist);
+                cout <<" Spatial distance adapted to " << spDist <<endl;
+            }
 
-                // Extra filter cloud_rec (noise adds up from so many clouds).
-                filterCloud(cloud_rec,cloud_rec, 1.5);
+            // Extra filter cloud_rec (noise adds up from so many clouds).
+            filterCloud(cloud_rec,cloud_rec, 1.5);
 
 
-                //spDist = adaptDepth(cloud_rec, spDist);
-                if (!mergeAlign){
-                    // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
-                    *cloud_rec_merged += *cloud_rec;
-                }else{
-                    // Align new reconstructions to model so far.
-                    alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix);
-                    poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
-                    Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
-                    bool poseValid = checkGrasp(pose);
+            //spDist = adaptDepth(cloud_rec, spDist);
+            if (!mergeAlign){
+                // Add clouds without aligning (aligning is implicit because they are all transformed w.r.t the hand reference frame)
+                *cloud_rec_merged += *cloud_rec;
+            }else{
+                // Align new reconstructions to model so far.
+                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix);
+                poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
+                Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
+                bool poseValid = checkGrasp(pose);
 
-                    if (poseValid)
-                        *cloud_rec_merged += *cloud_aligned;
-                }                
+                if (poseValid)
+                    *cloud_rec_merged += *cloud_aligned;
+            }
 
-                // Downsample to reduce size and fasten computation
-                downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
-                cout << " Cloud reconstructed " << endl;
-                sendPointCloud(cloud_rec_merged);
-
-            //} else {
-            //    cout << " Could not reconstruct the cloud" << endl;
-            //    return false;
-            //}
+            // Downsample to reduce size and fasten computation
+            downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
+            cout << " Cloud reconstructed " << endl;
+            sendPointCloud(cloud_rec_merged);
         }
 
         if (flag2D){
@@ -1710,7 +1708,7 @@ bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::Poin
 
 
 /************************************************************************/
-bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam)
+bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam, double handRad)
 {
     cloud_rec->points.clear();
     cloud_rec->clear();   // clear receiving cloud
@@ -1759,7 +1757,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     pcl::PassThrough<pcl::PointXYZRGB> passZ;
     passZ.setInputCloud (cloud_rec);
     passZ.setFilterFieldName ("z");
-    passZ.setFilterLimits (-0.1, 0.1);
+    passZ.setFilterLimits (-0.15, 0.15);
     passZ.filter (*cloud_rec);
 
      // ... and removing outliers
@@ -1772,8 +1770,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
     // Remove hand (all points within 6 cm from origin)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_nohand (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    if (handFrame) {
-        double handRad = 0.06;
+    if (handFrame) {        
         pcl::PointIndices::Ptr pointsTool (new pcl::PointIndices ());
         for (unsigned int ptI=0; ptI<cloud_rec->points.size(); ptI++)
         {
@@ -2061,7 +2058,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
 
     // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    filterCloud(cloud_raw, cloud, 1.5);
+    //filterCloud(cloud_raw, cloud, 1.5);
     downsampleCloud(cloud, cloud, 0.005);
 
     sendPointCloud(cloud);
@@ -3118,22 +3115,61 @@ bool Objects3DExplorer::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>:
 }
 
 /************************************************************************/
-bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out, double thr)
+bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filter, double thr)
 {
-    //if (verbose){cout << "Model total points: " << cloud_orig->size () << endl;}
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil(new pcl::PointCloud<pcl::PointXYZRGB>);
+    // Apply some filtering to clean the cloud
+    // First of all, remove possible NaNs
+    std::vector<int> indices;
+    pcl::removeNaNFromPointCloud(*cloud_orig, *cloud_orig, indices);
+
     // ... and removing outliers
+    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
+    ror.setInputCloud(cloud_orig);
+    ror.setRadiusSearch(0.05);
+    ror.setMinNeighborsInRadius(5);
+    ror.filter(*cloud_filter);
+    cout << "--Size after rad out rem: " << cloud_filter->points.size() << "." << endl;
+
+
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor; //filter to remove outliers
     sor.setStddevMulThresh (thr);
-    sor.setInputCloud (cloud_orig);
+    sor.setInputCloud (cloud_filter);
     sor.setMeanK(10);
-    sor.filter (*cloud_fil);
-    copyPointCloud(*cloud_fil, *cloud_out);
+    sor.filter (*cloud_filter);
+    cout << "--Size after Stat outrem: " << cloud_filter->points.size() << "." << endl;
 
-    // if (verbose){cout << " Downsampled to: " << cloud_ds->size () << endl;}
+    // Perform Moving least squares to smooth surfaces
+    // Init object (second point type is for the normals, even if unused)
+
+    // XXX Dirty hack to do it with XYZ clouds. Check better ways (less conversions) to change XYZ <-> XYZRGB
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>);
+    copyPointCloud(*cloud_filter, *cloudNoColor);
+
+    //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+    //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
+    //    mls.setInputCloud (cloud_filter);
+    mls.setInputCloud(cloudNoColor);
+    mls.setSearchMethod(tree);
+    mls.setSearchRadius(mls_rad);
+    mls.setPolynomialFit(true);
+    mls.setPolynomialOrder(2);
+    mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
+    mls.setUpsamplingRadius(mls_usRad);
+    mls.setUpsamplingStepSize(mls_usStep);
+    mls.process(*cloudNoColorFilter);
+    copyPointCloud(*cloudNoColorFilter, *cloud_filter);
+    //    mls.process (*cloud_filter);
+    cout << "--Size after Mov leastsq: " << cloud_filter->points.size() << "." << endl;
+
+//    if (verbose){ cout << " Cloud of size " << cloud_filter->points.size() << "after filtering." << endl;}
 
     return true;
 }
+
+
 
 
 /************************************************************************/
