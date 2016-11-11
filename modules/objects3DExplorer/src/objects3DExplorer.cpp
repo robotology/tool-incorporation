@@ -2084,7 +2084,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     Point3D origin;
     origin.x = 0.0; origin.y = 0.0; origin.z = 0.0;
 
-    // 2- Compute symmetry coeffcients w.r.t each of the planes -> Select symmetry plane as one with higher symCoeff
+    // 2- Compute symmetry coeffcients w.r.t each of the planes ->  symmetry plane as one with higher symCoeff
     for (int plane_i = 0; plane_i < mainPlanes.size(); plane_i ++){
         Plane3D P;
         P = mainPlanes[plane_i];
@@ -2198,7 +2198,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     cout << "The symmetry plane is plane " << symPlane_i << endl;
     //planesI["sym"] = symPlane_i;
 
-
+    // Symmetry plane is that of max symmetry, handle plane the one with normal close to origin. Thus, the remaning one is effector plane
     int effPlane_i= -1;
     for (int i = 0; i< mainPlanes.size();i++)
     {
@@ -2430,7 +2430,7 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
     int rows = 3*numTools;
     int cols = 4;
     Matrix affMatrix(rows,cols);
-    // affMatrix contains the pre-learnt affordances of the 4 possible tools. (can be easily extended for new tools).
+    // affMatrix contains the pre-learnt affordances of the 5 possible tools. (can be easily extended for new tools).
     // each row is corresponds to a tool-pose, each column (p) to a possible action (a).
     // Thus, tools are represented in groups of 3 rows, corresponding to poses : left, front, right.
     // The value on (p,a) represents if the action 'a' can be achieved with tool-pose 'p', and therfore is boolean (could also be extended to percentage).
@@ -2528,6 +2528,7 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
     }
     return true;
 }
+
 
 bool Objects3DExplorer::getAffProps(const Matrix &affMatrix, Property &affProps)
 {
