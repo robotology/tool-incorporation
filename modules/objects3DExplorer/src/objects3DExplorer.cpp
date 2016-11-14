@@ -652,7 +652,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }else{
 
             cloud2canonical(cloud_model, cloud_canon);
-            cloud_pose = cloud_model;
+            cloud_pose = cloud_canon;
             cloud_model = cloud_canon;
         }
 
@@ -1452,7 +1452,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     int x_angle_array[] = {-70, 10, 60};
     std::vector<int> x_angles (x_angle_array, x_angle_array + sizeof(x_angle_array) / sizeof(int) );
     //int y_angle_array[] = {-40,-15,10, 30,60};
-    int y_angle_array[] = {-30,10, 50};
+    //int y_angle_array[] = {-30,10, 50};
+    int y_angle_array[] = {-10,20};
     std::vector<int> y_angles (y_angle_array, y_angle_array + sizeof(y_angle_array) / sizeof(int) );
 
     int num_ang = x_angles.size() + y_angles.size();
@@ -1531,7 +1532,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             ror.setMinNeighborsInRadius(5);
             ror.filter(*cloud_rec_merged);
         }
-        //filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
+        filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
         sendPointCloud(cloud_rec_merged);
 
         cout << "Cloud model reconstructed" << endl;
@@ -2065,7 +2066,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
     copyPointCloud(*cloud_raw, *cloud);
 
-    //filterCloud(cloud_raw, cloud, 1.5);
+    filterCloud(cloud_raw, cloud, 1);
     downsampleCloud(cloud, cloud, 0.005);
 
     sendPointCloud(cloud);
@@ -2086,7 +2087,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     float minSymDist = 1e9;
 
     int hanPlane_i = -1;
-    float dist2origin_min = 1e9;
+    float dist2origin_max = 0.0;
 
     Point3D origin;
     origin.x = 0.0; origin.y = 0.0; origin.z = 0.0;
@@ -2181,8 +2182,8 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
         //  while the handle plane (perpendicular to the handle axis), will be far away.
         float d2orig = uP.a*origin.x + uP.b*origin.y + uP.c*origin.z + uP.d;     // Normalized signed distance from origin point to plane_i
         cout << "Distance of plane to origin is  " << d2orig << endl;
-        if (d2orig < dist2origin_min){
-            dist2origin_min = d2orig;
+        if (d2orig > dist2origin_max){
+            dist2origin_max = d2orig;
             hanPlane_i = plane_i;
         }
 
@@ -2205,7 +2206,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     }
     cout << "The symmetry plane is plane " << symPlane_i << endl;
 
-    cout << "Min dist to origin  " << dist2origin_min << " on plane " << hanPlane_i << endl;
+    cout << "Max dist to origin  " << dist2origin_max << " on plane " << hanPlane_i << endl;
     //planesI["sym"] = symPlane_i;
 
     // Symmetry plane is that of max symmetry, handle plane the one with normal close to origin. Thus, the remaning one is effector plane
@@ -2216,6 +2217,8 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
             effPlane_i = i;
         }
     }
+
+    cout << "The remaining plane is plane " << effPlane_i << endl;
 
     /*
     // find the effector plane: shortest eigenvector of the 2 remaning ones (excluding the symmery plane eigenvector).
@@ -3164,7 +3167,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     copyPointCloud(*cloud_filter, *cloudNoColor);
     cout << "--Cloud copied: ." << endl;
 
-
+    /*
     //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
     //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -3186,8 +3189,9 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     //    mls.process (*cloud_filter);
     cout << "--Size after Mov leastsq: " << cloud_filter->points.size() << "." << endl;
 
-//    if (verbose){ cout << " Cloud of size " << cloud_filter->points.size() << "after filtering." << endl;}
+    //    if (verbose){ cout << " Cloud of size " << cloud_filter->points.size() << "after filtering." << endl;}
 
+    */
     return true;
 }
 
