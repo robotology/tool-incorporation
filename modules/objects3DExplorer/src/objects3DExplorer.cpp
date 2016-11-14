@@ -642,16 +642,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         return true;
 
     }else if (receivedCmd == "makecanon"){
-        sendPointCloud(cloud_model);
-
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_canon (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
-        cloud2canonical(cloud_model, cloud_canon);
-
         // Make the oriented cloud the one in pose, and the canonical one, the model.
-        cloud_pose = cloud_model;
-        cloud_model = cloud_canon;
+        if (poseFound){
+            cloud2canonical(cloud_pose, cloud_canon);
+            cloud_model = cloud_canon;
+        }else{
+
+            cloud2canonical(cloud_model, cloud_canon);
+            cloud_pose = cloud_model;
+            cloud_model = cloud_canon;
+        }
 
         // Display the loaded cloud
         sendPointCloud(cloud_canon);
@@ -1481,9 +1484,11 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
                 spDist = adaptDepth(cloud_rec,spDist);
                 cout <<" Spatial distance adapted to " << spDist <<endl;
             }
+            //changeCloudColor(cloud_rec, green);
+            //sendPointCloud(cloud_rec);
 
             // Extra filter cloud_rec (noise adds up from so many clouds).
-            filterCloud(cloud_rec,cloud_rec, 1.5);
+            // XXX filterCloud(cloud_rec,cloud_rec,3);
 
 
             //spDist = adaptDepth(cloud_rec, spDist);
@@ -1526,7 +1531,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             ror.setMinNeighborsInRadius(5);
             ror.filter(*cloud_rec_merged);
         }
-        filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
+        //filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
         sendPointCloud(cloud_rec_merged);
 
         cout << "Cloud model reconstructed" << endl;
@@ -1700,7 +1705,7 @@ bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::Poin
         cloud_file_name = "real/" + cloud_name;
     }
     CloudUtils::savePointsPly(cloud, cloudsPathTo, cloud_file_name);
-    cout << "Cloud model of size " << cloud->size() << "saved as "<<  cloud_file_name << endl;
+    cout << "Cloud model of size " << cloud->size() << " saved as "<<  cloud_file_name << endl;
 
     return true;
 }
@@ -1799,7 +1804,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     rpcObjRecPort.write(cmdOR,replyOR);
 
 
-    if (cloud_rec->size() < 100){
+    if (cloud_rec->size() < 300){
         cout << " Not enough points left after filtering. Something must have happened on reconstruction" << endl;
         return false;
     }
@@ -2058,6 +2063,8 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
 
     // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    copyPointCloud(*cloud_raw, *cloud);
+
     //filterCloud(cloud_raw, cloud, 1.5);
     downsampleCloud(cloud, cloud, 0.005);
 
@@ -2173,6 +2180,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
         // : The effector and symmetry planes go alogn the handle, so they will pass close to the origin,
         //  while the handle plane (perpendicular to the handle axis), will be far away.
         float d2orig = uP.a*origin.x + uP.b*origin.y + uP.c*origin.z + uP.d;     // Normalized signed distance from origin point to plane_i
+        cout << "Distance of plane to origin is  " << d2orig << endl;
         if (d2orig < dist2origin_min){
             dist2origin_min = d2orig;
             hanPlane_i = plane_i;
@@ -2185,7 +2193,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
             *cloudAB = *cloudA;
             *cloudAB += *cloudB;
             sendPointCloud(cloudAB);
-            Time::delay(2.5);
+            Time::delay(1.5);
             cout << "Average  distance between two sides of the symmetry plane " << plane_i << " is " << sqrt(avgCloudKNNdist) << endl;
         }
     }
@@ -2196,6 +2204,8 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
         return false;
     }
     cout << "The symmetry plane is plane " << symPlane_i << endl;
+
+    cout << "Min dist to origin  " << dist2origin_min << " on plane " << hanPlane_i << endl;
     //planesI["sym"] = symPlane_i;
 
     // Symmetry plane is that of max symmetry, handle plane the one with normal close to origin. Thus, the remaning one is effector plane
@@ -2297,6 +2307,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     toolPlanes.push_back(unitPlanes[effPlane_i]);       // X -> effector
     toolPlanes.push_back(unitPlanes[hanPlane_i]);       // Y -> handle
     toolPlanes.push_back(unitPlanes[symPlane_i]);       // Z -> symmetry
+    Time::delay(0.3);
     showRefFrame(center,toolPlanes);
     cout << "Frame on tool corresponds to X -> effector, Y -> handle, Z -> symmetry" << endl;
 
@@ -2922,14 +2933,17 @@ bool Objects3DExplorer::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>:
     Eigen::Matrix4f toolMatrix;
     if (!symFound)
     {
-        findSyms(cloud_model, toolPose);
+        cout << " Computing Symmetries." << endl;
+        findSyms(cloud_orig, toolPose);
     }
-
+    cout << " Symmetries found. Using Ref.Frame to transform cloud to origin" << endl;
     tool = toolPose;
     toolMatrix = CloudUtils::yarpMat2eigMat(tool);
     Eigen::Matrix4f tool2origin = toolMatrix.inverse();
 
     pcl::transformPointCloud(*cloud_orig, *cloud_canon, tool2origin);
+    sendPointCloud(cloud_canon);
+    Time::delay(0.5);
 
     // find lower point along handle axis (-Y), i.e. max on Y
     double dist_Y_max = 0.0;
@@ -2948,6 +2962,8 @@ bool Objects3DExplorer::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>:
     handle_trans(1,3) = -(dist_Y_max + 0.06);     // Add the removed hand sphere radius to the distance.
 
     pcl::transformPointCloud(*cloud_canon, *cloud_canon, handle_trans);
+    sendPointCloud(cloud_canon);
+    Time::delay(0.5);
 
     return true;
 }
@@ -3062,7 +3078,7 @@ bool Objects3DExplorer::showLine(const Point3D coordsIni, const  Point3D coordsE
 
     rpcVisualizerPort.write(cmdVis,replyVis);
     cout << "Show line from  " << coordsIni.x << ", " << coordsIni.y << ", " << coordsIni.z <<  ") to (" << coordsEnd.x << ", " << coordsEnd.y << ", " << coordsEnd.z <<  "). " << endl;
-    Time::delay(0.2);
+    Time::delay(0.3);
     return true;
 }
 
@@ -3146,11 +3162,14 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>);
     copyPointCloud(*cloud_filter, *cloudNoColor);
+    cout << "--Cloud copied: ." << endl;
+
 
     //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
     //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
     pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
+    cout << "-- Setting mls..." << endl;
     //    mls.setInputCloud (cloud_filter);
     mls.setInputCloud(cloudNoColor);
     mls.setSearchMethod(tree);
@@ -3160,6 +3179,8 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
     mls.setUpsamplingRadius(mls_usRad);
     mls.setUpsamplingStepSize(mls_usStep);
+
+    cout << "-- Applying mls..." << endl;
     mls.process(*cloudNoColorFilter);
     copyPointCloud(*cloudNoColorFilter, *cloud_filter);
     //    mls.process (*cloud_filter);
