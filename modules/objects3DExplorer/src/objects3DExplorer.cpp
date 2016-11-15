@@ -109,7 +109,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     icp_transEp = 0.0001;
 
     mls_rad = 0.02;
-    mls_usRad = 0.005;
+    mls_usRad = 0.01;
     mls_usStep = 0.003;
 
     // Noise generation variables
@@ -424,6 +424,26 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             reply.addString("[nack] Couldnt reconstruct pointcloud. ");
             return false;
         }
+
+        reply.addString("[ack]");
+        return true;
+
+    }else if (receivedCmd == "filter"){
+
+        if (!cloudLoaded){
+            cout << "Model needed to filter. Load model" << endl;
+            reply.addString("[nack] Load model first to find grasp. \n");
+            return false;
+        }
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+        filterCloud(cloud_model, cloud_fil);
+        cloud_model = cloud_fil;
+
+        cout << "Cloud successfully filtered" << endl;
+
+        sendPointCloud(cloud_model);
 
         reply.addString("[ack]");
         return true;
@@ -3161,13 +3181,16 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     // Perform Moving least squares to smooth surfaces
     // Init object (second point type is for the normals, even if unused)
 
+    downsampleCloud(cloud_filter, cloud_filter, 0.005);
+
     // XXX Dirty hack to do it with XYZ clouds. Check better ways (less conversions) to change XYZ <-> XYZRGB
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>);
     copyPointCloud(*cloud_filter, *cloudNoColor);
     cout << "--Cloud copied: ." << endl;
 
-    /*
+
+
     //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
     //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -3178,7 +3201,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     mls.setSearchMethod(tree);
     mls.setSearchRadius(mls_rad);
     mls.setPolynomialFit(true);
-    mls.setPolynomialOrder(2);
+    mls.setPolynomialOrder(1);
     mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
     mls.setUpsamplingRadius(mls_usRad);
     mls.setUpsamplingStepSize(mls_usStep);
@@ -3187,11 +3210,13 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     mls.process(*cloudNoColorFilter);
     copyPointCloud(*cloudNoColorFilter, *cloud_filter);
     //    mls.process (*cloud_filter);
+    downsampleCloud(cloud_filter, cloud_filter, 0.001);
     cout << "--Size after Mov leastsq: " << cloud_filter->points.size() << "." << endl;
 
     //    if (verbose){ cout << " Cloud of size " << cloud_filter->points.size() << "after filtering." << endl;}
 
-    */
+
+
     return true;
 }
 
