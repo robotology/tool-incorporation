@@ -1420,8 +1420,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     changeSaveName(label);
 
     // As tool is unknown, define generic tooltip for exploration:
-    tooltip.x = 0.15;
-    tooltip.y = -0.15;
+    tooltip.x = 0.17;
+    tooltip.y = -0.17;
     tooltip.z = 0.0;
 
     // Move not exploring hand out of the way:
@@ -1463,17 +1463,18 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     }
     if (flag2D){
         cout << " Learning first view" << endl;
+        Time::delay(1.0);
         learn(label);
     }
 
     // Rotate tool in hand
     bool mergeAlign = true;            // XXX make rpc selectable
-    //int x_angle_array[] = {-70,-30,10, 40, 70};
-    int x_angle_array[] = {-70, 10, 60};
+    int x_angle_array[] = {-70,-30,10, 40, 70};
+    //int x_angle_array[] = {-70, 10, 60};
     std::vector<int> x_angles (x_angle_array, x_angle_array + sizeof(x_angle_array) / sizeof(int) );
-    //int y_angle_array[] = {-40,-15,10, 30,60};
+    int y_angle_array[] = {-40,-15,10, 30,60};
     //int y_angle_array[] = {-30,10, 50};
-    int y_angle_array[] = {-10,20};
+    //int y_angle_array[] = {-10,20};
     std::vector<int> y_angles (y_angle_array, y_angle_array + sizeof(y_angle_array) / sizeof(int) );
 
     int num_ang = x_angles.size() + y_angles.size();
@@ -1606,20 +1607,14 @@ bool Objects3DExplorer::learn(const string &label, bool depthBB ){
     if (depthBB){
         BB[0] = 0;     BB[1] = 0;    BB[2] = 0;      BB[3] = 0;
     }else{
-        BB[0] = tooltip2D.u - bbsize/4;         // tlx
+        BB[0] = tooltip2D.u - bbsize/2;         // tlx
         if (BB[0]< 0){        BB[0]= 0;    }
-        BB[1] = tooltip2D.v - bbsize/4;         // tly
+        BB[1] = tooltip2D.v - bbsize/2;         // tly
         if (BB[1]< 0){        BB[1]= 0;    }
-        BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
-        if (BB[2]> imgW){
-            BB[2]= imgW-1;
-            cout << " BB brx lmited to: " << BB[2] << endl;
-        }
-        BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
-        if (BB[3]> imgH){
-            BB[3]= imgH-1;
-        cout << " BB bry lmited to: " << BB[3] << endl;
-        }
+        BB[2] = tooltip2D.u + bbsize/2;         // brx
+        if (BB[2]> imgW){     BB[2]= imgW-1; }
+        BB[3] = tooltip2D.v + bbsize/2;         // bry
+        if (BB[3]> imgH){     BB[3]= imgH-1; }
 
         cout << "BB around tooltip " << tooltip2D.u << ", " << tooltip2D.v << " is : " << BB[0]<< ", " << BB[1]<< "; " << BB[2]<< ", "<< BB[3]<< ". " <<endl;
     }
@@ -1645,8 +1640,8 @@ bool Objects3DExplorer::recognize(string &label,  bool depthBB){
 
 
     // As tool is unknown, define generic tooltip for exploration:
-    tooltip.x = 0.15;
-    tooltip.y = -0.15;
+    tooltip.x = 0.17;
+    tooltip.y = -0.17;
     tooltip.z = 0.0;
 
     // look at tool
@@ -1659,13 +1654,13 @@ bool Objects3DExplorer::recognize(string &label,  bool depthBB){
     }else{
     // get tooltip and define a BB around it (check bb does not exceed image size).
 
-        BB[0] = tooltip2D.u - bbsize/4;         // tlx
+        BB[0] = tooltip2D.u - bbsize/2;         // tlx
         if (BB[0]< 0){        BB[0]= 0;    }
-        BB[1] = tooltip2D.v - bbsize/4;         // tly
+        BB[1] = tooltip2D.v - bbsize/2;         // tly
         if (BB[1]< 0){        BB[1]= 0;    }
-        BB[2] = tooltip2D.u + 3*bbsize/4;         // brx
+        BB[2] = tooltip2D.u + bbsize/2;         // brx
         if (BB[2]> imgW){        BB[2]= imgW;    }
-        BB[3] = tooltip2D.v + 3*bbsize/4;         // bry
+        BB[3] = tooltip2D.v + bbsize/2;         // bry
         if (BB[3]> imgH){        BB[3]= imgH;    }
     }
 
@@ -3190,7 +3185,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     cout << "--Cloud copied: ." << endl;
 
 
-
+    /*
     //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
     //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -3216,7 +3211,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     //    if (verbose){ cout << " Cloud of size " << cloud_filter->points.size() << "after filtering." << endl;}
 
 
-
+    */
     return true;
 }
 
