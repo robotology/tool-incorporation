@@ -130,8 +130,9 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     //ports
     bool ret = true;
     ret = ret && imgInPort.open(("/"+name+"/img:i").c_str());                    // port to receive images from
+    ret = ret && points2DInPort.open(("/"+name+"/pts2D:i").c_str());             // port to receive images from
     ret = ret && cloudsInPort.open(("/"+name+"/clouds:i").c_str());              // port to receive pointclouds from
-    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());              // port to send processed pointclouds to
+    ret = ret && cloudsOutPort.open(("/"+name+"/clouds:o").c_str());             // port to send processed pointclouds to
     ret = ret && imgOutPort.open(("/"+name+"/img:o").c_str());                   // port to send processed images to
     if (!ret){
         printf("\nProblems opening ports\n");
@@ -1373,26 +1374,32 @@ bool Objects3DExplorer::lookAtTool(){
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
     xTH.resize(4);
 
+    // If 3D tooltip has not been found yet, use a 2D approx
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
+
+        Vector ttip2D;
+        get2Dtooltip(ttip2D);
+        int camSel=(camera=="left")?0:1;
+        iGaze->lookAtMonoPixel(camSel, ttip2D);
+
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.16 + Rand::scalar(-0.01,0.01);;              // X
-        xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);;             // Y
-        xTH[2] = 0.0;               // Z
-        xTH[3] = 1.0;               // T
+        //xTH[0] = 0.16 + Rand::scalar(-0.01,0.01);;              // X
+        //xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);;             // Y
+        //xTH[2] = 0.0;               // Z
+        // xTH[3] = 1.0;               // T
     }else {
         xTH[0] = tooltip.x;         // X
         xTH[1] = tooltip.y;         // Y
         xTH[2] = tooltip.z;         // Z
         xTH[3] = 1.0;               // T
+
+        // Transform point to robot coordinates:
+        xTR = H2R * xTH;
+        //cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
+        iGaze->blockEyes(5.0);
+        iGaze->lookAtFixationPoint(xTR);
+        iGaze->waitMotionDone(0.1);
     }
-
-    // Transform point to robot coordinates:
-    xTR = H2R * xTH;
-    cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
-
-    iGaze->blockEyes(5.0);
-    iGaze->lookAtFixationPoint(xTR);
-    iGaze->waitMotionDone(0.1);
 
     return true;
 }
@@ -1729,6 +1736,39 @@ bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::Poin
     return true;
 }
 
+
+/************************************************************************/
+bool Objects3DExplorer::get2Dtooltip(Vector &ttip2D)
+{
+    // requests 3D reconstruction to objectReconst module
+    Bottle cmdOR, replyOR;
+    cmdOR.clear();	replyOR.clear();
+    if (seg2D){
+        cmdOR.addString("seg");
+    } else {
+        cmdOR.addString("flood3d");
+        cmdOR.addDouble(0.004);
+    }
+    rpcObjRecPort.write(cmdOR,replyOR);
+
+
+    // Define the 2D tooltip as the further point from the hand belonging to the hand blob
+    Bottle *tool2D =  points2DInPort.read(true);
+    double dist_max = 0.0;
+    for (int p = 0; p < tool2D->size(); p++){
+        Bottle *pt = tool2D->get(p).asList();
+        int u = pt->get(0).asInt();
+        int v = pt->get(1).asInt();
+        double dist_sq = (pow(handFrame2D.u-u,2) + pow(handFrame2D.v-v,2));
+
+        if (dist_sq > dist_max){
+            dist_max = dist_sq;
+            ttip2D[0] = u;
+            ttip2D[1] = v;
+        }
+    }
+    return true;
+}
 
 
 /************************************************************************/

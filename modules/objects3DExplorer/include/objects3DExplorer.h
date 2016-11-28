@@ -66,6 +66,7 @@ class Objects3DExplorer : public yarp::os::RFModule
 protected:
     /* variables */ 
     // ports
+    yarp::os::BufferedPort<yarp::os::Bottle>                            points2DInPort;
     yarp::os::BufferedPort<yarp::os::Bottle>                            cloudsInPort;
     yarp::os::BufferedPort<yarp::os::Bottle>                            cloudsOutPort;
     yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >    imgInPort;
@@ -160,6 +161,7 @@ protected:
     bool                loadCloud(const std::string &cloud_name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
     bool                saveCloud(const std::string &cloud_name, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
+    bool                get2Dtooltip(yarp::sig::Vector &ttip2D);
     bool                getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam = -1.0, double handRad = 0.06);
     bool                sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
