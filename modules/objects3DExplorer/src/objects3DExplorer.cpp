@@ -85,6 +85,8 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 
     // Flow control variables
     initAlignment = false;
+    depthBB = false;
+    burstTrain = true;
     displayTooltip = true;
     closing = false;
     numCloudsSaved = 0;
@@ -562,12 +564,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         string label_train = command.get(1).asString();
 
-        bool depthBB = false;
-        if (command.size() ==3 ){
-            depthBB = command.get(2).asBool();;
-        }
 
-        bool ok = learn(label_train, depthBB);
+        bool ok = learn(label_train);
 
         if (ok){
             reply.addString("[ack]");
@@ -583,11 +581,8 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
     }else if (receivedCmd == "recog"){
 
         string label_pred;
-        bool depthBB = true;
-        if (command.size() ==2 ){
-            depthBB = command.get(1).asBool();;
-        }
-        bool ok = recognize(label_pred, depthBB);
+
+        bool ok = recognize(label_pred);
 
         if (ok){
             reply.addString("[ack]");
@@ -1103,8 +1098,47 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return true;}
         else {
             fprintf(stdout,"FPFH based Initial Alignment has to be set to ON or OFF. \n");
-            reply.addString("[nack] FPFH based Initial Alignment has to be set to ON or OFF. ");
+            reply.addString("[nack] FPFH based Initial Alignment has to be set to ON or OFF. ");            
+            return false;
+        }
+
+    }else if (receivedCmd == "burst"){
+        // activates the normalization of the pointcloud to the hand reference frame.
+        bool ok = setBurst(command.get(1).asString());
+        if (ok){
             reply.addString("[ack]");
+            return true;}
+        else {
+            fprintf(stdout,"Burst training has to be set to ON or OFF. \n");
+            reply.addString("[nack] Burst has to be set to ON or OFF. ");
+            return false;
+        }
+
+    }else if (receivedCmd == "bb"){
+        // activates the normalization of the pointcloud to the hand reference frame.
+        bool depth;
+        int sizeBB;
+        if (command.size() == 1){
+            cout << "Need parameters to update BB" << endl;
+            return false;
+        }
+        if (command.size() == 2){
+            depth = command.get(1).asBool();
+            sizeBB = bbsize;
+        }
+        if (command.size() == 3){
+            depth = command.get(1).asBool();
+            sizeBB = command.get(1).asInt();
+        }
+
+        bool ok = setBB(depth, sizeBB);
+        if (ok){
+            cout << "Bounding box parameters not updated" << endl;
+            reply.addString("[ack]");
+            return true;}
+        else {
+            fprintf(stdout,"Bounding box parameters not updated. \n");
+            reply.addString("[nack] Bounding box parameters not updated. ");
             return false;
         }
 
@@ -1246,6 +1280,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("---------- SET PARAMETERS ------------");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame. (default ON).");
         reply.addString("FPFH (ON/OFF) - Activates/deactivates fast local features (FPFH) based Initial alignment for registration. (default ON).");
+        reply.addString("Burst (ON/OFF) - Activates/deactivates burst images for 2D dep training");
         reply.addString("icp (int)maxIt (double)maxCorr (double)ranORT (double)transEp - sets ICP parameters (default 100, 0.03, 0.05, 1e-6).");
         reply.addString("noise (double)mean (double)sigma - sets noise parameters (default 0.0, 0.003)");
         reply.addString("seg2D (ON/OFF) - Set the segmentation to 2D (ON) from graphBasedSegmentation, or 3D (OFF), from 'flood3d' .");
@@ -1607,7 +1642,7 @@ double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 
 
 /************************************************************************/
-bool Objects3DExplorer::lookAround()
+bool Objects3DExplorer::lookAround(const bool wait)
 {
     Vector fp,fp_aux(3,0.0);
     iGaze->getFixationPoint(fp);
@@ -1616,13 +1651,26 @@ bool Objects3DExplorer::lookAround()
     fp_aux[1] = fp[1] + Rand::scalar(-0.04,0.04);
     fp_aux[2] = fp[2] + Rand::scalar(-0.02,0.02);
     iGaze->lookAtFixationPoint(fp_aux);
-    iGaze->waitMotionDone(0.05);
+    if (wait){
+        iGaze->waitMotionDone(0.05);
+    }
 
     return true;
 }
 
 /**********************************************************/
-bool Objects3DExplorer::learn(const string &label, bool depthBB ){
+bool Objects3DExplorer::learn(const string &label ){
+
+    Bottle cmdClas, replyClas;
+    if (burstTrain){
+        cmdClas.clear();	replyClas.clear();
+        cmdClas.addString("burst");
+        cmdClas.addString("start");
+        cout <<"Sending burst training request:  " << cmdClas.toString() <<endl;
+        rpcClassifierPort.write(cmdClas,replyClas);
+
+        lookAround(false);
+    }
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
     Vector BB(4,0.0);
@@ -1642,7 +1690,6 @@ bool Objects3DExplorer::learn(const string &label, bool depthBB ){
     }
 
     // Send to toolRecognizer module /applications
-    Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
     cmdClas.addString("train");
     cmdClas.addString(label);
@@ -1653,12 +1700,22 @@ bool Objects3DExplorer::learn(const string &label, bool depthBB ){
     cout << "Sending Command to classifier: " << cmdClas.toString() << endl;
     rpcClassifierPort.write(cmdClas,replyClas);
 
+
+    if (burstTrain){
+        Time::delay(1.0);
+        cmdClas.clear();	replyClas.clear();
+        cmdClas.addString("burst");
+        cmdClas.addString("stop");
+        cout <<"Sending burst training request:  " << cmdClas.toString() <<endl;
+        rpcClassifierPort.write(cmdClas,replyClas);
+    }
+
     cout << "Tool Recognizer replied: " << replyClas.toString() << endl;
     return true;
 
 }
 
-bool Objects3DExplorer::recognize(string &label,  bool depthBB){
+bool Objects3DExplorer::recognize(string &label){
 
     // look at tool
     turnHand(0,0);
@@ -1718,9 +1775,9 @@ bool Objects3DExplorer::loadCloud(const std::string &cloud_name, pcl::PointCloud
 
     cout << "cloud of size "<< cloud->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
 
-    tooltip.x = 0.17;
-    tooltip.y = -0.17;
-    tooltip.z = 0.0;
+    //tooltip.x = 0.17;
+    //tooltip.y = -0.17;
+    //tooltip.z = 0.0;
 
     saveName = cloud_name;
     cloudLoaded = true;
@@ -3421,6 +3478,29 @@ bool Objects3DExplorer::setInitialAlignment(const string& fpfh)
     }
     return false;
 }
+
+
+bool Objects3DExplorer::setBurst(const string& burst)
+{
+    if (burst == "ON"){
+        burstTrain = true;
+        fprintf(stdout,"Burst Training is : %s\n", burst.c_str());
+        return true;
+    } else if (burst == "OFF"){
+        burstTrain = false;
+        fprintf(stdout,"Burst Training is : %s\n", burst.c_str());
+        return true;
+    }
+    return false;
+}
+bool Objects3DExplorer::setBB(const bool depth, const int size)
+{
+    depthBB = depth;
+    bbsize = size;
+    return true;
+}
+
+
 
 
 /************************************************************************/

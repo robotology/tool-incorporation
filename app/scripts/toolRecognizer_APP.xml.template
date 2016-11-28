@@ -62,7 +62,7 @@
         <geometry>(Pos ((x 746) (y 188)) ((x 728) (y 184)) ((x 793) (y 190))  )</geometry>
     </connection>
     <connection>
-        <from external="true">/toolRecognizer/img:o</from>
+        <from external="true">/icub/camcalib/left/out</from>
         <to external="true">/himrepClassifierTool/img:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 965.5) (y 628)) ((x 859) (y 629)) ((x 1101) (y 625))  )</geometry>

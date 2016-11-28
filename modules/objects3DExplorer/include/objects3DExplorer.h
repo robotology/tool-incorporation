@@ -102,6 +102,7 @@ protected:
     bool                                saving;
     bool                                verbose;
     bool                                handFrame;
+    bool                                burstTrain;
 
     // icp variables
     int                                 icp_maxIt;
@@ -138,6 +139,7 @@ protected:
     Point3D                                     tooltip, tooltipCanon;
     Point2D                                     tooltip2D, handFrame2D;
     int                                         bbsize, imgW, imgH;
+    bool                                        depthBB;
 
     yarp::sig::Vector                           eigenValues;
     std::vector<Plane3D>                        eigenPlanes;
@@ -154,7 +156,7 @@ protected:
     bool                exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const std::string &label, const bool flag2D = true, const bool flag3D = true);
     bool                lookAtTool();
     bool                lookAtHand();
-    bool                lookAround();
+    bool                lookAround(const bool wait = true);
     double              adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance);
 
     /* Object info from Cloud */
@@ -189,8 +191,8 @@ protected:
 
     /* Learn - recognize tools from vision */
 
-    bool                learn(const std::string &label, bool depthBB = false);
-    bool                recognize(std::string &label, bool depthBB = false);
+    bool                learn(const std::string &label);
+    bool                recognize(std::string &label);
 
     /* Cloud Utils */
     bool                frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans);
@@ -215,6 +217,8 @@ protected:
     bool                showTipProj(const std::string& tipF);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
+    bool                setBurst(const std::string& burst);
+    bool                setBB(const bool depth, const int size);
     bool                setSeg(const std::string& seg);
     bool                setSaving(const std::string& sav);
     bool                changeSaveName(const std::string& fname);
