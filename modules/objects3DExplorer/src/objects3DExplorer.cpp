@@ -562,7 +562,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
         string label_train = command.get(1).asString();
 
-        bool depthBB = true;
+        bool depthBB = false;
         if (command.size() ==3 ){
             depthBB = command.get(2).asBool();;
         }
@@ -1612,7 +1612,6 @@ bool Objects3DExplorer::lookAround()
 bool Objects3DExplorer::learn(const string &label, bool depthBB ){
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
-
     Vector BB(4,0.0);
     if (depthBB){
         BB[0] = 0;     BB[1] = 0;    BB[2] = 0;      BB[3] = 0;
@@ -1647,12 +1646,6 @@ bool Objects3DExplorer::learn(const string &label, bool depthBB ){
 }
 
 bool Objects3DExplorer::recognize(string &label,  bool depthBB){
-
-
-    // As tool is unknown, define generic tooltip for exploration:
-    tooltip.x = 0.17;
-    tooltip.y = -0.17;
-    tooltip.z = 0.0;
 
     // look at tool
     turnHand(0,0);
@@ -1711,6 +1704,10 @@ bool Objects3DExplorer::loadCloud(const std::string &cloud_name, pcl::PointCloud
     }
 
     cout << "cloud of size "<< cloud->points.size() << " points loaded from "<< cloud_file_name.c_str() << endl;
+
+    tooltip.x = 0.17;
+    tooltip.y = -0.17;
+    tooltip.z = 0.0;
 
     saveName = cloud_name;
     cloudLoaded = true;
