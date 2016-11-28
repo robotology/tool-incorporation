@@ -1326,6 +1326,9 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 
     R(0,3)= xd[0];    R(1,3)= xd[1];    R(2,3)= xd[2];        // Include translation
 
+    lookAtTool();
+
+    /*
     // Define the tooltip initial guess w.r.t to hand frame:
     Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
     xTH.resize(4);
@@ -1354,6 +1357,7 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     iCartCtrl->waitMotionDone(0.1);
     iCartCtrl->restoreContext(context_arm);
     iCartCtrl->deleteContext(context_arm);
+    */
 
     return true;
 }
@@ -1377,16 +1381,25 @@ bool Objects3DExplorer::lookAtTool(){
     // If 3D tooltip has not been found yet, use a 2D approx
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
 
+        // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
+        xTH[0] = 0.16 + Rand::scalar(-0.01,0.01);;              // X
+        xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);;             // Y
+        xTH[2] = 0.0;               // Z
+        xTH[3] = 1.0;               // T
+
+        // Transform point to robot coordinates:
+        xTR = H2R * xTH;
+        //cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
+        iGaze->blockEyes(5.0);
+        iGaze->lookAtFixationPoint(xTR);
+        iGaze->waitMotionDone(0.1);
+
+        // Refine the tooltip by getting the 2D estimate from the 3D segmentation.
         Vector ttip2D;
-        get2Dtooltip(ttip2D);
+        get2Dtooltip(true, ttip2D);
         int camSel=(camera=="left")?0:1;
         iGaze->lookAtMonoPixel(camSel, ttip2D);
 
-        // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        //xTH[0] = 0.16 + Rand::scalar(-0.01,0.01);;              // X
-        //xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);;             // Y
-        //xTH[2] = 0.0;               // Z
-        // xTH[3] = 1.0;               // T
     }else {
         xTH[0] = tooltip.x;         // X
         xTH[1] = tooltip.y;         // Y
@@ -1426,6 +1439,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     // Update tool name
     changeSaveName(label);
 
+    /*
     // If tool is unknown (usually in 3D reconst), define generic tooltip for exploration:
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
@@ -1433,6 +1447,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         tooltip.y = -0.16;
         tooltip.z = 0.0;
     }
+    */
 
     // Move not exploring hand out of the way:
     cout << " Moving other hand away" << endl;    
@@ -1502,8 +1517,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             turnHand(0,degY);
         }
 
-
-        //lookAtTool();
         Time::delay(1.0);
 
         if (flag3D){
@@ -1735,19 +1748,20 @@ bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::Poin
 
 
 /************************************************************************/
-bool Objects3DExplorer::get2Dtooltip(Vector &ttip2D)
+bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
 {
-    // requests 3D reconstruction to objectReconst module
-    Bottle cmdOR, replyOR;
-    cmdOR.clear();	replyOR.clear();
-    if (seg2D){
-        cmdOR.addString("seg");
-    } else {
-        cmdOR.addString("flood3d");
-        cmdOR.addDouble(0.004);
+   if (get3D){
+        // requests 3D reconstruction to objectReconst module
+        Bottle cmdOR, replyOR;
+        cmdOR.clear();	replyOR.clear();
+        if (seg2D){
+            cmdOR.addString("seg");
+        } else {
+            cmdOR.addString("flood3d");
+            cmdOR.addDouble(0.004);
+        }
+        rpcObjRecPort.write(cmdOR,replyOR);
     }
-    rpcObjRecPort.write(cmdOR,replyOR);
-
 
     // Define the 2D tooltip as the further point from the hand belonging to the hand blob
     Bottle *tool2D =  points2DInPort.read(true);
@@ -1903,7 +1917,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         Time::delay(1.0);
 
         // Get a registration
-        lookAtTool();
+        turnHand(0,0);
         if(!getPointCloud(cloud_rec, spDist))          // Registration get and normalized to hand-reference frame.
         {            
             spDist = adaptDepth(cloud_rec,spDist);            
