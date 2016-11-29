@@ -42,6 +42,7 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/common/transforms.h>
 #include <pcl/registration/icp.h>
+#include <pcl/octree/octree.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/filters/statistical_outlier_removal.h>

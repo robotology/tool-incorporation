@@ -1608,7 +1608,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
             ror.setInputCloud(cloud_rec_merged);
             ror.setRadiusSearch(0.01);
-            ror.setMinNeighborsInRadius(5);
+            ror.setMinNeighborsInRadius(20);
             ror.filter(*cloud_rec_merged);
         }
         filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
@@ -2464,15 +2464,29 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
     double maxDist = 0.0;
     int maxPt_i = -1;
     effWeight = 0.8;     // Weight assigned to effector distance w.r.t. orig distance
+
+    std::vector<int> pointIdxRadiusSearch;
+    std::vector<float> pointRadiusSquaredDistance;
+    float radius = 0.02;
+    int minNeigh = 20;
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree(0.001);
+    octree.setInputCloud (cloud);
+    octree.addPointsFromInputCloud ();
+
     for (unsigned int ptI=0; ptI<cloud->points.size(); ptI++)
     {
         pcl::PointXYZRGB *pt = &cloud->at(ptI);
+        // Look for the point with a bigger effector : origin distance
         float dist_eff = fabs(effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d);     // Normalized signed distance of point to eff plane
         float dist_orig = sqrt(pt->x*pt->x + pt->y*pt->y + pt->z*pt->z);                // Distance from the origin.
         float dist_aux = effWeight*dist_eff + (1-effWeight)*dist_orig;                  // Wighted sum of distances
         if (dist_aux > maxDist){
-            maxDist = dist_aux;
-            maxPt_i = ptI;
+            // Look for the amount of neighbors in a given radius of the point to remove outliers
+            pointIdxRadiusSearch.clear(); pointRadiusSquaredDistance.clear();
+            if (octree.radiusSearch(*pt, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > minNeigh){
+                maxDist = dist_aux;
+                maxPt_i = ptI;
+            }
         }
     }
     if (maxPt_i < 0 ){
@@ -3272,7 +3286,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> ror; // -- by neighbours within radius
     ror.setInputCloud(cloud_orig);
     ror.setRadiusSearch(0.05);
-    ror.setMinNeighborsInRadius(5);
+    ror.setMinNeighborsInRadius(50); //5
     ror.filter(*cloud_filter);
     cout << "--Size after rad out rem: " << cloud_filter->points.size() << "." << endl;
 
@@ -3289,14 +3303,13 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 
     downsampleCloud(cloud_filter, cloud_filter, 0.005);
 
+    /*
     // XXX Dirty hack to do it with XYZ clouds. Check better ways (less conversions) to change XYZ <-> XYZRGB
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColor(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoColorFilter(new pcl::PointCloud<pcl::PointXYZ>);
     copyPointCloud(*cloud_filter, *cloudNoColor);
     cout << "--Cloud copied: ." << endl;
 
-
-    /*
     //pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
     //pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
