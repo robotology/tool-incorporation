@@ -47,6 +47,15 @@ public:
   virtual bool read(yarp::os::ConnectionReader& connection);
 };
 
+class toolRecognizer_IDLServer_burst : public yarp::os::Portable {
+public:
+  bool burstF;
+  bool _return;
+  void init(const bool burstF);
+  virtual bool write(yarp::os::ConnectionWriter& connection);
+  virtual bool read(yarp::os::ConnectionReader& connection);
+};
+
 bool toolRecognizer_IDLServer_start::write(yarp::os::ConnectionWriter& connection) {
   yarp::os::idl::WireWriter writer(connection);
   if (!writer.writeListHeader(1)) return false;
@@ -149,6 +158,29 @@ void toolRecognizer_IDLServer_recognize::init(const int32_t tlx, const int32_t t
   this->bry = bry;
 }
 
+bool toolRecognizer_IDLServer_burst::write(yarp::os::ConnectionWriter& connection) {
+  yarp::os::idl::WireWriter writer(connection);
+  if (!writer.writeListHeader(2)) return false;
+  if (!writer.writeTag("burst",1,1)) return false;
+  if (!writer.writeBool(burstF)) return false;
+  return true;
+}
+
+bool toolRecognizer_IDLServer_burst::read(yarp::os::ConnectionReader& connection) {
+  yarp::os::idl::WireReader reader(connection);
+  if (!reader.readListReturn()) return false;
+  if (!reader.readBool(_return)) {
+    reader.fail();
+    return false;
+  }
+  return true;
+}
+
+void toolRecognizer_IDLServer_burst::init(const bool burstF) {
+  _return = false;
+  this->burstF = burstF;
+}
+
 toolRecognizer_IDLServer::toolRecognizer_IDLServer() {
   yarp().setOwner(*this);
 }
@@ -188,6 +220,16 @@ std::string toolRecognizer_IDLServer::recognize(const int32_t tlx, const int32_t
   helper.init(tlx,tly,brx,bry);
   if (!yarp().canWrite()) {
     yError("Missing server method '%s'?","std::string toolRecognizer_IDLServer::recognize(const int32_t tlx, const int32_t tly, const int32_t brx, const int32_t bry)");
+  }
+  bool ok = yarp().write(helper,helper);
+  return ok?helper._return:_return;
+}
+bool toolRecognizer_IDLServer::burst(const bool burstF) {
+  bool _return = false;
+  toolRecognizer_IDLServer_burst helper;
+  helper.init(burstF);
+  if (!yarp().canWrite()) {
+    yError("Missing server method '%s'?","bool toolRecognizer_IDLServer::burst(const bool burstF)");
   }
   bool ok = yarp().write(helper,helper);
   return ok?helper._return:_return;
@@ -283,6 +325,22 @@ bool toolRecognizer_IDLServer::read(yarp::os::ConnectionReader& connection) {
       reader.accept();
       return true;
     }
+    if (tag == "burst") {
+      bool burstF;
+      if (!reader.readBool(burstF)) {
+        reader.fail();
+        return false;
+      }
+      bool _return;
+      _return = burst(burstF);
+      yarp::os::idl::WireWriter writer(reader);
+      if (!writer.isNull()) {
+        if (!writer.writeListHeader(1)) return false;
+        if (!writer.writeBool(_return)) return false;
+      }
+      reader.accept();
+      return true;
+    }
     if (tag == "help") {
       std::string functionName;
       if (!reader.readString(functionName)) {
@@ -321,6 +379,7 @@ std::vector<std::string> toolRecognizer_IDLServer::help(const std::string& funct
     helpString.push_back("quit");
     helpString.push_back("train");
     helpString.push_back("recognize");
+    helpString.push_back("burst");
     helpString.push_back("help");
   }
   else {
@@ -341,6 +400,11 @@ std::vector<std::string> toolRecognizer_IDLServer::help(const std::string& funct
     }
     if (functionName=="recognize") {
       helpString.push_back("std::string recognize(const int32_t tlx = 0, const int32_t tly = 0, const int32_t brx = 0, const int32_t bry = 0) ");
+      helpString.push_back("Classifies image into one of the learned tool categories. ");
+      helpString.push_back("@return label of recognized tool class. ");
+    }
+    if (functionName=="burst") {
+      helpString.push_back("bool burst(const bool burstF) ");
       helpString.push_back("Checks whether the hand is full or empty ");
       helpString.push_back("@return true/false  corresponding to full or empty hand ");
     }

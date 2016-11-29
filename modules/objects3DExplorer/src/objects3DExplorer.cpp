@@ -86,7 +86,6 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     // Flow control variables
     initAlignment = false;
     depthBB = false;
-    burstTrain = true;
     displayTooltip = true;
     closing = false;
     numCloudsSaved = 0;
@@ -1102,18 +1101,6 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-    }else if (receivedCmd == "burst"){
-        // activates the normalization of the pointcloud to the hand reference frame.
-        bool ok = setBurst(command.get(1).asString());
-        if (ok){
-            reply.addString("[ack]");
-            return true;}
-        else {
-            fprintf(stdout,"Burst training has to be set to ON or OFF. \n");
-            reply.addString("[nack] Burst has to be set to ON or OFF. ");
-            return false;
-        }
-
     }else if (receivedCmd == "bb"){
         // activates the normalization of the pointcloud to the hand reference frame.
         bool depth;
@@ -1280,7 +1267,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("---------- SET PARAMETERS ------------");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame. (default ON).");
         reply.addString("FPFH (ON/OFF) - Activates/deactivates fast local features (FPFH) based Initial alignment for registration. (default ON).");
-        reply.addString("Burst (ON/OFF) - Activates/deactivates burst images for 2D dep training");
+        reply.addString("bb (true/false)depth (int)size - Sets whether the BB for learning is obtained from depth or tooltip, and the size of it.");
         reply.addString("icp (int)maxIt (double)maxCorr (double)ranORT (double)transEp - sets ICP parameters (default 100, 0.03, 0.05, 1e-6).");
         reply.addString("noise (double)mean (double)sigma - sets noise parameters (default 0.0, 0.003)");
         reply.addString("seg2D (ON/OFF) - Set the segmentation to 2D (ON) from graphBasedSegmentation, or 3D (OFF), from 'flood3d' .");
@@ -1425,13 +1412,16 @@ bool Objects3DExplorer::lookAtTool(){
         // Transform point to robot coordinates:
         xTR = H2R * xTH;
         //cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
+
+        cout << "Looking at initial tooltip guess" << endl;
         iGaze->blockEyes(5.0);
         iGaze->lookAtFixationPoint(xTR);
         iGaze->waitMotionDone(0.1);
 
         // Refine the tooltip by getting the 2D estimate from the 3D segmentation.
-        Vector ttip2D;
+        Vector ttip2D(2,0.0);
         get2Dtooltip(true, ttip2D);
+        cout << " 2D tip estimated on pixel (" << ttip2D[0] << " , " << ttip2D[1] << ")." << endl;
         int camSel=(camera=="left")?0:1;
         iGaze->lookAtMonoPixel(camSel, ttip2D);
 
@@ -1661,16 +1651,6 @@ bool Objects3DExplorer::lookAround(const bool wait)
 /**********************************************************/
 bool Objects3DExplorer::learn(const string &label ){
 
-    Bottle cmdClas, replyClas;
-    if (burstTrain){
-        cmdClas.clear();	replyClas.clear();
-        cmdClas.addString("burst");
-        cmdClas.addString("start");
-        cout <<"Sending burst training request:  " << cmdClas.toString() <<endl;
-        rpcClassifierPort.write(cmdClas,replyClas);
-
-        lookAround(false);
-    }
 
     // get tooltip and define a BB around it (check bb does not exceed image size).
     Vector BB(4,0.0);
@@ -1690,6 +1670,7 @@ bool Objects3DExplorer::learn(const string &label ){
     }
 
     // Send to toolRecognizer module /applications
+    Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
     cmdClas.addString("train");
     cmdClas.addString(label);
@@ -1699,16 +1680,6 @@ bool Objects3DExplorer::learn(const string &label ){
     cmdClas.addInt(BB[3]);
     cout << "Sending Command to classifier: " << cmdClas.toString() << endl;
     rpcClassifierPort.write(cmdClas,replyClas);
-
-
-    if (burstTrain){
-        Time::delay(1.0);
-        cmdClas.clear();	replyClas.clear();
-        cmdClas.addString("burst");
-        cmdClas.addString("stop");
-        cout <<"Sending burst training request:  " << cmdClas.toString() <<endl;
-        rpcClassifierPort.write(cmdClas,replyClas);
-    }
 
     cout << "Tool Recognizer replied: " << replyClas.toString() << endl;
     return true;
@@ -1821,14 +1792,18 @@ bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
     }
 
     // Define the 2D tooltip as the further point from the hand belonging to the hand blob
-    Bottle *tool2D =  points2DInPort.read(true);
-    double dist_max = 0.0;
-    for (int p = 0; p < tool2D->size(); p++){
-        Bottle *pt = tool2D->get(p).asList();
-        int u = pt->get(0).asInt();
-        int v = pt->get(1).asInt();
-        double dist_sq = (pow(handFrame2D.u-u,2) + pow(handFrame2D.v-v,2));
 
+    cout << "Computing point further away from hand"  << endl;
+    Bottle *tool2D =  points2DInPort.read(true);
+    cout << "Read " << tool2D->size() << " points as 2D tool" << endl;
+
+    double dist_max = 0.0;
+    for (int p = 0; p < tool2D->size(); p = p +10){
+        Bottle *pt = tool2D->get(p).asList();
+        cout << "p_i=" << p << endl;
+        int u = pt->get(0).asInt();
+        int v = pt->get(1).asInt();        
+        double dist_sq = (handFrame2D.u-u)*(handFrame2D.u-u) + (handFrame2D.v-v)*(handFrame2D.v-v);
         if (dist_sq > dist_max){
             dist_max = dist_sq;
             ttip2D[0] = u;
@@ -3492,20 +3467,6 @@ bool Objects3DExplorer::setInitialAlignment(const string& fpfh)
     return false;
 }
 
-
-bool Objects3DExplorer::setBurst(const string& burst)
-{
-    if (burst == "ON"){
-        burstTrain = true;
-        fprintf(stdout,"Burst Training is : %s\n", burst.c_str());
-        return true;
-    } else if (burst == "OFF"){
-        burstTrain = false;
-        fprintf(stdout,"Burst Training is : %s\n", burst.c_str());
-        return true;
-    }
-    return false;
-}
 bool Objects3DExplorer::setBB(const bool depth, const int size)
 {
     depthBB = depth;

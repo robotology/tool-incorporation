@@ -38,16 +38,48 @@ bool ToolRecognizer::trainObserve(const string &label, BoundingBox &bb)
 
     yInfo("[trainObserve] got bounding Box is %i %i %i %i", bb.tlx, bb.tly, bb.brx, bb.bry);
 
-    Bottle cmd,reply;
-    cmd.addVocab(Vocab::encode("train"));
+    Bottle cmdHR,replyHR;
+    if (burstTrain){
+        cmdHR.clear();	replyHR.clear();
+        cmdHR.addString("burst");
+        cmdHR.addString("start");
+        cout <<"Sending burst training request:  " << cmdHR.toString() <<endl;
+        portHimRep.write(cmdHR,replyHR);
 
-    Bottle &options=cmd.addList().addList();
-    options.addString(label.c_str());
-    options.add(bot.get(0));
+        for (int i=0; i < 10 ; i++){
+            cmdHR.clear();	replyHR.clear();
+            cmdHR.addVocab(Vocab::encode("train"));
 
-    yInfo("[trainObserve] Sending training request: %s\n",cmd.toString().c_str());
-    portHimRep.write(cmd,reply);
-    yInfo("[trainObserve] Received reply: %s\n",reply.toString().c_str());
+            Bottle &options=cmdHR.addList().addList();
+            options.addString(label.c_str());
+            options.add(bot.get(0));
+
+            yInfo("[trainObserve] Sending training request: %s\n",cmdHR.toString().c_str());
+            portHimRep.write(cmdHR,replyHR);
+            yInfo("[trainObserve] Received reply: %s\n",replyHR.toString().c_str());
+        }
+
+
+        cmdHR.clear();	replyHR.clear();
+        cmdHR.addString("burst");
+        cmdHR.addString("stop");
+        cout <<"Sending burst training request:  " << cmdHR.toString() <<endl;
+        portHimRep.write(cmdHR,replyHR);
+
+    }else{
+
+        cmdHR.clear();	replyHR.clear();
+        cmdHR.addVocab(Vocab::encode("train"));
+
+        Bottle &options=cmdHR.addList().addList();
+        options.addString(label.c_str());
+        options.add(bot.get(0));
+
+        yInfo("[trainObserve] Sending training request: %s\n",cmdHR.toString().c_str());
+        portHimRep.write(cmdHR,replyHR);
+        yInfo("[trainObserve] Received reply: %s\n",replyHR.toString().c_str());
+
+    }
 
     return true;
 }
@@ -140,6 +172,7 @@ bool ToolRecognizer::configure(ResourceFinder &rf)
 {
     name = rf.check("name", Value("toolRecognizer"), "Getting module name").asString();
     running = true;
+    burstTrain = rf.check("burst", Value(true)).asBool();
 
     printf("Opening ports\n" );
     bool ret= true;
@@ -254,6 +287,17 @@ string ToolRecognizer::recognize(const int tlx ,const int tly, const int brx, co
     cout << " Tool classified as: " << label << endl;
 
     return label;
+}
+
+//Thrifted
+bool ToolRecognizer::burst(const bool burstF)
+{
+    burstTrain = burstF;
+    if (burstF)
+        cout << "Burst is now ON" << endl;
+    else
+        cout << "Burst is now OFF" << endl;
+    return true;
 }
 
 

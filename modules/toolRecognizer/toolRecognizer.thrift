@@ -36,8 +36,14 @@ service toolRecognizer_IDLServer
     bool train(1: string label, 2:i32 tlx = 0, 3:i32 tly = 0, 4:i32 brx = 0 , 5:i32 bry = 0);
 
     /**
+     * Classifies image into one of the learned tool categories.
+     * @return label of recognized tool class.
+     */
+    string recognize(1:i32 tlx = 0, 2:i32 tly = 0, 3:i32 brx = 0 , 4:i32 bry = 0);
+
+    /**
      * Checks whether the hand is full or empty
      * @return true/false  corresponding to full or empty hand
      */
-    string recognize(1:i32 tlx = 0, 2:i32 tly = 0, 3:i32 brx = 0 , 4:i32 bry = 0);
+    bool burst(1:bool burstF);
 }

@@ -103,7 +103,6 @@ protected:
     bool                                saving;
     bool                                verbose;
     bool                                handFrame;
-    bool                                burstTrain;
 
     // icp variables
     int                                 icp_maxIt;
@@ -218,7 +217,6 @@ protected:
     bool                showTipProj(const std::string& tipF);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
-    bool                setBurst(const std::string& burst);
     bool                setBB(const bool depth, const int size);
     bool                setSeg(const std::string& seg);
     bool                setSaving(const std::string& sav);

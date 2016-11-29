@@ -44,6 +44,7 @@ protected:
 
     std::string                         name;               //name of the module
     bool                                running;
+    bool                                burstTrain;
 
     /*****  Methods  ****/   
     bool                trainObserve(const std::string &label, BoundingBox &bb);
@@ -64,7 +65,7 @@ public:
 
         bool                        train(const std::string &label, const int tlx = 0.0,const int tly = 0.0, const int brx = 0.0, const int bry = 0.0);
         std::string                 recognize(const int tlx = 0.0,const int tly = 0.0, const int brx = 0.0, const int bry = 0.0);
-
+        bool                        burst(const bool burstF);
 
 };
 

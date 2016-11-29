@@ -29,10 +29,15 @@ public:
    */
   virtual bool train(const std::string& label, const int32_t tlx = 0, const int32_t tly = 0, const int32_t brx = 0, const int32_t bry = 0);
   /**
+   * Classifies image into one of the learned tool categories.
+   * @return label of recognized tool class.
+   */
+  virtual std::string recognize(const int32_t tlx = 0, const int32_t tly = 0, const int32_t brx = 0, const int32_t bry = 0);
+  /**
    * Checks whether the hand is full or empty
    * @return true/false  corresponding to full or empty hand
    */
-  virtual std::string recognize(const int32_t tlx = 0, const int32_t tly = 0, const int32_t brx = 0, const int32_t bry = 0);
+  virtual bool burst(const bool burstF);
   virtual bool read(yarp::os::ConnectionReader& connection);
   virtual std::vector<std::string> help(const std::string& functionName="--all");
 };
