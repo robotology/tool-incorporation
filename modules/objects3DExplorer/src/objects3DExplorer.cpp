@@ -529,6 +529,21 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
+    }else if (receivedCmd == "lookAround"){
+        bool wait = true;
+        if (command.size() == 2){
+            wait = command.get(1).asBool();
+        }
+        bool ok = lookAround(wait);
+        if (ok){
+            reply.addString("[ack]");
+            return true;
+        } else {
+            fprintf(stdout,"Couldnt look around. \n");
+            reply.addString("[nack] Couldnt look around." );
+            return false;
+        }
+
     }else if (receivedCmd == "cleartool"){
 
         //clear clouds
