@@ -1342,6 +1342,7 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 
 
     iCartCtrl->goToPoseSync(xd,od,1.0);
+    iCartCtrl->waitMotionDone(0.2);
 
     /********************************/
     // Look at the desired tool position
