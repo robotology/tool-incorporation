@@ -1417,11 +1417,12 @@ bool Objects3DExplorer::lookAtTool(){
     xTH.resize(4);
 
     // If 3D tooltip has not been found yet, use a 2D approx
+    // Look at the hand, and follow the tool (finding the point on disparity further away from the hand rf) until the found tooltip is stable
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
 
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.16 + Rand::scalar(-0.01,0.01);;              // X
-        xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);;             // Y
+        xTH[0] = 0.1  + Rand::scalar(-0.01,0.01);// 0.16 + Rand::scalar(-0.01,0.01);              // X
+        xTH[1] = -0.1 + Rand::scalar(-0.01,0.01);// -0.16 + Rand::scalar(-0.01,0.01);;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
 
@@ -1435,11 +1436,20 @@ bool Objects3DExplorer::lookAtTool(){
         iGaze->waitMotionDone(0.1);
 
         // Refine the tooltip by getting the 2D estimate from the 3D segmentation.
-        Vector ttip2D(2,0.0);
-        get2Dtooltip(true, ttip2D);
-        cout << " 2D tip estimated on pixel (" << ttip2D[0] << " , " << ttip2D[1] << ")." << endl;
+        // Keep on updting the 2D ttip until it is stable (distance under 20 pixels, or 5 steps).
+        double tt_dist = 1e9;
+        int ref_step = 0;
+        Vector ttip2D(2,0.0), ttip2D_prev(2,0.0);
         int camSel=(camera=="left")?0:1;
-        iGaze->lookAtMonoPixel(camSel, ttip2D);
+        while ((tt_dist > 20) && (ref_step < 5)){ // Repeat until tooltip is stable or 5 steps.
+            get2Dtooltip(true, ttip2D);
+            iGaze->lookAtMonoPixel(camSel, ttip2D);
+            tt_dist = pow(ttip2D[0]-ttip2D_prev[0], 2) + pow(ttip2D[1]-ttip2D_prev[1], 2) ;       //calculating Euclidean distance
+            tt_dist = sqrt(tt_dist);
+            ttip2D_prev = ttip2D;
+            ref_step++;
+        }
+        cout << " 2D tip estimated on pixel (" << ttip2D[0] << " , " << ttip2D[1] << ")." << endl;
 
     }else {
         xTH[0] = tooltip.x;         // X
