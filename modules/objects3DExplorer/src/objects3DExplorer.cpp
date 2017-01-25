@@ -1440,6 +1440,10 @@ bool Objects3DExplorer::lookAtTool(){
         int ref_step = 0;
         Vector ttip2D(2,0.0), ttip2D_prev(2,0.0);
         int camSel=(camera=="left")?0:1;
+            get2Dtooltip(true, ttip2D);
+            iGaze->lookAtMonoPixel(camSel, ttip2D);
+            iGaze->waitMotionDone(0.1);
+/*
         while ((tt_dist > 20) && (ref_step < 3)){ // Repeat until tooltip is stable or 5 steps.
             cout << "Following the tool from my hand. Step " << ref_step <<endl;
             get2Dtooltip(true, ttip2D);
@@ -1450,6 +1454,7 @@ bool Objects3DExplorer::lookAtTool(){
             ttip2D_prev = ttip2D;
             ref_step++;
         }
+*/
         cout << " 2D tip estimated on pixel (" << ttip2D[0] << " , " << ttip2D[1] << ")." << endl;
     }else {
         xTH[0] = tooltip.x;         // X
@@ -1850,11 +1855,6 @@ bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
     cout << " HandFrame at (" << handFrame2D.u << "," << handFrame2D.v << ")" << endl;
     cout << " Tooltip at (" << ttip2D[0] << "," << ttip2D[1]<< ")" << endl;
     cout << " Distance of " << dist_tt << endl;
-
-    cmdOR.clear();	replyOR.clear();
-    Time::delay(0.5);
-    cmdOR.addString("clear");
-    rpcObjRecPort.write(cmdOR,replyOR);
     return true;
 }
 
