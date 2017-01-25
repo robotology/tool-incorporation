@@ -344,7 +344,6 @@ bool Objects3DExplorer::updateModule()
             cvLine(pImgBgrIn->getIplImage(),point_c,point_y,cvScalar(0,255,0),2);
             cvLine(pImgBgrIn->getIplImage(),point_c,point_z,cvScalar(255,0,0),2);
 
-
             handFrame2D.u = pc[0];
             handFrame2D.v = pc[1];
             // Display tooltip
@@ -1421,8 +1420,8 @@ bool Objects3DExplorer::lookAtTool(){
     if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
 
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        xTH[0] = 0.1  + Rand::scalar(-0.01,0.01);// 0.16 + Rand::scalar(-0.01,0.01);              // X
-        xTH[1] = -0.1 + Rand::scalar(-0.01,0.01);// -0.16 + Rand::scalar(-0.01,0.01);;             // Y
+        xTH[0] = 0.16  + Rand::scalar(-0.01,0.01);// 0.16 + Rand::scalar(-0.01,0.01);              // X
+        xTH[1] = -0.16 + Rand::scalar(-0.01,0.01);// -0.16 + Rand::scalar(-0.01,0.01);;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
 
@@ -1441,16 +1440,17 @@ bool Objects3DExplorer::lookAtTool(){
         int ref_step = 0;
         Vector ttip2D(2,0.0), ttip2D_prev(2,0.0);
         int camSel=(camera=="left")?0:1;
-        while ((tt_dist > 20) && (ref_step < 5)){ // Repeat until tooltip is stable or 5 steps.
+        while ((tt_dist > 20) && (ref_step < 3)){ // Repeat until tooltip is stable or 5 steps.
+            cout << "Following the tool from my hand. Step " << ref_step <<endl;
             get2Dtooltip(true, ttip2D);
             iGaze->lookAtMonoPixel(camSel, ttip2D);
-            tt_dist = pow(ttip2D[0]-ttip2D_prev[0], 2) + pow(ttip2D[1]-ttip2D_prev[1], 2) ;       //calculating Euclidean distance
+            iGaze->waitMotionDone(0.1);
+            tt_dist = pow(ttip2D[0]-ttip2D_prev[0], 2) + pow(ttip2D[1]-ttip2D_prev[1], 2);       //calculating Euclidean distance
             tt_dist = sqrt(tt_dist);
             ttip2D_prev = ttip2D;
             ref_step++;
         }
         cout << " 2D tip estimated on pixel (" << ttip2D[0] << " , " << ttip2D[1] << ")." << endl;
-
     }else {
         xTH[0] = tooltip.x;         // X
         xTH[1] = tooltip.y;         // Y
@@ -1804,9 +1804,9 @@ bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::Poin
 /************************************************************************/
 bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
 {
-   if (get3D){
-        // requests 3D reconstruction to objectReconst module
-        Bottle cmdOR, replyOR;
+    Bottle cmdOR, replyOR;
+    if (get3D){
+        // requests 3D reconstruction to objectReconst module    
         cmdOR.clear();	replyOR.clear();
         if (seg2D){
             cmdOR.addString("seg");
@@ -1821,21 +1821,40 @@ bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
 
     cout << "Computing point further away from hand"  << endl;
     Bottle *tool2D =  points2DInPort.read(true);
-    cout << "Read " << tool2D->size() << " points as 2D tool" << endl;
+    cout << "Read " << tool2D->size() << " points as 2D tool" << endl;    
+
 
     double dist_max = 0.0;
+    double dist_tt = 0.0;
+    int u,v; 
     for (int p = 0; p < tool2D->size(); p = p +10){
         Bottle *pt = tool2D->get(p).asList();
-        cout << "p_i=" << p << endl;
-        int u = pt->get(0).asInt();
-        int v = pt->get(1).asInt();        
-        double dist_sq = (handFrame2D.u-u)*(handFrame2D.u-u) + (handFrame2D.v-v)*(handFrame2D.v-v);
-        if (dist_sq > dist_max){
-            dist_max = dist_sq;
+        u = pt->get(0).asInt();
+        v = pt->get(1).asInt(); 
+        
+        //cout << "p_i = (" << u <<"," << v << ")." << endl;  
+        dist_tt = (handFrame2D.u-u)*(handFrame2D.u-u) + (handFrame2D.v-v)*(handFrame2D.v-v);
+        dist_tt = sqrt(dist_tt);
+        if (dist_tt > dist_max){
+            dist_max = dist_tt;
             ttip2D[0] = u;
             ttip2D[1] = v;
         }
     }
+
+    //ttip2D[0] = u*3/4 + +handFrame2D.u * (1/4);
+    //ttip2D[1] = v*3/4 + +handFrame2D.v * (1/4);
+    //ttip2D[0] = u/2 + +handFrame2D.u/2;
+    //ttip2D[1] = v/2 + +handFrame2D.v/2;
+
+    cout << " HandFrame at (" << handFrame2D.u << "," << handFrame2D.v << ")" << endl;
+    cout << " Tooltip at (" << ttip2D[0] << "," << ttip2D[1]<< ")" << endl;
+    cout << " Distance of " << dist_tt << endl;
+
+    cmdOR.clear();	replyOR.clear();
+    Time::delay(0.5);
+    cmdOR.addString("clear");
+    rpcObjRecPort.write(cmdOR,replyOR);
     return true;
 }
 
