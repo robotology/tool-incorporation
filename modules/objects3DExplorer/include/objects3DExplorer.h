@@ -57,7 +57,10 @@
 #include <pcl/surface/mls.h>
 
 
-#include <cv.h>
+
+#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 
 
@@ -72,6 +75,8 @@ protected:
     yarp::os::BufferedPort<yarp::os::Bottle>                            cloudsOutPort;
     yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >    imgInPort;
     yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelBgr> >    imgOutPort;
+
+    yarp::sig::ImageOf<yarp::sig::PixelBgr>                             *pImgBgrIn;
 
     // rpc ports
     yarp::os::RpcServer                 rpcPort;

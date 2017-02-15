@@ -2,8 +2,9 @@
 # Authors: Tanis Mar
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
-cmake_minimum_required(VERSION 2.8.9)
-project(objects3DModeler)
+cmake_minimum_required(VERSION 2.6)
+set(PROJECTNAME objects3DModeler)
+project(${PROJECTNAME})
 
 find_package(YARP REQUIRED)
 find_package(ICUBcontrib REQUIRED)

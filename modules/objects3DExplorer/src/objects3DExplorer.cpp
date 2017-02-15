@@ -301,7 +301,8 @@ bool Objects3DExplorer::updateModule()
 {
     if (imgOutPort.getOutputCount()>0)
     {        
-        if (ImageOf<PixelBgr> *pImgBgrIn=imgInPort.read(false))
+        //if (ImageOf<PixelBgr> *pImgBgrIn=imgInPort.read(false))
+        if (pImgBgrIn=imgInPort.read(false))
         {        
             imgW = pImgBgrIn->width();
             imgH = pImgBgrIn->height();
@@ -334,10 +335,10 @@ bool Objects3DExplorer::updateModule()
             iGaze->get2DPixel(camSel,y,py);
             iGaze->get2DPixel(camSel,z,pz);
 
-            CvPoint point_c = cvPoint((int)pc[0],(int)pc[1]);
-            CvPoint point_x = cvPoint((int)px[0],(int)px[1]);
-            CvPoint point_y = cvPoint((int)py[0],(int)py[1]);
-            CvPoint point_z = cvPoint((int)pz[0],(int)pz[1]);
+            cv::Point point_c = cvPoint((int)pc[0],(int)pc[1]);
+            cv::Point point_x = cvPoint((int)px[0],(int)px[1]);
+            cv::Point point_y = cvPoint((int)py[0],(int)py[1]);
+            cv::Point point_z = cvPoint((int)pz[0],(int)pz[1]);
 
             cvCircle(pImgBgrIn->getIplImage(),point_c,4,cvScalar(0,255,0),4);
             cvLine(pImgBgrIn->getIplImage(),point_c,point_x,cvScalar(0,0,255),2);
@@ -351,7 +352,7 @@ bool Objects3DExplorer::updateModule()
                 v[0] = tooltip.x;   v[1] = tooltip.y;   v[2] = tooltip.z;   v[3] = 1.0;
                 Vector t=Ha*v;
                 iGaze->get2DPixel(camSel,t,pt);
-                CvPoint point_t = cvPoint((int)pt[0],(int)pt[1]);
+                cv::Point point_t = cvPoint((int)pt[0],(int)pt[1]);
                 cvCircle(pImgBgrIn->getIplImage(),point_t,4,cvScalar(255,0,0),4);
                 cvLine(pImgBgrIn->getIplImage(),point_c,point_t,cvScalar(255,255,255),2);
 
@@ -1438,13 +1439,16 @@ bool Objects3DExplorer::lookAtTool(){
         // Keep on updting the 2D ttip until it is stable (distance under 20 pixels, or 5 steps).
         double tt_dist = 1e9;
         int ref_step = 0;
+        int camSel=(camera=="left")?0:1;
         Vector ttip2D(2,0.0), ttip2D_prev(2,0.0);
+        /*
         int camSel=(camera=="left")?0:1;
             get2Dtooltip(true, ttip2D);
             iGaze->lookAtMonoPixel(camSel, ttip2D);
             iGaze->waitMotionDone(0.1);
-/*
-        while ((tt_dist > 20) && (ref_step < 3)){ // Repeat until tooltip is stable or 5 steps.
+        */
+
+        while ((tt_dist > 150) && (ref_step < 3)){ // Repeat until tooltip is stable or 5 steps.
             cout << "Following the tool from my hand. Step " << ref_step <<endl;
             get2Dtooltip(true, ttip2D);
             iGaze->lookAtMonoPixel(camSel, ttip2D);
@@ -1454,7 +1458,7 @@ bool Objects3DExplorer::lookAtTool(){
             ttip2D_prev = ttip2D;
             ref_step++;
         }
-*/
+
         cout << " 2D tip estimated on pixel (" << ttip2D[0] << " , " << ttip2D[1] << ")." << endl;
     }else {
         xTH[0] = tooltip.x;         // X
@@ -1509,7 +1513,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     cout << " Moving other hand away" << endl;    
     Vector away, awayOr;
     otherHandCtrl->getPose(away,awayOr);
-    cout << " Pose received: " << away.toString() << endl;
     away[0] = -0.2;
     away[1] = (hand=="left")?0.35:-0.35;
     away[2] = 0.15;
@@ -1524,13 +1527,19 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     Eigen::Matrix4f alignMatrix;
     Eigen::Matrix4f poseMatrix;
     double spDist = 0.004;
-    double hand_rad = 0.04; // Set a small radius for hand removal, so as much handle as possible is preserved.
+    double hand_rad = 0.08; // Set a small radius for hand removal, so that as much handle as possible is preserved.
 
     turnHand(0,0);
 
     if (flag3D){
     // gets successive partial reconstructions and returns a merge-> cloud_model
         cloud_rec_merged->points.clear();
+
+        // Clear visualizer
+        Bottle cmdVis, replyVis;
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("clearVis");
+        rpcVisualizerPort.write(cmdVis,replyVis);
 
         cout << " Get first cloud" << endl;
         // Get inital cloud model on central orientation
@@ -1550,12 +1559,13 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
 
     // Rotate tool in hand
     bool mergeAlign = true;            // XXX make rpc selectable
-    int x_angle_array[] = {-70,-30,10, 40, 70};
+    //int x_angle_array[] = {-70,-30,10, 40, 70};
+    int x_angle_array[] = {-40, 30};
     //int x_angle_array[] = {-70, 10, 60};
     std::vector<int> x_angles (x_angle_array, x_angle_array + sizeof(x_angle_array) / sizeof(int) );
-    int y_angle_array[] = {-40,-15,10, 30,60};
+    //int y_angle_array[] = {-40,-15,10, 30,60};
     //int y_angle_array[] = {-30,10, 50};
-    //int y_angle_array[] = {-10,20};
+    int y_angle_array[] = {-20, 30};
     std::vector<int> y_angles (y_angle_array, y_angle_array + sizeof(y_angle_array) / sizeof(int) );
 
     int num_ang = x_angles.size() + y_angles.size();
@@ -1585,8 +1595,8 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
                 spDist = adaptDepth(cloud_rec,spDist);
                 cout <<" Spatial distance adapted to " << spDist <<endl;
             }
-            //changeCloudColor(cloud_rec, green);
-            //sendPointCloud(cloud_rec);
+            changeCloudColor(cloud_rec, green);
+            sendPointCloud(cloud_rec);
 
             // Extra filter cloud_rec (noise adds up from so many clouds).
             // XXX filterCloud(cloud_rec,cloud_rec,3);
@@ -1598,7 +1608,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
                 *cloud_rec_merged += *cloud_rec;
             }else{
                 // Align new reconstructions to model so far.
-                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix);
+                alignWithScale(cloud_rec, cloud_rec_merged, cloud_aligned, alignMatrix, 6 , 0.01);
                 poseMatrix = alignMatrix.inverse();             // Inverse the alignment to find tool pose
                 Matrix pose = CloudUtils::eigMat2yarpMat(poseMatrix);  // transform pose Eigen matrix to YARP Matrix
                 bool poseValid = checkGrasp(pose);
@@ -1610,6 +1620,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             // Downsample to reduce size and fasten computation
             downsampleCloud(cloud_rec_merged, cloud_rec_merged, 0.002);
             cout << " Cloud reconstructed " << endl;
+            changeCloudColor(cloud_rec_merged, red);
             sendPointCloud(cloud_rec_merged);
         }
 
@@ -1619,7 +1630,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         }
     }
 
-    cout << endl << " + + FINISHED TOOL ROTATION + + " << endl <<endl;
+    cout << endl << " + + FINISHED TOOL EXPLORATION + + " << endl <<endl;
 
     // filter spurious noise
     cout << endl << " + Applying radius outlier removal + " << endl <<endl;
@@ -1635,7 +1646,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         filterCloud(cloud_rec_merged, cloud_rec_merged, 3.0);
         sendPointCloud(cloud_rec_merged);
 
-        cout << "Cloud model reconstructed" << endl;
+        cout << "FINAL CLOUD MODEL RECONSTRUCTED" << endl;
         if (saving){
             string modelname = saveName + "_rec";
             saveCloud(modelname, cloud_rec_merged);
@@ -1824,14 +1835,14 @@ bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
 
     // Define the 2D tooltip as the further point from the hand belonging to the hand blob
 
-    cout << "Computing point further away from hand"  << endl;
+    cout << "Receiving points from seg2cloud"  << endl;
     Bottle *tool2D =  points2DInPort.read(true);
-    cout << "Read " << tool2D->size() << " points as 2D tool" << endl;    
+    cout << "Read " << tool2D->size() << " points as 2D tool" << endl;
 
-
+    cout << "Computing point further away from hand"  << endl;
     double dist_max = 0.0;
     double dist_tt = 0.0;
-    int u,v; 
+    int u,v, u_max, v_max;
     for (int p = 0; p < tool2D->size(); p = p +10){
         Bottle *pt = tool2D->get(p).asList();
         u = pt->get(0).asInt();
@@ -1842,19 +1853,36 @@ bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
         dist_tt = sqrt(dist_tt);
         if (dist_tt > dist_max){
             dist_max = dist_tt;
-            ttip2D[0] = u;
-            ttip2D[1] = v;
+            u_max = u;
+            v_max = v;
         }
     }
-
-    //ttip2D[0] = u*3/4 + +handFrame2D.u * (1/4);
-    //ttip2D[1] = v*3/4 + +handFrame2D.v * (1/4);
-    //ttip2D[0] = u/2 + +handFrame2D.u/2;
-    //ttip2D[1] = v/2 + +handFrame2D.v/2;
 
     cout << " HandFrame at (" << handFrame2D.u << "," << handFrame2D.v << ")" << endl;
     cout << " Tooltip at (" << ttip2D[0] << "," << ttip2D[1]<< ")" << endl;
     cout << " Distance of " << dist_tt << endl;
+
+    // Find point at distance 1/2 or 3/4 between hand and ruther point to center the gaze at.
+    ttip2D[0] = (u_max*3 + handFrame2D.u )/4;
+    ttip2D[1] = (v_max*3 + handFrame2D.v )/4;
+    //ttip2D[0] = u_max/2 + handFrame2D.u/2;
+    //ttip2D[1] = v_max/2 + handFrame2D.v/2;
+
+    cout << endl<<  " Displaying tip image..." << endl;
+    pImgBgrIn = imgInPort.read(true);
+    cout << " Camera image read, " << endl;
+    cout << "of size " << pImgBgrIn->height() << "x" << pImgBgrIn->width() << endl;
+    cv::Mat imgTipMat = cv::cvarrToMat((IplImage*)pImgBgrIn->getIplImage());
+    cout << " Im to Mat done " << endl;
+    cv::Point point_t = cv::Point((int)ttip2D[0],(int)ttip2D[1]);
+    cv::Point point_h = cv::Point((int)handFrame2D.u,(int)handFrame2D.v);
+    cv::circle(imgTipMat,point_t,4,cvScalar(255,0,0),4);
+    cv::circle(imgTipMat,point_h,4,cvScalar(0,255,0),4);
+    cout << " Tip drawn at  "  << ttip2D[0] << " " << ttip2D[1] << endl;
+    cv::namedWindow( "Tip", cv::WINDOW_AUTOSIZE );// Create a window for display.
+    cv::imshow( "Tip", imgTipMat );                   // Show our image inside it.
+    cv::waitKey(300);
+
     return true;
 }
 
@@ -3321,7 +3349,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     // Perform Moving least squares to smooth surfaces
     // Init object (second point type is for the normals, even if unused)
 
-    downsampleCloud(cloud_filter, cloud_filter, 0.005);
+    //downsampleCloud(cloud_filter, cloud_filter, 0.005);
 
     /*
     // XXX Dirty hack to do it with XYZ clouds. Check better ways (less conversions) to change XYZ <-> XYZRGB
