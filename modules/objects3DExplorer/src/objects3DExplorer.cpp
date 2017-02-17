@@ -2442,7 +2442,8 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     xTool.push_back(eigVec[effPlane_i][0]);     xTool.push_back(eigVec[effPlane_i][1]);     xTool.push_back(eigVec[effPlane_i][2]);
     yTool.push_back(eigVec[hanPlane_i][0]);     yTool.push_back(eigVec[hanPlane_i][1]);     yTool.push_back(eigVec[hanPlane_i][2]);
 
-    // XXX Figure out what to do when the tool is rotated more than 90 degrees (XdotX is positive, so it believes ts oriented backwards)    
+    // XXX Figure out what to do when the tool is rotated more than 90 degrees (XdotX is positive, so it believes ts oriented backwards)
+    // Saliency with respect to the effector plane: the side with the furthers point to the plane will be the effector side.
     double x_sign = dot(xTool,xRef);    
     if (x_sign<0){
         xTool = xTool*(-1);
@@ -3215,7 +3216,7 @@ bool Objects3DExplorer::showTooltip(const  Point3D coords, int color[])
     Bottle& bCoords = cmdVis.addList();
     bCoords.addDouble(coords.x);
     bCoords.addDouble(coords.y);
-    bCoords.addDouble(coords.z - 0.03); //Compensate for the added 3 cm of displacemnt on Z point is also correct on pointcloud.
+    bCoords.addDouble(coords.z);// - 0.03); //Compensate for the added 3 cm of displacemnt on Z point is also correct on pointcloud.
     Bottle& bColor = cmdVis.addList();
     bColor.addInt(color[0]);
     bColor.addInt(color[1]);
