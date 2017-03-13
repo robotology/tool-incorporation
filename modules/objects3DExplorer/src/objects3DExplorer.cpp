@@ -507,7 +507,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
                 rotDegX = command.get(2).asInt();
             }
 
-            bool ok = turnHand(rotDegX, rotDegY);
+            bool ok = turnHand(rotDegX, rotDegY, true);
             if (ok){
                 reply.addString("[ack]");
                 return true;
@@ -1355,8 +1355,9 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     Matrix R=Rh*Rx*Ry;         // compose the two rotations keeping the order
     Vector od=dcm2axis(R);     // from rotation matrix back to the axis/angle notation
 
+    cout << " Moving hand to desired position" << endl;
 
-    iCartCtrl->goToPoseSync(xd,od,1.0);
+    iCartCtrl->goToPoseSync(xd,od);
     iCartCtrl->waitMotionDone(0.2);
 
     /********************************/
@@ -1364,38 +1365,34 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 
     R(0,3)= xd[0];    R(1,3)= xd[1];    R(2,3)= xd[2];        // Include translation
 
-    lookAtTool();
+    cout << "Looking at tool" << endl;
 
-    /*
-    // Define the tooltip initial guess w.r.t to hand frame:
-    Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
-    xTH.resize(4);
+    if (followTool) {
+        lookAtTool();
+    } else {
+        // Define the tooltip initial guess w.r.t to hand frame:
+        Vector xTH, xTR;           // Position of an estimated tooltip (Hand and Robot referenced)
+        xTH.resize(4);
 
-    if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
         // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
         xTH[0] = 0.16;              // X
         xTH[1] = -0.16;             // Y
         xTH[2] = 0.0;               // Z
         xTH[3] = 1.0;               // T
-    }else {
-        xTH[0] = tooltip.x;         // X
-        xTH[1] = tooltip.y;         // Y
-        xTH[2] = tooltip.z;         // Z
-        xTH[3] = 1.0;               // T
+
+
+        // Transform point to robot coordinates:
+        xTR = R * xTH;
+        cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
+
+        iGaze->blockEyes(5.0);
+        iGaze->lookAtFixationPoint(xTR);
+        iGaze->waitMotionDone(0.1);
+
+        iCartCtrl->waitMotionDone(0.1);
+        iCartCtrl->restoreContext(context_arm);
+        iCartCtrl->deleteContext(context_arm);
     }
-
-    // Transform point to robot coordinates:
-    xTR = R * xTH;
-    cout << "Initial guess for the tool is at coordinates (" << xTR[0] << ", "<< xTR[1] << ", "<< xTR[2] << ")." << endl;
-
-    iGaze->blockEyes(5.0);
-    iGaze->lookAtFixationPoint(xTR);
-    iGaze->waitMotionDone(0.1);
-
-    iCartCtrl->waitMotionDone(0.1);
-    iCartCtrl->restoreContext(context_arm);
-    iCartCtrl->deleteContext(context_arm);
-    */
 
     return true;
 }
@@ -1529,7 +1526,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     double spDist = 0.004;
     double hand_rad = 0.08; // Set a small radius for hand removal, so that as much handle as possible is preserved.
 
-    turnHand(0,0);
+    turnHand(0,0, true);
 
     if (flag3D){
     // gets successive partial reconstructions and returns a merge-> cloud_model
@@ -1575,12 +1572,12 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             int degX = x_angles[i];
             cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << "++++++++++++++++++" << endl <<endl;
             // Move hand to new position
-            turnHand(degX,y_angles[0]);
+            turnHand(degX,y_angles[0], true);
         }else{
             int degY = y_angles[i-x_angles.size()];
             cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++" << endl <<endl;
             // Move hand to new position
-            turnHand(0,degY);
+            turnHand(0,degY, true);
         }
 
         Time::delay(1.0);
@@ -1731,7 +1728,7 @@ bool Objects3DExplorer::learn(const string &label ){
 bool Objects3DExplorer::recognize(string &label){
 
     // look at tool
-    turnHand(0,0);
+    turnHand(0,0, true);
 
     // It probably works better with the depth extracted bounding box
     Vector BB(4,0.0);
@@ -2022,7 +2019,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
         Time::delay(1.0);
 
         // Get a registration
-        turnHand(0,0);
+        turnHand(0,0, false);
         if(!getPointCloud(cloud_rec, spDist))          // Registration get and normalized to hand-reference frame.
         {            
             spDist = adaptDepth(cloud_rec,spDist);            
