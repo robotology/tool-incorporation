@@ -85,7 +85,6 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 
     // Flow control variables
     initAlignment = false;
-    depthBB = false;
     displayTooltip = true;
     closing = false;
     numCloudsSaved = 0;
@@ -97,7 +96,6 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     tooltip.x = 0.0; tooltip.y = 0.0; tooltip.z = 0.0;
     tooltipCanon = tooltip;
 
-    bbsize = 150;
 
     eigenValues.resize(3,0.0);
     eigenPlanes.clear();
@@ -500,14 +498,19 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             // Turn the hand 'int' degrees, or go to 0 if no parameter was given.
             int rotDegX = 0;
             int rotDegY = 0;
+            bool followTool = false;
             if (command.size() == 2){
                 rotDegY = command.get(1).asInt();
             } else if  (command.size() == 3){
                 rotDegY = command.get(1).asInt();
                 rotDegX = command.get(2).asInt();
+            } else if (command.size() == 4){
+                rotDegY = command.get(1).asInt();
+                rotDegX = command.get(2).asInt();
+                followTool = command.get(3).asBool();
             }
 
-            bool ok = turnHand(rotDegX, rotDegY, true);
+            bool ok = turnHand(rotDegX, rotDegY, followTool);
             if (ok){
                 reply.addString("[ack]");
                 return true;
@@ -1116,24 +1119,18 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
             return false;
         }
 
-    }else if (receivedCmd == "bb"){
+    }else if (receivedCmd == "setbb"){
         // activates the normalization of the pointcloud to the hand reference frame.
         bool depth;
-        int sizeBB;
         if (command.size() == 1){
             cout << "Need parameters to update BB" << endl;
             return false;
         }
         if (command.size() == 2){
             depth = command.get(1).asBool();
-            sizeBB = bbsize;
         }
-        if (command.size() == 3){
-            depth = command.get(1).asBool();
-            sizeBB = command.get(1).asInt();
-        }
+        bool ok = setBB(depth);
 
-        bool ok = setBB(depth, sizeBB);
         if (ok){
             cout << "Bounding box parameters not updated" << endl;
             reply.addString("[ack]");
@@ -1282,7 +1279,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         reply.addString("---------- SET PARAMETERS ------------");
         reply.addString("handFrame (ON/OFF) - Activates/deactivates transformation of the registered clouds to the hand coordinate frame. (default ON).");
         reply.addString("FPFH (ON/OFF) - Activates/deactivates fast local features (FPFH) based Initial alignment for registration. (default ON).");
-        reply.addString("bb (true/false)depth (int)size - Sets whether the BB for learning is obtained from depth or tooltip, and the size of it.");
+        reply.addString("setbb (true/false)depth - Sets whether the BB for learning is obtained from depth or tooltip, and the size of it.");
         reply.addString("icp (int)maxIt (double)maxCorr (double)ranORT (double)transEp - sets ICP parameters (default 100, 0.03, 0.05, 1e-6).");
         reply.addString("noise (double)mean (double)sigma - sets noise parameters (default 0.0, 0.003)");
         reply.addString("seg2D (ON/OFF) - Set the segmentation to 2D (ON) from graphBasedSegmentation, or 3D (OFF), from 'flood3d' .");
@@ -1496,16 +1493,6 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     // Update tool name
     changeSaveName(label);
 
-    /*
-    // If tool is unknown (usually in 3D reconst), define generic tooltip for exploration:
-    if ((tooltip.x == 0) && (tooltip.y == 0) && (tooltip.z == 0)){
-        // If tooltip has not been initialized, try a generic one (0.17, -0.17, 0)
-        tooltip.x = 0.16;
-        tooltip.y = -0.16;
-        tooltip.z = 0.0;
-    }
-    */
-
     // Move not exploring hand out of the way:
     cout << " Moving other hand away" << endl;    
     Vector away, awayOr;
@@ -1526,7 +1513,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     double spDist = 0.004;
     double hand_rad = 0.08; // Set a small radius for hand removal, so that as much handle as possible is preserved.
 
-    turnHand(0,0, true);
+    turnHand(0,0, false);
 
     if (flag3D){
     // gets successive partial reconstructions and returns a merge-> cloud_model
@@ -1549,6 +1536,19 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
         sendPointCloud(cloud_rec_merged);
     }
     if (flag2D){
+        // Send train command to ontheFly learner
+        Bottle cmdClas, replyClas;
+        cmdClas.clear();	replyClas.clear();
+        cmdClas.addString("human");
+        cout << "Sending Command to learner: " << cmdClas.toString() << endl;
+        rpcClassifierPort.write(cmdClas,replyClas);
+        cout << "Learner replied: " << replyClas.toString() << endl;
+
+        cmdClas.clear();	replyClas.clear();
+        cmdClas.addString("bbdisp");
+        cout << "Sending Command to learner: " << cmdClas.toString() << endl;
+        rpcClassifierPort.write(cmdClas,replyClas);
+
         cout << " Learning first view" << endl;
         Time::delay(1.0);
         learn(label);
@@ -1572,12 +1572,12 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             int degX = x_angles[i];
             cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degX << "++++++++++++++++++" << endl <<endl;
             // Move hand to new position
-            turnHand(degX,y_angles[0], true);
+            turnHand(degX,y_angles[0], false);
         }else{
             int degY = y_angles[i-x_angles.size()];
             cout << endl << endl << " +++++++++++ EXPLORING NEW ANGLE " << degY << " ++++++++++++++++++++" << endl <<endl;
             // Move hand to new position
-            turnHand(0,degY, true);
+            turnHand(0,degY, false);
         }
 
         Time::delay(1.0);
@@ -1691,32 +1691,11 @@ bool Objects3DExplorer::lookAround(const bool wait)
 bool Objects3DExplorer::learn(const string &label ){
 
 
-    // get tooltip and define a BB around it (check bb does not exceed image size).
-    Vector BB(4,0.0);
-    if (depthBB){
-        BB[0] = 0;     BB[1] = 0;    BB[2] = 0;      BB[3] = 0;
-    }else{
-        BB[0] = tooltip2D.u - bbsize/2;         // tlx
-        if (BB[0]< 0){        BB[0]= 0;    }
-        BB[1] = tooltip2D.v - bbsize/2;         // tly
-        if (BB[1]< 0){        BB[1]= 0;    }
-        BB[2] = tooltip2D.u + bbsize/2;         // brx
-        if (BB[2]> imgW){     BB[2]= imgW-1; }
-        BB[3] = tooltip2D.v + bbsize/2;         // bry
-        if (BB[3]> imgH){     BB[3]= imgH-1; }
-
-        cout << "BB around tooltip " << tooltip2D.u << ", " << tooltip2D.v << " is : " << BB[0]<< ", " << BB[1]<< "; " << BB[2]<< ", "<< BB[3]<< ". " <<endl;
-    }
-
-    // Send to toolRecognizer module /applications
+    // Send train command to ontheFly learner
     Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
     cmdClas.addString("train");
     cmdClas.addString(label);
-    cmdClas.addInt(BB[0]);
-    cmdClas.addInt(BB[1]);
-    cmdClas.addInt(BB[2]);
-    cmdClas.addInt(BB[3]);
     cout << "Sending Command to classifier: " << cmdClas.toString() << endl;
     rpcClassifierPort.write(cmdClas,replyClas);
 
@@ -1728,33 +1707,12 @@ bool Objects3DExplorer::learn(const string &label ){
 bool Objects3DExplorer::recognize(string &label){
 
     // look at tool
-    turnHand(0,0, true);
-
-    // It probably works better with the depth extracted bounding box
-    Vector BB(4,0.0);
-    if (depthBB){
-        BB[0] = 0;     BB[1] = 0;    BB[2] = 0;      BB[3] = 0;
-    }else{
-    // get tooltip and define a BB around it (check bb does not exceed image size).
-
-        BB[0] = tooltip2D.u - bbsize/2;         // tlx
-        if (BB[0]< 0){        BB[0]= 0;    }
-        BB[1] = tooltip2D.v - bbsize/2;         // tly
-        if (BB[1]< 0){        BB[1]= 0;    }
-        BB[2] = tooltip2D.u + bbsize/2;         // brx
-        if (BB[2]> imgW){        BB[2]= imgW;    }
-        BB[3] = tooltip2D.v + bbsize/2;         // bry
-        if (BB[3]> imgH){        BB[3]= imgH;    }
-    }
+    turnHand(0,0, false);
 
     // Send to toolRecognizer module /applications
     Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
     cmdClas.addString("recognize");    
-    cmdClas.addInt(BB[0]);
-    cmdClas.addInt(BB[1]);
-    cmdClas.addInt(BB[2]);
-    cmdClas.addInt(BB[3]);
     rpcClassifierPort.write(cmdClas,replyClas);
 
     label = replyClas.toString();
@@ -3538,10 +3496,17 @@ bool Objects3DExplorer::setInitialAlignment(const string& fpfh)
     return false;
 }
 
-bool Objects3DExplorer::setBB(const bool depth, const int size)
+bool Objects3DExplorer::setBB(const bool depth)
 {
-    depthBB = depth;
-    bbsize = size;
+    Bottle cmdClas, replyClas;
+    cmdClas.clear();	replyClas.clear();
+    if (depth){
+        cmdClas.addString("bbdisp");
+    }else{
+        cmdClas.addString("radius");
+    }
+    rpcClassifierPort.write(cmdClas,replyClas);
+
     return true;
 }
 

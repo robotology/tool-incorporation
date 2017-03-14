@@ -144,7 +144,6 @@ protected:
     Point3D                                     tooltip, tooltipCanon;
     Point2D                                     tooltip2D, handFrame2D;
     int                                         bbsize, imgW, imgH;
-    bool                                        depthBB;
 
     yarp::sig::Vector                           eigenValues;
     std::vector<Plane3D>                        eigenPlanes;
@@ -222,7 +221,7 @@ protected:
     bool                showTipProj(const std::string& tipF);
     bool                setHandFrame(const std::string& hf);
     bool                setInitialAlignment(const std::string& fpfh);
-    bool                setBB(const bool depth, const int size);
+    bool                setBB(const bool depth);
     bool                setSeg(const std::string& seg);
     bool                setSaving(const std::string& sav);
     bool                changeSaveName(const std::string& fname);
