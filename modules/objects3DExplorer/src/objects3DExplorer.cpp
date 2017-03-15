@@ -478,12 +478,14 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 
 
         if (ok) {
-            sendPointCloud(cloud_merged);
+            if (flag3D){
+                sendPointCloud(cloud_merged);
 
-            *cloud_model = *cloud_merged;
-            *cloud_pose = *cloud_merged;
-            cloudLoaded = true;
-            poseFound = true;
+                *cloud_model = *cloud_merged;
+                *cloud_pose = *cloud_merged;
+                cloudLoaded = true;
+                poseFound = true;
+            }
 
             reply.addString("[ack]");
             return true;
@@ -1712,7 +1714,7 @@ bool Objects3DExplorer::recognize(string &label){
     // Send to toolRecognizer module /applications
     Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
-    cmdClas.addString("recognize");    
+    cmdClas.addString("what");
     rpcClassifierPort.write(cmdClas,replyClas);
 
     label = replyClas.toString();
@@ -2630,7 +2632,7 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 
             // Select the tool
             if (toolI == 0){
-                toolName = "HOE3";  // Metal Hoe
+                toolName = "HOE1";  // Metal Hoe
             }
             if (toolI == 1){
                 toolName = "HOK3";  // All round hook
@@ -2740,7 +2742,7 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
     double toolI = -1, poseI = 0;
-    if (tool == "HOE3"){  // Metal Hoe
+    if (tool == "HOE1"){  // Metal Hoe
         toolI = 0;
     }
     if (tool == "HOK3"){  // All round hook
