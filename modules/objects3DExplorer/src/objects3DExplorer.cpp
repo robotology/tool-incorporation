@@ -1357,7 +1357,7 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
     cout << " Moving hand to desired position" << endl;
 
     iCartCtrl->goToPoseSync(xd,od);
-    iCartCtrl->waitMotionDone(0.2);
+    //iCartCtrl->waitMotionDone(0.2);
 
     /********************************/
     // Look at the desired tool position
@@ -1701,23 +1701,36 @@ bool Objects3DExplorer::learn(const string &label ){
     cout << "Sending Command to classifier: " << cmdClas.toString() << endl;
     rpcClassifierPort.write(cmdClas,replyClas);
 
-    cout << "Tool Recognizer replied: " << replyClas.toString() << endl;
+    cout << "Visual Learner replied: " << replyClas.toString() << endl;
     return true;
 
 }
 
 bool Objects3DExplorer::recognize(string &label){
 
+    // Set the recognizer to merely classify what it is seeing, to prevent movement conflicts (human mode)
+    Bottle cmdClas, replyClas;
+    cmdClas.clear();	replyClas.clear();
+    cmdClas.addString("human");
+    rpcClassifierPort.write(cmdClas,replyClas);
+
+    // Make sure the cropping method is set to disparity mode
+    cmdClas.clear();	replyClas.clear();
+    cmdClas.addString("bbdisp");
+    rpcClassifierPort.write(cmdClas,replyClas);
+
     // look at tool
     turnHand(0,0, false);
 
-    // Send to toolRecognizer module /applications
-    Bottle cmdClas, replyClas;
+    // Wait until the object is stabilized
+    Time::delay(5.0);
+
+    // Ask the network to recognize the tool
     cmdClas.clear();	replyClas.clear();
     cmdClas.addString("what");
     rpcClassifierPort.write(cmdClas,replyClas);
 
-    label = replyClas.toString();
+    label = replyClas.get(1).asString();
 
     cout << "Tool Recognized as: " << label << endl;
     return true;
