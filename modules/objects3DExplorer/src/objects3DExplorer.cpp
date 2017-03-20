@@ -144,7 +144,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     retRPC = retRPC && rpcObjRecPort.open(("/"+name+"/objrec:rpc").c_str());             // port to communicate with object reconstruction module
     retRPC = retRPC && rpcFeatExtPort.open(("/"+name+"/featExt:rpc").c_str());           // port to command the pointcloud feature extraction module
     retRPC = retRPC && rpcVisualizerPort.open(("/"+name+"/visualizer:rpc").c_str());     // port to command the visualizer module
-    retRPC = retRPC && rpcClassifierPort.open(("/"+name+"/class:rpc").c_str());     // port to command the classifier module
+    retRPC = retRPC && rpcClassifierPort.open(("/"+name+"/toolClass:rpc").c_str());     // port to command the classifier module
     if (!retRPC){
         printf("\nProblems opening RPC ports\n");
         return false;
