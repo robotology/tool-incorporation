@@ -2645,19 +2645,19 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 
             // Select the tool
             if (toolI == 0){
-                toolName = "HOE1";  // Metal Hoe
+                toolName = "hoe";  // Metal Hoe
             }
             if (toolI == 1){
-                toolName = "HOK3";  // All round hook
+                toolName = "hook";  // All round hook
             }
             if (toolI = 2){
-                toolName = "RAK2";   // Blue Rake
+                toolName = "rake";   // Blue Rake
             }
             if (toolI = 3){
-                toolName = "STI3";   // 2-Markers stick
+                toolName = "stick";   // 2-Markers stick
             }
             if (toolI = 4){
-                toolName = "SHO3";   // Yellow shovel
+                toolName = "shovel";   // Yellow shovel
             }
             affBottle.addString(toolName);
             Property &affProps = affBottle.addDict();
@@ -2755,19 +2755,19 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
     cout << "Param returned from paramFromPose to set aff = " << ori << ", " << displ << ", " << tilt << ", " << shift << "." << endl;
 
     double toolI = -1, poseI = 0;
-    if (tool == "HOE1"){  // Metal Hoe
+    if (tool == "hoe"){  // Metal Hoe
         toolI = 0;
     }
-    if (tool == "HOK3"){  // All round hook
+    if (tool == "hook"){  // All round hook
         toolI = 1;
     }
-    if (tool == "RAK2"){   // Blue Rake
+    if (tool == "rake"){   // Blue Rake
         toolI = 2;
     }
-    if (tool == "STI3"){   // 2-Markers stick
+    if (tool == "stick"){   // 2-Markers stick
         toolI = 3;
     }
-    if (tool == "SHO3"){   // Yellow shovel
+    if (tool == "shovel"){   // Yellow shovel
         toolI = 4;
     }
     if (toolI == -1){
