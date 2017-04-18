@@ -34,7 +34,7 @@ add_subdirectory(libYarpCloud)
 ## add modules
 if(BUILD_OBJECTS3DEXPLORER)
     add_subdirectory(modules/objects3DExplorer)
-    add_subdirectory(modules/toolRecognizer)
+
 endif()
 
 if(BUILD_SHOW3D)
@@ -48,6 +48,9 @@ endif()
 if(BUILD_OBJFUS3D)
     add_subdirectory(modules/objFus3D)
 endif()
+
+## obsolete
+## add_subdirectory(modules/toolRecognizer)
 
 ## then apps
 add_subdirectory(app)

@@ -10,7 +10,7 @@ file(GLOB temps ${CMAKE_CURRENT_SOURCE_DIR}/scripts/*.xml.template)
 file(GLOB conf    ${CMAKE_CURRENT_SOURCE_DIR}/conf/*.ini)
 file(GLOB cloudsReal ${CMAKE_CURRENT_SOURCE_DIR}/sampleClouds/real/*.ply
                      ${CMAKE_CURRENT_SOURCE_DIR}/sampleClouds/real/*.pcd
-		     ${CMAKE_CURRENT_SOURCE_DIR}/sampleClouds/real/partials/*.ply)
+		             ${CMAKE_CURRENT_SOURCE_DIR}/sampleClouds/real/rec/*.ply)
                  
 file(GLOB cloudsSim ${CMAKE_CURRENT_SOURCE_DIR}/sampleClouds/sim/*.ply
                     ${CMAKE_CURRENT_SOURCE_DIR}/sampleClouds/sim/*.pcd)
