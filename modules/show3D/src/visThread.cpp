@@ -13,8 +13,8 @@ bool VisThread::threadInit()
     cloud_normals = pcl::PointCloud<pcl::Normal>::Ptr (new pcl::PointCloud<pcl::Normal>); // Normals point cloud
     cloud_normalColors = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>); // Normal Colors point cloud
     viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer> (new pcl::visualization::PCLVisualizer("Point Cloud Viewer")); //viewer
-    viewer->setSize(1000,650);
-    viewer->setPosition(0,350);
+    viewer->setSize(960,650);
+    viewer->setPosition(80,350);
 
 
     //initialize here variables
