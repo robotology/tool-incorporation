@@ -2322,7 +2322,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
 
 
         // 3- Compute the minimum distance from plane to origin.
-        // : The effector and symmetry planes go alogn the handle, so they will pass close to the origin,
+        // : The effector and symmetry planes go along the handle, so they will pass close to the origin,
         //  while the handle plane (perpendicular to the handle axis), will be far away.
         float d2orig = uP.a*origin.x + uP.b*origin.y + uP.c*origin.z + uP.d;     // Normalized signed distance from origin point to plane_i
         cout << "Distance of plane to origin is  " << d2orig << endl;
