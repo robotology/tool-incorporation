@@ -3,6 +3,7 @@
 
 using namespace std;
 using namespace yarp::sig;
+using namespace yarp::os;
 using namespace yarp::math;
 using namespace iCub::YarpCloud; 
 
@@ -288,7 +289,7 @@ void CloudUtils::bottle2cloud(const yarp::os::Bottle& cloudB, pcl::PointCloud<pc
         cloud->push_back(point);
     }
 
-    printf("Bottle formatted into Point Cloud \n");
+    //printf("Bottle formatted into Point Cloud \n");
 }
 
 
@@ -315,7 +316,7 @@ void CloudUtils::cloud2bottle(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
             bpoint.addInt(p.b);
         }
     }
-    printf("Point Cloud formatted into Bottle\n");
+    //printf("Point Cloud formatted into Bottle\n");
     return;
 }
 
@@ -356,4 +357,78 @@ Eigen::MatrixXf CloudUtils::yarpMat2eigMat(const Matrix yarpMat){
     }
     return eigMat;
 }
+
+/************************************************************************/
+bool CloudUtils::addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma)
+{
+    cout << "Adding noise to cloud" << endl;
+    for (unsigned int i=0; i<cloud->points.size(); i++)
+    {
+        pcl::PointXYZRGB *point = &cloud->at(i);
+        point->x = point->x + Random::normal(mean, sigma);
+        point->y = point->y + Random::normal(mean, sigma);
+        point->z = point->z + Random::normal(mean, sigma);
+
+    }
+    return true;
+}
+
+/************************************************************************/
+bool CloudUtils::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+{
+    int color[3] = {0, 255, 0};
+    return changeCloudColor(cloud, color);
+}
+
+bool CloudUtils::changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[])
+{
+    cout << "Changing cloud color" << endl;
+    for (unsigned int i=0; i<cloud->points.size(); i++)
+    {
+        pcl::PointXYZRGB *point = &cloud->at(i);
+        point->r = color[0];
+        point->g = color[1];
+        point->b = color[2];
+
+    }
+    return true;
+}
+
+/************************************************************************/
+bool CloudUtils::downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, double res)
+{
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_fil(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+    vg.setInputCloud(cloud_orig);
+    vg.setLeafSize(res, res, res);
+    vg.filter (*cloud_fil);
+    cloud_ds->points.clear();
+    cloud_ds->clear();
+    copyPointCloud(*cloud_fil, *cloud_ds);
+
+    return true;
+}
+
+/************************************************************************/
+bool CloudUtils::scaleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_scaled, double scale)
+{
+    copyPointCloud(*cloud_in, *cloud_scaled);
+
+    // Find the centroid of the cloud and use it to normalize cloud position,
+    // so that scaling does not drag towards or away from origin.
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*cloud_scaled, centroid);
+    for (unsigned int i=0; i<cloud_scaled->points.size(); i++)
+    {
+        pcl::PointXYZRGB *point = &cloud_scaled->at(i);
+        point->x = (point->x - centroid[0]) * scale + centroid[0];
+        point->y = (point->y - centroid[1]) * scale + centroid[1];
+        point->z = (point->z - centroid[2]) * scale + centroid[2];
+    }
+    return true;
+}
+
+
+
 

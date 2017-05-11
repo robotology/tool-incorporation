@@ -26,14 +26,18 @@
 #include <string>
 
 // YARP includes
+#include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
 
 //PCL includes
-#include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl/filters/voxel_grid.h>
+#include "pcl/common/impl/centroid.hpp"
+//#include <pcl/features/moment_of_inertia_estimation.h>
 
 // iCub includes
 //#include <iCub/data3D/SurfaceMeshWithBoundingBox.h>
@@ -50,7 +54,9 @@ namespace iCub {
  * @brief The iCub::YarpCloud::CloudUtils class
  */
 class iCub::YarpCloud::CloudUtils {
+
 public: 
+
     /**
      * @brief loadCloud Loads a cloud from the given path and .ply, .pcd or .(c)off file to a PCL PointXYZRGB::Ptr type cloud_to.
      * @param cloudpath Path where the cloud file is found
@@ -115,7 +121,43 @@ public:
      */
     static Eigen::MatrixXf     yarpMat2eigMat(const yarp::sig::Matrix yarpMat);
 
+
+    /**
+     * @brief addNoise adds gaussian noise to a pointcloud, with 'mean' and 'sigma' parameters
+     * @param cloud Ptr to the cloud to be 'noised'
+     * @param mean mean of gaussian noise distribution
+     * @param sigma variance of gaussian noise distribution
+     * @return bool true on success.
+     */
+    static bool              addNoise(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double mean, double sigma);
+
+    /**
+     * @brief changeCloudColor changes the color of all the points in a pointcloud (to green by default)
+     * @param (optional) color input color RGB (int color[3], default {0,255,0})
+     * @return bool true on success.
+     */
+    static bool              changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int color[]);
+    static bool              changeCloudColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+
+    /**
+     * @brief downsampleCloud Downsamples a cloud using marching cubes technique with cube size of 'res'
+     * @param cloud_orig  Boost pointer to cloud to be downsampled
+     * @param cloud_ds    Boost Pointer to downampled cloud (can be different from original)
+     * @param res  (double) downsmpling resolution, i.e., side length of the marching cubes
+     */
+    static bool        downsampleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ds, double res);
+
+    /**
+     * @brief scaleCloud Uniformly scales a cloud to the given scale, using the centroid of the cloud as anchor, to prevent drag towards or away from the origin.
+     * @param cloud_in        Boost pointer to cloud to be scaled
+     * @param cloud_scaled    Boost Pointer to scaled cloud (can be different from original)
+     * @param scale  (double) scaling factor
+     */
+    static bool        scaleCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_scaled, double scale);
         
+
+
+
 };
 #endif //__CLOUDUTILS_H__
 
