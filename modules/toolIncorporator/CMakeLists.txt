@@ -3,7 +3,7 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-SET(PROJECTNAME objects3DExplorer)
+SET(PROJECTNAME toolIncorporator)
 PROJECT(${PROJECTNAME})
 
 find_package(ICUB REQUIRED)

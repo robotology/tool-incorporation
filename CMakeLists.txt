@@ -3,7 +3,7 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 cmake_minimum_required(VERSION 2.6)
-set(PROJECTNAME objects3DModeler)
+set(PROJECTNAME toolIncorporation)
 project(${PROJECTNAME})
 
 find_package(YARP REQUIRED)
@@ -22,7 +22,7 @@ icubcontrib_set_default_prefix()
 
 
 # setting options
-option (BUILD_OBJECTS3DEXPLORER "Build objects 3D Explorer" ON)
+option (BUILD_TOOLINCORPORATOR "Build tool incporation module" ON)
 option (BUILD_SHOW3D "Build 3D show module" ON)
 option (BUILD_TOOLFEATEXT "Build tool feature extractor" ON)
 
@@ -30,8 +30,8 @@ option (BUILD_TOOLFEATEXT "Build tool feature extractor" ON)
 add_subdirectory(libYarpCloud)
 
 ## add modules
-if(BUILD_OBJECTS3DEXPLORER)
-    add_subdirectory(modules/objects3DExplorer)
+if(BUILD_TOOLINCORPORATOR)
+    add_subdirectory(modules/toolIncorporator)
 endif()
 
 if(BUILD_SHOW3D)
@@ -46,7 +46,7 @@ endif()
 add_subdirectory(app)
 
 ## Add this instruction IF AND ONLY IF the project uses libraries.
-icubcontrib_finalize_export (objects3DModeler)  
+icubcontrib_finalize_export(toolIncorporator)  
 ## Uninstall
 icubcontrib_add_uninstall_target()
 

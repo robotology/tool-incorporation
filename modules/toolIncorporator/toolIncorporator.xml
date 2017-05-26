@@ -3,13 +3,13 @@
 
 <module>
     <!-- module's name should match its executable file's name. -->
-    <name>objects3DExplorer</name>
-    <description> This module deals with 3D object/tool exploration, partial reconstruction, alignment, pose estimation, etc..</description>
+    <name>toolIncorporator</name>
+    <description> This module deals with 3D tool exploration and incporporation, that is, model reconstruction, tool recognition, pose and tooltip estimation</description>
     <version>1.0</version>
 
     <!-- <arguments> can have multiple <param> tags-->
     <arguments>
-        <param desc="Name of the module" default="objects3DExplorer"> name</param>
+        <param desc="Name of the module" default="toolIncorporator"> name</param>
         <param desc="Robot" default="icub"> robot</param>
         <param desc="Hand" default="right"> hand</param>
         <param desc="Eye camera" default="left"> camera</param>
@@ -20,7 +20,7 @@
         <param desc="Saving clouds" default="false"> saving</param>
         <param desc="Root name of recorded clouds" default="cloud"> saveName</param>
 
-        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolModeler"> context </param>
+        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolIncorporator"> context </param>
     </arguments>
 
     <!-- <authors> can have multiple <author> tags. -->
@@ -33,49 +33,49 @@
         <!-- input data if available -->
         <input port_type="service">
             <type>rpc</type>
-            <port carrier="tcp">/objects3DExplorer/rpc:i</port>
+            <port carrier="tcp">/toolIncorporator/rpc:i</port>
             <description>takes RPC commands from Human or stateMachine</description>
         </input>      
         <input>
             <type>Bottle</type>
-            <port carrier="tcp">/objects3DExplorer/clouds:i</port>
+            <port carrier="tcp">/toolIncorporator/clouds:i</port>
             <description>Receives clouds in Bottles, as BottleOf(lists), where each list is a 3 value XYZ point, or optionally 3 more values RGB </description>
         </input>   
        <input>
             <type>ImageOfPixelRgb</type>
-            <port carrier="udp">/objects3DExplorer/img:i</port>
+            <port carrier="udp">/toolIncorporator/img:i</port>
             <description>Receives images from the camera, to process and propagate them </description>
         </input> 
         <!-- output data if available -->        
 
         <output>
             <type>ImageOfPixelRgb</type>
-            <port carrier="udp">/objects3DExplorer/img:o</port>
+            <port carrier="udp">/toolIncorporator/img:o</port>
             <description>Propagates image from camera with tool kinematic extension superimposed. </description>
         </output>
         <output>
             <type>Bottle</type>
-            <port>/objects3DExplorer/clouds:o</port>
+            <port>/toolIncorporator/clouds:o</port>
             <description> Send out the latest reconstructed cloud in the same bottle format, for visualization or further processing</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/objects3DExplorer/objrec:rpc</port>
+            <port>/toolIncorporator/objrec:rpc</port>
             <description> Send commands to the objectReconstruction module</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/objects3DExplorer/visualizer:rpc</port>
+            <port>/toolIncorporator/visualizer:rpc</port>
             <description> Send commands to the visualizer module to display the pointcloud</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/objects3DExplorer/classifier:rpc</port>
+            <port>/toolIncorporator/classifier:rpc</port>
             <description> Send commands to the classifier to learn and recognize tools</description>
         </output>
         <output port_type="service">
             <type>rpc</type>
-            <port>/objects3DExplorer/featExt:rpc</port>
+            <port>/toolIncorporator/featExt:rpc</port>
             <description> Send commands to the toolFeatExt module to extract 3D geometrical features from the tool</description>
         </output>        
 

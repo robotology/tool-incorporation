@@ -15,8 +15,8 @@
  * Public License for more details
 */
 
-#ifndef __OBJECTS3DEXPLORER_H__
-#define __OBJECTS3DEXPLORER_H__
+#ifndef __TOOLINCORPORATOR_H__
+#define __TOOLINCORPORATOR_H__
 
 //Includes
 #include <stdio.h>
@@ -65,7 +65,7 @@
 
 
 /**********************************************************/
-class Objects3DExplorer : public yarp::os::RFModule
+class ToolIncorporator : public yarp::os::RFModule
 {
 protected:
     /* variables */ 
@@ -231,8 +231,8 @@ public:
     bool						close();
     bool						updateModule();
     double						getPeriod();
-
     bool                        respond(const yarp::os::Bottle &command, yarp::os::Bottle &reply);
+
 };
 
 

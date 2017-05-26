@@ -2,7 +2,7 @@
 # Authors: Tanis Mar
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
-set(appname objects3DModeler)
+set(appname toolIncorporation)
 
 file(GLOB modules ${CMAKE_CURRENT_SOURCE_DIR}/modules/*.xml)
 file(GLOB apps ${CMAKE_CURRENT_SOURCE_DIR}/scripts/*.xml)

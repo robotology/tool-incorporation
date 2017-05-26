@@ -15,7 +15,7 @@
  * Public License for more details
 */
 
-#include "objects3DExplorer.h"
+#include "toolIncorporator.h"
 
 using namespace std;
 using namespace yarp::os;
@@ -38,12 +38,12 @@ using namespace iCub::YarpCloud;
                     PUBLIC METHODS
 /**********************************************************/
 
-bool Objects3DExplorer::configure(ResourceFinder &rf)
+bool ToolIncorporator::configure(ResourceFinder &rf)
 {
     cout << endl <<"\nInitializing variables... " << endl;
 
     // External variables -- Modifieable by command line or ini file
-    string name = rf.check("name",Value("objects3DExplorer")).asString().c_str();
+    string name = rf.check("name",Value("toolIncorporator")).asString().c_str();
     robot = rf.check("robot",Value("icub")).asString().c_str();
     string cloudpath_file = rf.check("clouds",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
@@ -52,7 +52,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
     if (rf.check("clouds_path")){
         cloudsPathFrom = rf.find("clouds_path").asString().c_str();
     }else{
-        string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+        string defPathFrom = "/share/ICUBcontrib/contexts/toolIncorporation/sampleClouds/";
         string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
         cloudsPathFrom  = icubContribEnvPath + localModelsPath;
@@ -238,7 +238,7 @@ bool Objects3DExplorer::configure(ResourceFinder &rf)
 }
 
 /************************************************************************/
-bool Objects3DExplorer::interruptModule()
+bool ToolIncorporator::interruptModule()
 {
     closing = true;
 
@@ -267,7 +267,7 @@ bool Objects3DExplorer::interruptModule()
 }
 
 /************************************************************************/
-bool Objects3DExplorer::close()
+bool ToolIncorporator::close()
 {
     imgInPort.close();
     imgOutPort.close();
@@ -289,13 +289,13 @@ bool Objects3DExplorer::close()
 }
 
 /************************************************************************/
-double Objects3DExplorer::getPeriod()
+double ToolIncorporator::getPeriod()
 {
     return 0.02;
 }
 
 /************************************************************************/
-bool Objects3DExplorer::updateModule()
+bool ToolIncorporator::updateModule()
 {
     if (imgOutPort.getOutputCount()>0)
     {        
@@ -370,7 +370,7 @@ bool Objects3DExplorer::updateModule()
 }
 
 /************************************************************************/
-bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
+bool ToolIncorporator::respond(const Bottle &command, Bottle &reply)
 {
 	/* This method is called when a command string is sent via RPC */
     reply.clear();  // Clear reply bottle
@@ -1035,7 +1035,10 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
         }
 
         cout << "Tooltip found at ( " << tooltip.x <<  ", " << tooltip.y <<  ", "<< tooltip.z <<  "). " << endl;
-        showTooltip(tooltip,green);
+
+        Time::delay(0.5);
+        showTooltip(tooltip, green);
+        Time::delay(0.5);
 
         reply.addString("[ack]");
         reply.addDouble(tooltip.x);
@@ -1310,7 +1313,7 @@ bool Objects3DExplorer::respond(const Bottle &command, Bottle &reply)
 /**********************************************************/
 
 /************************************************************************/
-bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const bool followTool)
+bool ToolIncorporator::turnHand(const int rotDegX, const int rotDegY, const bool followTool)
 {
 
     if ((rotDegY > 70 ) || (rotDegY < -70) || (rotDegX > 90 ) || (rotDegX < -90) )	{
@@ -1395,7 +1398,7 @@ bool Objects3DExplorer::turnHand(const int rotDegX, const int rotDegY, const boo
 }
 
 /************************************************************************/
-bool Objects3DExplorer::lookAtTool(){
+bool ToolIncorporator::lookAtTool(){
     // Uses the knowledge of the kinematics of the arm to look on the direction of where the tool should be.
     // The hand reference frame stays on the lower part of the image, while the orientation depends on the -Y axis.
 
@@ -1472,7 +1475,7 @@ bool Objects3DExplorer::lookAtTool(){
 }
 
 /************************************************************************/
-bool Objects3DExplorer::lookAtHand(){
+bool ToolIncorporator::lookAtHand(){
     // Uses the knowledge of the kinematics of the arm to look on the direction of the Hand
     // The hand reference frame stays on the lower part of the image, while the orientation depends on the -Y axis.
 
@@ -1488,7 +1491,7 @@ bool Objects3DExplorer::lookAtHand(){
 }
 
 
-bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const string &label, const bool flag2D, const bool flag3D)
+bool ToolIncorporator::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec_merged, const string &label, const bool flag2D, const bool flag3D)
 {
     // Update tool name
     changeSaveName(label);
@@ -1655,7 +1658,7 @@ bool Objects3DExplorer::exploreTool(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud
     return true;
 }
 
-double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
+double ToolIncorporator::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double spatial_distance){
     if (cloud->size()> 10000){
         cout << " Spatial distance modified to " << spatial_distance - 0.0001 << endl;
         return spatial_distance - 0.0005;
@@ -1671,7 +1674,7 @@ double Objects3DExplorer::adaptDepth(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
 
 
 /************************************************************************/
-bool Objects3DExplorer::lookAround(const bool wait)
+bool ToolIncorporator::lookAround(const bool wait)
 {
     Vector fp,fp_aux(3,0.0);
     iGaze->getFixationPoint(fp);
@@ -1688,7 +1691,7 @@ bool Objects3DExplorer::lookAround(const bool wait)
 }
 
 /**********************************************************/
-bool Objects3DExplorer::learn(const string &label ){
+bool ToolIncorporator::learn(const string &label ){
 
 
     // Send train command to ontheFly learner
@@ -1704,7 +1707,7 @@ bool Objects3DExplorer::learn(const string &label ){
 
 }
 
-bool Objects3DExplorer::recognize(string &label){
+bool ToolIncorporator::recognize(string &label){
 
     // Set the recognizer to merely classify what it is seeing, to prevent movement conflicts (human mode)
     Bottle cmdClas, replyClas;
@@ -1737,7 +1740,7 @@ bool Objects3DExplorer::recognize(string &label){
 
 /* CLOUD INFO */
 /************************************************************************/
-bool Objects3DExplorer::loadCloud(const std::string &cloud_name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+bool ToolIncorporator::loadCloud(const std::string &cloud_name, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
     string cloud_file_name;
     if (robot == "icubSim"){
@@ -1770,7 +1773,7 @@ bool Objects3DExplorer::loadCloud(const std::string &cloud_name, pcl::PointCloud
 
 
 /************************************************************************/
-bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+bool ToolIncorporator::saveCloud(const std::string &cloud_name, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
     string cloud_file_name;
     if (robot == "icubSim"){
@@ -1786,7 +1789,7 @@ bool Objects3DExplorer::saveCloud(const std::string &cloud_name, const pcl::Poin
 
 
 /************************************************************************/
-bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
+bool ToolIncorporator::get2Dtooltip(bool get3D, Vector &ttip2D)
 {
     Bottle cmdOR, replyOR;
     if (get3D){
@@ -1856,7 +1859,7 @@ bool Objects3DExplorer::get2Dtooltip(bool get3D, Vector &ttip2D)
 
 
 /************************************************************************/
-bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam, double handRad)
+bool ToolIncorporator::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec, double segParam, double handRad)
 {
     cloud_rec->points.clear();
     cloud_rec->clear();   // clear receiving cloud
@@ -1964,7 +1967,7 @@ bool Objects3DExplorer::getPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
 
 
 /************************************************************************/
-bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose, const int numT)
+bool ToolIncorporator::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr poseCloud, Matrix &pose, const int numT)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rec (new pcl::PointCloud<pcl::PointXYZRGB> ());
     Bottle cmdVis, replyVis;
@@ -2074,7 +2077,7 @@ bool Objects3DExplorer::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::P
     return true;
 }
 
-bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D& ttCanon)
+bool ToolIncorporator::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr modelCloud, Point3D& ttCanon)
 {
     // returns the xyz coordinates of the tooltip with respect to the hand coordinate frame, for the loaded model.
     // It computes the tooltip point first from the canonical model, ie, with tool oriented on -Y and end-effector always oriented along X (toolpose front).
@@ -2110,7 +2113,7 @@ bool Objects3DExplorer::findTooltipCanon(const pcl::PointCloud<pcl::PointXYZRGB>
 }
 
 
-bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pose, Point3D &tooltipTrans)
+bool ToolIncorporator::placeTipOnPose(const Point3D &ttCanon, const Matrix &pose, Point3D &tooltipTrans)
 {
 
     Vector ttCanonVec(4,0.0), tooltipVec(4);
@@ -2133,7 +2136,7 @@ bool Objects3DExplorer::placeTipOnPose(const Point3D &ttCanon, const Matrix &pos
 
 
 /*************************************************************************/
-bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, vector<Plane3D> &mainplanes, vector< Eigen::Vector3f> &eigVec, Eigen::Vector3f &eigVal, Eigen::Vector3f &mc)
+bool ToolIncorporator::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, vector<Plane3D> &mainplanes, vector< Eigen::Vector3f> &eigVec, Eigen::Vector3f &eigVal, Eigen::Vector3f &mc)
 {
 
     // 1- Find the Major axes of the cloud -> Find major planes as normal to those vectors
@@ -2160,7 +2163,7 @@ bool Objects3DExplorer::findPlanes(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 }
 
 /*************************************************************************//*
-bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
+bool ToolIncorporator::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
     CloudUtils::downsampleCloud(cloud_raw, cloud, 0.005);
@@ -2201,7 +2204,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
 
 
 /*************************************************************************/
-bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
+bool ToolIncorporator::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_raw, Matrix &pose, const int K, const bool vis)
 {
 
     // Cloud can be strongly downsamlped to incrase speed in computation, shouldnt change much the results.
@@ -2454,9 +2457,9 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
     effPoint.x = pt_eff->x;
     effPoint.y = pt_eff->y;
     effPoint.z = pt_eff->z;
-    Time::delay(0.5);
-    showTooltip(effPoint, green);
-    Time::delay(0.5);
+    //Time::delay(0.5);
+    //showTooltip(effPoint, purple);
+    //Time::delay(0.5);
 
     // Find the side of maxPt with repsect to the effector plane, and see if the effVector matches that direction.
 
@@ -2498,7 +2501,7 @@ bool Objects3DExplorer::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cl
 
 
 /*************************************************************************/
-bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const Matrix &pose,  Point3D& ttSym, double effWeight)
+bool ToolIncorporator::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const Matrix &pose,  Point3D& ttSym, double effWeight)
 {    
     // Tooltip is the furthest point on a weighted sum of distance to origin (small weight) and effector plane (large weight)
 
@@ -2566,7 +2569,7 @@ bool Objects3DExplorer::findTooltipSym(const pcl::PointCloud<pcl::PointXYZRGB>::
 }
 
 
-Objects3DExplorer::Plane3D Objects3DExplorer::main2unitPlane(const Plane3D main)
+ToolIncorporator::Plane3D ToolIncorporator::main2unitPlane(const Plane3D main)
 {
     Plane3D unit;
     double M = sqrt(main.a*main.a + main.b*main.b + main.c*main.c);    // Elements of normal unit vector
@@ -2575,7 +2578,7 @@ Objects3DExplorer::Plane3D Objects3DExplorer::main2unitPlane(const Plane3D main)
 }
 
 /************************************************************************/
-bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
+bool ToolIncorporator::paramFromPose(const Matrix &pose, double &ori, double &displ, double &tilt, double &shift)
 {
     Matrix R = pose.submatrix(0,2,0,2); // Get the rotation matrix
 
@@ -2594,7 +2597,7 @@ bool Objects3DExplorer::paramFromPose(const Matrix &pose, double &ori, double &d
 }
 
 /************************************************************************/
-bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const double tilt, const double shift, Matrix &pose)
+bool ToolIncorporator::poseFromParam(const double ori, const double disp, const double tilt, const double shift, Matrix &pose)
 {
 
     // Rotates the tool model 'deg' degrees around the hand -Y axis
@@ -2619,7 +2622,7 @@ bool Objects3DExplorer::poseFromParam(const double ori, const double disp, const
 }
 
 /************************************************************************/
-bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
+bool ToolIncorporator::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const yarp::sig::Matrix &pose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudInPose)
 {
     cout << "Setting cloud to pose " << endl << pose.toString() << endl;
     Eigen::Matrix4f TM = CloudUtils::yarpMat2eigMat(pose);
@@ -2629,7 +2632,7 @@ bool Objects3DExplorer::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 }
 
 /************************************************************************/
-bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
+bool ToolIncorporator::getAffordances(Bottle &affBottle, bool allAffs)
 {
     cout << "Computing affordances of the tool-pose in hand " << endl;
     int numTools = 5;           // Change if the number of tools changes
@@ -2736,7 +2739,7 @@ bool Objects3DExplorer::getAffordances(Bottle &affBottle, bool allAffs)
 }
 
 
-bool Objects3DExplorer::getAffProps(const Matrix &affMatrix, Property &affProps)
+bool ToolIncorporator::getAffProps(const Matrix &affMatrix, Property &affProps)
 {
 
     int rows = affMatrix.rows();
@@ -2781,7 +2784,7 @@ bool Objects3DExplorer::getAffProps(const Matrix &affMatrix, Property &affProps)
     return affOK;
 }
 
-int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matrix &pose)
+int ToolIncorporator::getTPindex(const std::string &tool, const yarp::sig::Matrix &pose)
 {
     double ori, displ, tilt, shift;
     paramFromPose(pose, ori, displ, tilt, shift);
@@ -2834,7 +2837,7 @@ int Objects3DExplorer::getTPindex(const std::string &tool, const yarp::sig::Matr
 
 
 /************************************************************************/
-bool Objects3DExplorer::extractFeats()
+bool ToolIncorporator::extractFeats()
 {
     
     double ori, displ, tilt, shift;
@@ -2875,7 +2878,7 @@ bool Objects3DExplorer::extractFeats()
 
 
 /************************************************************************/
-bool Objects3DExplorer::alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat, int numsteps, double stepsize)
+bool ToolIncorporator::alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat, int numsteps, double stepsize)
 {
     // Tries alignment with several different scales around the roiginal one, and returns best alignment.
 
@@ -2924,7 +2927,7 @@ bool Objects3DExplorer::alignWithScale(const pcl::PointCloud<pcl::PointXYZRGB>::
     return true;
 }
 
-int Objects3DExplorer::getSign(const double x)
+int ToolIncorporator::getSign(const double x)
 {
     if (x >= 0) return 1;
     if (x < 0) return -1;
@@ -2932,7 +2935,7 @@ int Objects3DExplorer::getSign(const double x)
 }
 
 
-bool Objects3DExplorer::reverseVector(vector<Plane3D>& planes, int plane_i)
+bool ToolIncorporator::reverseVector(vector<Plane3D>& planes, int plane_i)
 {
     planes[plane_i].a = -planes[plane_i].a;
     planes[plane_i].b = -planes[plane_i].b;
@@ -2943,7 +2946,7 @@ bool Objects3DExplorer::reverseVector(vector<Plane3D>& planes, int plane_i)
 
 
 /************************************************************************/
-bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat, double fitScore)
+bool ToolIncorporator::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_source, const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_target, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_align, Eigen::Matrix4f& transfMat, double fitScore)
 {
     Matrix guess;
     poseFromParam(0,0,45,0,guess); // Initial guess to no orientation and tilted 45 degree.
@@ -3040,7 +3043,7 @@ bool Objects3DExplorer::alignPointClouds(const pcl::PointCloud<pcl::PointXYZRGB>
 }
 
 
-void Objects3DExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
+void ToolIncorporator::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::FPFHSignature33>::Ptr features)
 {
     pcl::search::KdTree<pcl::PointXYZRGB> ::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
@@ -3057,7 +3060,7 @@ void Objects3DExplorer::computeLocalFeatures(const pcl::PointCloud<pcl::PointXYZ
     fpfh_est.compute(*features);
 }
 
-void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
+void ToolIncorporator::computeSurfaceNormals (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals)
 {
     printf("Computing Surface Normals\n");
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
@@ -3069,7 +3072,7 @@ void Objects3DExplorer::computeSurfaceNormals (const pcl::PointCloud<pcl::PointX
     norm_est.compute(*normals);
 }
 
-bool Objects3DExplorer::checkGrasp(const Matrix &pose)
+bool ToolIncorporator::checkGrasp(const Matrix &pose)
 {
     if(!handFrame) {
         cout << "Grasp can only be checked with cloud referred to hand frame" << endl;
@@ -3101,7 +3104,7 @@ bool Objects3DExplorer::checkGrasp(const Matrix &pose)
 
 
 /************************************************************************/
-bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
+bool ToolIncorporator::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_trans)
 {   // Normalizes the frame of the point cloud from the robot frame (as acquired) to the hand frame.
 
     // Transform (translate-rotate) the pointcloud by inverting the hand pose
@@ -3132,7 +3135,7 @@ bool Objects3DExplorer::frame2Hand(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 
 
 /************************************************************************/
-bool Objects3DExplorer::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_canon)
+bool ToolIncorporator::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_canon)
 {
     Matrix tool(4,4);
     Eigen::Matrix4f toolMatrix;
@@ -3174,7 +3177,7 @@ bool Objects3DExplorer::cloud2canonical(const pcl::PointCloud<pcl::PointXYZRGB>:
 }
 
 /************************************************************************/
-bool Objects3DExplorer::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+bool ToolIncorporator::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
     Bottle &cloudBottleOut = cloudsOutPort.prepare();
     cloudBottleOut.clear();
@@ -3192,7 +3195,7 @@ bool Objects3DExplorer::sendPointCloud(const pcl::PointCloud<pcl::PointXYZRGB>::
 
 
 /************************************************************************/
-bool Objects3DExplorer::showTooltip(const Point3D coords, int color[])
+bool ToolIncorporator::showTooltip(const Point3D coords, int color[])
 {
     cout << "Adding sphere at (" << coords.x << ", " << coords.y << ", " << coords.z << ") " << endl;
     Time::delay (0.5);
@@ -3215,7 +3218,7 @@ bool Objects3DExplorer::showTooltip(const Point3D coords, int color[])
 
 
 /************************************************************************/
-bool Objects3DExplorer::showRefFrame(const Point3D center,const std::vector<Plane3D> &refPlanes)
+bool ToolIncorporator::showRefFrame(const Point3D center,const std::vector<Plane3D> &refPlanes)
 {
 
     Point3D x_axis, y_axis, z_axis;
@@ -3230,7 +3233,7 @@ bool Objects3DExplorer::showRefFrame(const Point3D center,const std::vector<Plan
     return true;
 }
 
-bool Objects3DExplorer::showLine(const Point3D coordsIni, const  Point3D coordsEnd, int color[])
+bool ToolIncorporator::showLine(const Point3D coordsIni, const  Point3D coordsEnd, int color[])
 {
     Bottle cmdVis, replyVis;
     cmdVis.clear();	replyVis.clear();
@@ -3261,7 +3264,7 @@ bool Objects3DExplorer::showLine(const Point3D coordsIni, const  Point3D coordsE
 }
 
 /************************************************************************/
-bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filter, double thr)
+bool ToolIncorporator::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filter, double thr)
 {
     // Apply filtering to clean the cloud
     // First of all, remove possible NaNs
@@ -3290,7 +3293,7 @@ bool Objects3DExplorer::filterCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 }
 
 /************************************************************************/
-bool Objects3DExplorer::smoothCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_smooth, double rad,double usRad, double usStep)
+bool ToolIncorporator::smoothCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_orig, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_smooth, double rad,double usRad, double usStep)
 {
     // Perform Moving least squares to smooth surfaces
     CloudUtils::downsampleCloud(cloud_orig, cloud_smooth, 0.005);
@@ -3332,7 +3335,7 @@ bool Objects3DExplorer::smoothCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr
 
 /*************************** -Conf Commands- ******************************/
 /************************************************************************/
-bool Objects3DExplorer::changeSaveName(const string& fname)
+bool ToolIncorporator::changeSaveName(const string& fname)
 {
     // Changes the name with which the pointclouds will be saved and read
     saveName = fname;
@@ -3355,7 +3358,7 @@ return true;
 
 
 /************************************************************************/
-bool Objects3DExplorer::setVerbose(const string& verb)
+bool ToolIncorporator::setVerbose(const string& verb)
 {
     if (verb == "ON"){
         verbose = true;
@@ -3369,7 +3372,7 @@ bool Objects3DExplorer::setVerbose(const string& verb)
     return false;
 }
 
-bool Objects3DExplorer::showTipProj(const string& tipF)
+bool ToolIncorporator::showTipProj(const string& tipF)
 {
     if (tipF == "ON"){
         displayTooltip = true;
@@ -3383,7 +3386,7 @@ bool Objects3DExplorer::showTipProj(const string& tipF)
     return false;
 }
 
-bool Objects3DExplorer::setSeg(const string& seg)
+bool ToolIncorporator::setSeg(const string& seg)
 {
     if (seg == "ON"){
         seg2D = true;
@@ -3397,7 +3400,7 @@ bool Objects3DExplorer::setSeg(const string& seg)
     return false;
 }
 
-bool Objects3DExplorer::setSaving(const string& sav)
+bool ToolIncorporator::setSaving(const string& sav)
 {
     if (sav == "ON"){
         saving = true;
@@ -3413,7 +3416,7 @@ bool Objects3DExplorer::setSaving(const string& sav)
 
 
 
-bool Objects3DExplorer::setHandFrame(const string& hf)
+bool ToolIncorporator::setHandFrame(const string& hf)
 {
     if (hf == "ON"){
         handFrame = true;
@@ -3428,7 +3431,7 @@ bool Objects3DExplorer::setHandFrame(const string& hf)
 }
 
 
-bool Objects3DExplorer::setInitialAlignment(const string& fpfh)
+bool ToolIncorporator::setInitialAlignment(const string& fpfh)
 {
     if (fpfh == "ON"){
         initAlignment = true;
@@ -3442,7 +3445,7 @@ bool Objects3DExplorer::setInitialAlignment(const string& fpfh)
     return false;
 }
 
-bool Objects3DExplorer::setBB(const bool depth)
+bool ToolIncorporator::setBB(const bool depth)
 {
     Bottle cmdClas, replyClas;
     cmdClas.clear();	replyClas.clear();
@@ -3473,7 +3476,7 @@ int main(int argc, char *argv[])
 
     ResourceFinder rf;
     rf.setDefaultContext("objects3DModeler");
-    rf.setDefaultConfigFile("objects3DExplorer.ini");
+    rf.setDefaultConfigFile("toolIncorporator.ini");
     rf.setVerbose(true);
     rf.configure(argc,argv);
 
@@ -3482,8 +3485,8 @@ int main(int argc, char *argv[])
             yInfo(" ");
             yInfo("Options:");
             yInfo("  --context    path:        where to find the called resource (default objects3DModeler).");
-            yInfo("  --from       from:        the name of the .ini file (default objects3DExplorer.ini).");
-            yInfo("  --name       name:        the name of the module (default objects3DExplorer).");
+            yInfo("  --from       from:        the name of the .ini file (default toolIncorporator.ini).");
+            yInfo("  --name       name:        the name of the module (default toolIncorporator).");
             yInfo("  --robot      robot:       the name of the robot. Default icub.");
             yInfo("  --hand       left/right:  the default hand that the robot will use (default 'right')");
             yInfo("  --camera     left/right:  the default camera that the robot will use (default 'left')");
@@ -3499,12 +3502,12 @@ int main(int argc, char *argv[])
         }
 
 
-    Objects3DExplorer objects3DExplorer;
+    ToolIncorporator toolIncorporator;
 
     cout<< endl <<"Configure module..."<<endl;
-    objects3DExplorer.configure(rf);
+    toolIncorporator.configure(rf);
     cout<< endl << "Start module..."<<endl;
-    objects3DExplorer.runModule();
+    toolIncorporator.runModule();
 
     cout<<"Main returning..."<<endl;
 

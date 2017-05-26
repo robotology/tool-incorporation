@@ -1,8 +1,8 @@
 <application>
-    <name>objects3DModelerAPP</name>
+    <name>toolIncorporationAPP</name>
     <module>
-        <name>objects3DExplorer</name>
-        <parameters>--from objects3DExplorer.ini</parameters>
+        <name>toolIncorporator</name>
+        <parameters>--from toolIncorporator.ini</parameters>
         <node>console</node>
         <prefix></prefix>
         <geometry>(Pos (x 410) (y 328.9))</geometry>
@@ -22,13 +22,13 @@
         <geometry>(Pos (x 712) (y 394.9))</geometry>
     </module>
     <connection>
-        <from>/objects3DExplorer/visualizer:rpc</from>
+        <from>/toolIncorporator/visualizer:rpc</from>
         <to>/3DM/show3D/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 772.5) (y 367)) ((x 631) (y 396)) ((x 935) (y 338))  )</geometry>
     </connection>
     <connection>
-        <from>/objects3DExplorer/clouds:o</from>
+        <from>/toolIncorporator/clouds:o</from>
         <to>/3DM/show3D/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 775.5) (y 355.5)) ((x 636) (y 347)) ((x 936) (y 364))  )</geometry>
@@ -40,20 +40,20 @@
         <geometry>(Pos ((x 902.5) (y 388.5)) ((x 890) (y 413)) ((x 936) (y 364))  )</geometry>
     </connection>
     <connection>
-        <from>/objects3DExplorer/featExt:rpc</from>
+        <from>/toolIncorporator/featExt:rpc</from>
         <to>/toolFeatExt/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 661) (y 423)) ((x 631) (y 421)) ((x 712) (y 425))  )</geometry>
     </connection>
     <connection>
-        <from>/objects3DExplorer/objrec:rpc</from>
+        <from>/toolIncorporator/objrec:rpc</from>
         <to external="true">/obj3Drec/rpc:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 539) (y 301)) ((x 631) (y 371)) ((x 468) (y 231))  )</geometry>
     </connection>
     <connection>
         <from external="true">/obj3Drec/pnt:o</from>
-        <to>/objects3DExplorer/clouds:i</to>
+        <to>/toolIncorporator/clouds:i</to>
         <protocol>tcp</protocol>
         <geometry>(Pos ((x 493) (y 301)) ((x 596) (y 205)) ((x 411) (y 397))  )</geometry>
     </connection>
