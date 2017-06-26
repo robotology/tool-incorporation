@@ -10,8 +10,8 @@ class show3D_IDLServer_clearVis : public yarp::os::Portable {
 public:
   bool _return;
   void init();
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_accumClouds : public yarp::os::Portable {
@@ -19,8 +19,8 @@ public:
   bool accum;
   bool _return;
   void init(const bool accum);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_showFileCloud : public yarp::os::Portable {
@@ -28,8 +28,8 @@ public:
   std::string cloudname;
   bool _return;
   void init(const std::string& cloudname);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_addNormals : public yarp::os::Portable {
@@ -38,8 +38,8 @@ public:
   bool normCol;
   bool _return;
   void init(const double radSearch, const bool normCol);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_addFeats : public yarp::os::Portable {
@@ -48,8 +48,8 @@ public:
   bool plotHist;
   bool _return;
   void init(const double res, const bool plotHist);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_addBoundingBox : public yarp::os::Portable {
@@ -57,8 +57,8 @@ public:
   int32_t typeBB;
   bool _return;
   void init(const int32_t typeBB);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_addArrow : public yarp::os::Portable {
@@ -68,8 +68,8 @@ public:
   std::vector<int32_t>  color;
   bool _return;
   void init(const std::vector<double> & coordsIni, const std::vector<double> & coordsEnd, const std::vector<int32_t> & color);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_addSphere : public yarp::os::Portable {
@@ -78,8 +78,8 @@ public:
   std::vector<int32_t>  color;
   bool _return;
   void init(const std::vector<double> & coords, const std::vector<int32_t> & color);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_filter : public yarp::os::Portable {
@@ -90,8 +90,8 @@ public:
   bool ds;
   bool _return;
   void init(const bool ror, const bool sor, const bool mks, const bool ds);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_saveIm : public yarp::os::Portable {
@@ -99,16 +99,16 @@ public:
   std::string name;
   bool _return;
   void init(const std::string& name);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class show3D_IDLServer_quit : public yarp::os::Portable {
 public:
   bool _return;
   void init();
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 bool show3D_IDLServer_clearVis::write(yarp::os::ConnectionWriter& connection) {

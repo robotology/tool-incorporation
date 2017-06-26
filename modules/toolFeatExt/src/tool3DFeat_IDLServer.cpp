@@ -10,8 +10,8 @@ class tool3DFeat_IDLServer_getFeats : public yarp::os::Portable {
 public:
   bool _return;
   void init();
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_getAllToolFeats : public yarp::os::Portable {
@@ -20,8 +20,8 @@ public:
   bool pics;
   bool _return;
   void init(const int32_t n_samples, const bool pics);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_getSamples : public yarp::os::Portable {
@@ -30,8 +30,8 @@ public:
   double deg;
   bool _return;
   void init(const int32_t n, const double deg);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_loadModel : public yarp::os::Portable {
@@ -39,8 +39,8 @@ public:
   std::string cloudname;
   bool _return;
   void init(const std::string& cloudname);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_setName : public yarp::os::Portable {
@@ -48,8 +48,8 @@ public:
   std::string cloudname;
   bool _return;
   void init(const std::string& cloudname);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_setPose : public yarp::os::Portable {
@@ -57,8 +57,8 @@ public:
   yarp::sig::Matrix toolPose;
   bool _return;
   void init(const yarp::sig::Matrix& toolPose);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_setCanonicalPose : public yarp::os::Portable {
@@ -67,8 +67,8 @@ public:
   int32_t disp;
   bool _return;
   void init(const double deg, const int32_t disp);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_setBinNum : public yarp::os::Portable {
@@ -76,8 +76,8 @@ public:
   int32_t nbins;
   bool _return;
   void init(const int32_t nbins);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_setDepth : public yarp::os::Portable {
@@ -85,8 +85,8 @@ public:
   int32_t maxDepth;
   bool _return;
   void init(const int32_t maxDepth);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 class tool3DFeat_IDLServer_setVerbose : public yarp::os::Portable {
@@ -94,8 +94,8 @@ public:
   std::string verb;
   bool _return;
   void init(const std::string& verb);
-  virtual bool write(yarp::os::ConnectionWriter& connection);
-  virtual bool read(yarp::os::ConnectionReader& connection);
+  virtual bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  virtual bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
 };
 
 bool tool3DFeat_IDLServer_getFeats::write(yarp::os::ConnectionWriter& connection) {
