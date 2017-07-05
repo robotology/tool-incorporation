@@ -2768,7 +2768,7 @@ bool ToolIncorporator::getAffProps(const Matrix &affMatrix, Property &affProps)
 
     if (affVector[1] > 0.0){
         cout << "drag_diag_left affordable " << endl;
-        affProps.put("drag_diag_left",affVector[1]);
+        affProps.put("drag_down_left",affVector[1]);
         affOK = true;
     }
 
@@ -2780,7 +2780,7 @@ bool ToolIncorporator::getAffProps(const Matrix &affMatrix, Property &affProps)
 
     if (affVector[3] > 0.0){
         cout << "drag_diag_right affordable " << endl;
-        affProps.put("drag_diag_right",affVector[3]);
+        affProps.put("drag_down_right",affVector[3]);
         affOK = true;
     }
 
