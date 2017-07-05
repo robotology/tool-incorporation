@@ -570,6 +570,13 @@ bool ToolIncorporator::respond(const Bottle &command, Bottle &reply)
         tooltip.z = 0.0;
 
         tooltipCanon = tooltip;
+
+        // Clear visualizer
+        Bottle cmdVis, replyVis;
+        cmdVis.clear();	replyVis.clear();
+        cmdVis.addString("clearVis");
+        rpcVisualizerPort.write(cmdVis,replyVis);
+
         reply.addString("[ack]");
 
         return true;
