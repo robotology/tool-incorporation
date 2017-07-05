@@ -2025,8 +2025,8 @@ bool ToolIncorporator::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
         Eigen::Matrix4f poseMatrix;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
-        if (!alignWithScale(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
         //if (!alignPointClouds(cloud_rec, modelCloud, cloud_aligned, alignMatrix))
+        if (!alignWithScale(cloud_rec, modelCloud, cloud_aligned, alignMatrix))  // try alignment at different scales.
             return false;
 
         // Inverse the alignment to find tool pose
@@ -2066,7 +2066,6 @@ bool ToolIncorporator::findPoseAlign(const pcl::PointCloud<pcl::PointXYZRGB>::Pt
 
             return false;
         }
-
     }
 
     cmdVis.clear();	replyVis.clear();
@@ -2391,7 +2390,7 @@ bool ToolIncorporator::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     showRefFrame(center,toolPlanesRaw);
 
 
-    // =================== Identify the directions of the eigenvectors to match the tool's intrinsic axes
+    // =================== Identify the directions of the eigenvectors to match the tool's intrinsic axes ==================
     // The unit eigenvectors define a reference frame oriented with the tool
     // If we match effector to X, handle to Y and sym to Z, it gives us the pose wrt to the canonical pose on the hand reference frame
 
@@ -2427,7 +2426,7 @@ bool ToolIncorporator::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         sendPointCloud(cloud_raw);
         showRefFrame(center,toolPlanes);
     } else{
-       cout << "Tool's handle already goes in direction of hand's refFrame Y "<< endl;
+       cout << "Tool's handle in direction of hand's refFrame Y "<< endl;
     }
 
     // 5 - find the orientation of the effector axis, as the direction of higher salience wrt to effector plane
@@ -2448,7 +2447,7 @@ bool ToolIncorporator::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
     {
         pcl::PointXYZRGB *pt = &cloud->at(ptI);
 
-        // Look for the point with a bigger effector : origin distance
+        // Look for the point with a bigger effector to origin distance
         float dist_eff = effP.a*pt->x + effP.b*pt->y + effP.c*pt->z + effP.d;     // Signed distance of point to eff plane
         if (dist_eff > maxDist){
             // Look for the amount of neighbors in a given radius of the point to remove outliers
@@ -2480,7 +2479,7 @@ bool ToolIncorporator::findSyms(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr clo
         sendPointCloud(cloud_raw);
         showRefFrame(center,toolPlanes);
     } else{
-       cout << "Tool's effector already goes in direction of hand's refFrame X "<< endl;
+       cout << "Tool's effector in direction of hand's refFrame X "<< endl;
     }
 
     Matrix R(4,4);
@@ -2638,6 +2637,7 @@ bool ToolIncorporator::setToolPose(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
     return true;
 }
 
+// XXX Remove all the get affordances part, now is taken care by affCollector XXX
 /************************************************************************/
 bool ToolIncorporator::getAffordances(Bottle &affBottle, bool allAffs)
 {
@@ -2842,6 +2842,8 @@ int ToolIncorporator::getTPindex(const std::string &tool, const yarp::sig::Matri
     return tpi;
 }
 
+
+// XXX Remove up to here
 
 /************************************************************************/
 bool ToolIncorporator::extractFeats()
@@ -3482,7 +3484,7 @@ int main(int argc, char *argv[])
 
 
     ResourceFinder rf;
-    rf.setDefaultContext("objects3DModeler");
+    rf.setDefaultContext("toolIncorporation");
     rf.setDefaultConfigFile("toolIncorporator.ini");
     rf.setVerbose(true);
     rf.configure(argc,argv);
@@ -3491,7 +3493,7 @@ int main(int argc, char *argv[])
         {
             yInfo(" ");
             yInfo("Options:");
-            yInfo("  --context    path:        where to find the called resource (default objects3DModeler).");
+            yInfo("  --context    path:        where to find the called resource (default toolIncorporation).");
             yInfo("  --from       from:        the name of the .ini file (default toolIncorporator.ini).");
             yInfo("  --name       name:        the name of the module (default toolIncorporator).");
             yInfo("  --robot      robot:       the name of the robot. Default icub.");

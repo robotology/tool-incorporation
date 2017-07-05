@@ -1,6 +1,6 @@
 #show3D.thrift
 
-#include "objects3D.h"
+//#include "objects3D.h"
 
 /**
 * show3D_IDLServer Interface.

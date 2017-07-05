@@ -125,8 +125,7 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
-    ResourceFinder cloudsRF;
-    cloudsRF.setContext("objects3DModeler");
+    ResourceFinder cloudsRF;    
     cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
     cloudsRF.configure(0,NULL);
 
@@ -134,7 +133,7 @@ bool ShowModule::configure(yarp::os::ResourceFinder &rf)
     if (rf.check("clouds_path")){
         cloudpath = rf.find("clouds_path").asString().c_str();
     }else{
-        string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+        string defPathFrom = "/share/ICUBcontrib/contexts/toolIncorporation/sampleClouds/";
         string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
         cloudpath  = icubContribEnvPath + localModelsPath;
@@ -237,7 +236,7 @@ int main(int argc, char * argv[])
 
     ShowModule module;
     ResourceFinder rf;
-    rf.setDefaultContext("objects3DModeler");
+    rf.setDefaultContext("toolIncorporation");
     rf.setDefaultConfigFile("cloudsPath.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);

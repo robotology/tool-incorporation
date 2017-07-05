@@ -44,8 +44,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     string cloudpath_file = rf.check("from",Value("cloudsPath.ini")).asString().c_str();
     rf.findFile(cloudpath_file.c_str());
 
-    ResourceFinder cloudsRF;
-    cloudsRF.setContext("tool3DModeler");
+    ResourceFinder cloudsRF;    
     cloudsRF.setDefaultConfigFile(cloudpath_file.c_str());
     cloudsRF.configure(0,NULL);
 
@@ -53,7 +52,7 @@ bool ToolFeatExt::configure(ResourceFinder &rf)
     if (rf.check("clouds_path")){
         cloudpath = rf.find("clouds_path").asString().c_str();
     }else{
-        string defPathFrom = "/share/ICUBcontrib/contexts/objects3DModeler/sampleClouds/";
+        string defPathFrom = "/share/ICUBcontrib/contexts/toolIncorporation/sampleClouds/";
         string localModelsPath    = rf.check("local_path")?rf.find("local_path").asString().c_str():defPathFrom;     //cloudsRF.find("clouds_path").asString();
         string icubContribEnvPath = yarp::os::getenv("ICUBcontrib_DIR");
         cloudpath  = icubContribEnvPath + localModelsPath;
@@ -941,7 +940,7 @@ int main(int argc, char * argv[])
 
     ToolFeatExt module;
     ResourceFinder rf;
-    rf.setDefaultContext("AffordancesProject");
+    rf.setDefaultContext("ToolIncorporation");
     rf.setDefaultConfigFile("realTools.ini");
     rf.setVerbose(true);
     rf.configure(argc, argv);

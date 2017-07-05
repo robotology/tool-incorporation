@@ -7,7 +7,7 @@
     <!-- <arguments> can have multiple <param> tags-->
     <arguments>
         <param desc="Name of the module" default="tool3Dshow"> name</param>
-        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolModeler"> context </param>
+        <param desc="Sub-path from \c $ICUB_ROOT/app to the configuration file" default="toolIncorporation"> context </param>
     </arguments>
 
     <!-- <authors> can have multiple <author> tags. -->
