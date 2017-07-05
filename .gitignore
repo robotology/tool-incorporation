@@ -1,6 +1,9 @@
 *~
 *IDLServer.*
 
+## IDL generated files
+*IDLServer.h
+
 ## generic files to ignore
 *.lock
 *.DS_Store
