@@ -2133,7 +2133,7 @@ bool ToolIncorporator::placeTipOnPose(const Point3D &ttCanon, const Matrix &pose
 
     tooltipTrans.x = tooltipVec[0];
     tooltipTrans.y = tooltipVec[1];
-    tooltipTrans.z = tooltipVec[2] + 0.03; // Add 3 cm in the direction of Z because the tool origin is not exactin IN the palm, but ON the palm, 3cm let of the refrence frame
+    tooltipTrans.z = tooltipVec[2];// + 0.03; // Add 3 cm in the direction of Z because the tool origin is not exactin IN the palm, but ON the palm, 3cm let of the refrence frame
 
     cout << "Transformed tooltip at ( " << tooltipTrans.x << ", " << tooltipTrans.y << ", " << tooltipTrans.z <<")." << endl;
 
@@ -3102,8 +3102,14 @@ bool ToolIncorporator::checkGrasp(const Matrix &pose)
 
     cout << " Translations estimated: " << endl << "TransX= " << transX << ". TransY= " << transY << ". TransZ= " << transZ << endl;
 
+
+    if (transY < -1) {
+        cout << "Detected Y translation is negative, tool can't be IN in the hand" << endl;
+        return false;
+    }
+
     if ((fabs(transX) > 10) || (fabs(transY) > 10) || (fabs(transZ) > 10)){
-        cout << "Detected translation is over possible grasp" << endl;
+        cout << "Detected translation does not correspond to a possible grasp" << endl;
         return false;
     }
 
