@@ -3103,10 +3103,10 @@ bool ToolIncorporator::checkGrasp(const Matrix &pose)
     cout << " Translations estimated: " << endl << "TransX= " << transX << ". TransY= " << transY << ". TransZ= " << transZ << endl;
 
 
-    if (transY < -1) {
-        cout << "Detected Y translation is negative, tool can't be IN in the hand" << endl;
-        return false;
-    }
+    //if (transY < -1) {
+    //    cout << "Detected Y translation is negative, tool can't be IN in the hand" << endl;
+    //    return false;
+    // }
 
     if ((fabs(transX) > 10) || (fabs(transY) > 10) || (fabs(transZ) > 10)){
         cout << "Detected translation does not correspond to a possible grasp" << endl;
