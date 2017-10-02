@@ -22,7 +22,7 @@ The module show3D provides an enhanced pointcloud visualized. On top of the func
 ### toolFeatExt
 The toolFeatExt module performs feature extraction from oriented cloud models. In particular, it extract the OMS-EGI descriptor, introduced in the following paper: 
 
-- T. Mar, V. Tikhanoff, G. Metta, L. Natale "Multi-model approach based on 3D functional features for tool affordance learning in robotics", _Humanoids 2015_, Singapore. 
+- T. Mar, V. Tikhanoff, G. Metta, L. Natale "Multi-model approach based on 3D functional features for tool affordance learning in robotics", _Humanoids 2015_, Seoul. 
 
 ## YarpCloud Library
 
