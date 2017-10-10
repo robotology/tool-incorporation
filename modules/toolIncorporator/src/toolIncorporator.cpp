@@ -611,6 +611,11 @@ bool ToolIncorporator::respond(const Bottle &command, Bottle &reply)
         bool ok = recognize(label_pred);
 
         if (ok){
+            loadCloud(label_pred, cloud_model);
+
+            // Display the loaded cloud
+            sendPointCloud(cloud_model);
+
             reply.addString("[ack]");
             reply.addString(label_pred);
             return true;
