@@ -1254,7 +1254,7 @@ bool ToolIncorporator::respond(const Bottle &command, Bottle &reply)
 
         reply.addString("---------- GET MODEL -----------");
         reply.addString("loadCloud - Loads a cloud from a file (.ply or .pcd).");
-        reply.addString("get3D - segment object and get the pointcloud using objectReconstrucor module.");
+        reply.addString("get3D - segment object and get the pointcloud using seg2cloud module.");
         reply.addString("exploreTool - automatically gets 3D pointcloud from different perspectives and merges them in a single model.");
         reply.addString("turnHand  (int)X (int)Y- moves arm to home position and rotates hand 'int' X and Y degrees around the X and Y axis  (0,0 by default).");
         reply.addString("lookAtTool - Moves gaze to look where the tooltip is (or a guess if it is not defined).");
