@@ -2,6 +2,9 @@
 # Authors: Tanis Mar
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
+### PCL 1.7 fails compilation due to a vtk6 bug (https://github.com/PointCloudLibrary/pcl/issues/1594).
+### In order to compile it, I used the dirty hackery proposed by hobu on that thread. Beware.
+
 cmake_minimum_required(VERSION 2.6)
 set(PROJECTNAME toolIncorporation)
 project(${PROJECTNAME})

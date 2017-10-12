@@ -38,10 +38,10 @@ public:
   }
 
   // read and write structure on a connection
-  bool read(yarp::os::idl::WireReader& reader) YARP_OVERRIDE;
-  bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
-  bool write(yarp::os::idl::WireWriter& writer) YARP_OVERRIDE;
-  bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+  bool read(yarp::os::idl::WireReader& reader) override;
+  bool read(yarp::os::ConnectionReader& connection) override;
+  bool write(yarp::os::idl::WireWriter& writer) override;
+  bool write(yarp::os::ConnectionWriter& connection) override;
 
 private:
   bool write_toolname(yarp::os::idl::WireWriter& writer);
@@ -136,8 +136,8 @@ public:
     void clean() {
       dirty_flags(false);
     }
-    bool read(yarp::os::ConnectionReader& connection) YARP_OVERRIDE;
-    bool write(yarp::os::ConnectionWriter& connection) YARP_OVERRIDE;
+    bool read(yarp::os::ConnectionReader& connection) override;
+    bool write(yarp::os::ConnectionWriter& connection) override;
   private:
 
     ToolFeat3D *obj;
