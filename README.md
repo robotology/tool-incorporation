@@ -7,7 +7,7 @@ This repository contains the modules to perform tool incorporation, visualizatio
 The tool-incorporator module provides all the functionalities required for tool incorporation, with which we refer to the process whereby the iCub can obtain a fast and reliable estimation of a tool’s geometry, reach and pose with respect to the iCub’s hand, in order to attach it to the robot’s kinematic chain, thereby enabling dexterous tool use. 
 
 The main functionalities provided by this module are the following:
-- Tool recognition through communication with the onTheFlyRecognition app.
+- Tool recognition through communication with the onTheFlyRecognition app: Naturally, for recognition to be successful, prior training is required. A sample dataset of 3 tools (rake, stick, shovel) is provided [here](https://github.com/robotology/tool-incorporation/tree/master/app/dataset). In order to be available by the OTFR pipeline, it has to be copied to the local `himrep` installed context.
 - Tool 3D model reconstruction from stereo-vision.
 - Pose estimation using alignment for known models.
 - Pose estimatin by means of tool's intrinsic reference frame estimation for new models.
